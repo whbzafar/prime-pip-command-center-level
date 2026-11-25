@@ -1,9 +1,10 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Bot, Check, Copy, RefreshCw, Send, Sparkles, Trash2, X } from 'lucide-react';
+import { Bot, Check, Copy, Palette, RefreshCw, Send, Sparkles, Trash2, X } from 'lucide-react';
+import { PostStudio } from './PostStudio';
 import { getStoredToken } from '../../utils/authClient';
 
-type Platform = 'facebook' | 'instagram' | 'youtube';
-interface Post { id: string; platform: Platform; pillar: string; title: string; caption: string; hashtags: string[]; keywords: string[]; cta: string; imageUrl?: string; scheduledAt: string; status: string; publishedAt?: string; error?: string; source: 'ai' | 'template' }
+type Platform = 'facebook' | 'instagram' | 'youtube' | 'tiktok';
+interface Post { id: string; platform: Platform; pillar: string; title: string; caption: string; hashtags: string[]; keywords: string[]; cta: string; imageUrl?: string; scheduledAt: string; status: string; publishedAt?: string; error?: string; source: 'ai' | 'template'; hooks: string[]; slides: string[]; beats: { t: string; onScreen: string; voice: string }[]; score: { total: number; hook: number; clarity: number; seo: number; cta: number; tags: number; tips: string[] }; rating?: 'good' | 'bad' }
 interface Cfg { enabled: boolean; mode: 'review' | 'auto'; platforms: Record<Platform, boolean>; perDay: Record<Platform, number> }
 interface Data { config: Cfg; creds: { facebook: boolean; instagram: boolean; youtubeNote: string }; bestTimes: Record<Platform, string[]>; ai: boolean; posts: Post[] }
 
@@ -11,6 +12,7 @@ const PLAT: Record<Platform, { label: string; cls: string }> = {
   facebook: { label: 'Facebook', cls: 'border-blue-500/40 text-blue-300 bg-blue-500/10' },
   instagram: { label: 'Instagram', cls: 'border-pink-500/40 text-pink-300 bg-pink-500/10' },
   youtube: { label: 'YouTube', cls: 'border-red-500/40 text-red-300 bg-red-500/10' },
+  tiktok: { label: 'TikTok', cls: 'border-cyan-400/40 text-cyan-200 bg-cyan-400/10' },
 };
 const STATUS: Record<string, string> = { draft: 'Needs approval', approved: 'Approved · scheduled', published: 'Published', failed: 'Failed', rejected: 'Rejected', manual: 'Upload manually' };
 const when = (iso: string) => new Date(iso).toLocaleString('en-GB', { timeZone: 'Asia/Karachi', weekday: 'short', day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) + ' PKT';
@@ -21,6 +23,7 @@ export const SocialAgentPanel: React.FC = () => {
   const [busy, setBusy] = useState('');
   const [filter, setFilter] = useState<'all' | Platform>('all');
   const [edit, setEdit] = useState<Record<string, string>>({});
+  const [studio, setStudio] = useState<string | null>(null);
   const hdr = () => { const t = getStoredToken(); return { 'Content-Type': 'application/json', ...(t ? { Authorization: `Bearer ${t}` } : {}) }; };
   const call = useCallback(async (url: string, method = 'GET', body?: unknown) => {
     const r = await fetch(url, { method, headers: hdr(), credentials: 'include', body: body ? JSON.stringify(body) : undefined });
@@ -36,6 +39,8 @@ export const SocialAgentPanel: React.FC = () => {
   const publish = (id: string) => act(id, async () => { const { ok, j } = await call(`/api/admin/social-agent/post/${id}/publish`, 'POST'); if (!ok) throw new Error(j.error || 'Publish failed'); });
   const del = (id: string) => act(id, async () => { await call(`/api/admin/social-agent/post/${id}`, 'DELETE'); });
   const saveEdit = (p: Post) => act(p.id, async () => { const { ok, j } = await call(`/api/admin/social-agent/post/${p.id}`, 'POST', { caption: edit[p.id] }); if (!ok) throw new Error(j.error || 'Save failed'); setEdit((e) => { const n = { ...e }; delete n[p.id]; return n; }); });
+  const rate = (id: string, rating: 'good' | 'bad') => act(id, async () => { await call(`/api/admin/social-agent/post/${id}`, 'POST', { rating }); });
+  const saveHeads = async (id: string, hooks: string[], slides: string[]) => { const { ok, j } = await call(`/api/admin/social-agent/post/${id}`, 'POST', { hooks, slides }); if (!ok) throw new Error(j.error || 'Save failed'); await load(); };
   const copy = (p: Post) => void navigator.clipboard?.writeText(`${p.title}\n\n${p.caption}\n\n${p.hashtags.join(' ')}`);
 
   if (!d) return <div className="p-6 text-sm text-slate-400">{err || 'Loading the agent…'}</div>;
@@ -49,7 +54,7 @@ export const SocialAgentPanel: React.FC = () => {
         <Bot className="h-6 w-6 text-amber-300" />
         <div className="min-w-0 flex-1">
           <h3 className="text-base font-bold text-white">Social Growth Agent</h3>
-          <p className="text-xs text-slate-400">Writes SEO-optimised posts for Facebook, Instagram and YouTube about the terminal, schedules them at the best times in Pakistan time, and publishes them. Content: {d.ai ? 'Gemini AI' : 'built-in templates (add GEMINI_API_KEY for AI writing)'}.</p>
+          <p className="text-xs text-slate-400">Writes SEO-optimised posts and HD images for Facebook, Instagram, YouTube and TikTok about the terminal, scores them, schedules them at the best times in Pakistan time, and publishes them. Content: {d.ai ? 'Gemini AI' : 'built-in templates (add GEMINI_API_KEY for AI writing)'}.</p>
         </div>
         <label className="flex items-center gap-2 text-sm font-semibold text-slate-200">
           <input type="checkbox" checked={c.enabled} onChange={(e) => setCfg({ enabled: e.target.checked })} className="h-4 w-4" /> Agent {c.enabled ? 'ON' : 'OFF'}
@@ -77,7 +82,7 @@ export const SocialAgentPanel: React.FC = () => {
               <label className="flex w-28 items-center gap-2 text-slate-200"><input type="checkbox" checked={c.platforms[p]} onChange={(e) => setCfg({ platforms: { [p]: e.target.checked } })} />{PLAT[p].label}</label>
               <input type="number" min={0} max={4} value={c.perDay[p]} onChange={(e) => setCfg({ perDay: { [p]: Number(e.target.value) } })} className="w-14 rounded-lg border border-slate-700 bg-slate-950 px-2 py-1 text-slate-100" aria-label={`${PLAT[p].label} posts per day`} />
               <span className="text-xs text-slate-400">{d.bestTimes[p].join(' · ')}</span>
-              <span className={`ml-auto rounded-full border px-2 py-0.5 text-[10px] font-bold ${p === 'youtube' ? 'border-slate-600 text-slate-300' : d.creds[p as 'facebook' | 'instagram'] ? 'border-emerald-500/40 text-emerald-300' : 'border-amber-500/40 text-amber-300'}`}>{p === 'youtube' ? 'package' : d.creds[p as 'facebook' | 'instagram'] ? 'connected' : 'not connected'}</span>
+              <span className={`ml-auto rounded-full border px-2 py-0.5 text-[10px] font-bold ${p === 'youtube' || p === 'tiktok' ? 'border-slate-600 text-slate-300' : d.creds[p as 'facebook' | 'instagram'] ? 'border-emerald-500/40 text-emerald-300' : 'border-amber-500/40 text-amber-300'}`}>{p === 'youtube' || p === 'tiktok' ? 'package' : d.creds[p as 'facebook' | 'instagram'] ? 'connected' : 'not connected'}</span>
             </div>
           ))}
           <p className="mt-2 text-xs text-slate-400">Times are common high-engagement windows, not guarantees. Posts per day are capped at 4 to avoid being flagged as spam.</p>
@@ -96,7 +101,7 @@ export const SocialAgentPanel: React.FC = () => {
         </button>
         {(Object.keys(PLAT) as Platform[]).map((p) => <button key={p} type="button" disabled={busy === 'gen'} onClick={() => gen(p, 3)} className={`rounded-xl border px-3 py-2 text-xs font-semibold ${PLAT[p].cls}`}>+3 {PLAT[p].label}</button>)}
         <div className="ml-auto flex gap-1">
-          {(['all', 'facebook', 'instagram', 'youtube'] as const).map((f) => <button key={f} type="button" onClick={() => setFilter(f)} className={`rounded-lg px-2.5 py-1 text-xs font-semibold ${filter === f ? 'bg-slate-700 text-white' : 'text-slate-400'}`}>{f === 'all' ? 'All' : PLAT[f].label}</button>)}
+          {(['all', 'facebook', 'instagram', 'youtube', 'tiktok'] as const).map((f) => <button key={f} type="button" onClick={() => setFilter(f)} className={`rounded-lg px-2.5 py-1 text-xs font-semibold ${filter === f ? 'bg-slate-700 text-white' : 'text-slate-400'}`}>{f === 'all' ? 'All' : PLAT[f].label}</button>)}
         </div>
       </div>
 
@@ -108,6 +113,7 @@ export const SocialAgentPanel: React.FC = () => {
               <span className={`rounded-full border px-2 py-0.5 text-[10px] font-bold ${PLAT[p.platform].cls}`}>{PLAT[p.platform].label}</span>
               <span className="rounded-full border border-slate-600 px-2 py-0.5 text-[10px] text-slate-300">{STATUS[p.status] || p.status}</span>
               <span className="text-xs text-slate-400">{p.status === 'published' && p.publishedAt ? `Published ${when(p.publishedAt)}` : `Scheduled ${when(p.scheduledAt)}`}</span>
+              <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold text-slate-900 ${p.score.total >= 75 ? 'bg-emerald-400' : p.score.total >= 55 ? 'bg-amber-400' : 'bg-red-400'}`} title="Writing-quality score">{p.score.total}</span>
               <span className="ml-auto text-[10px] uppercase tracking-wider text-slate-500">{p.source === 'ai' ? 'AI' : 'template'} · {p.pillar}</span>
             </div>
             <div className="text-sm font-bold text-white">{p.title}</div>
@@ -122,7 +128,8 @@ export const SocialAgentPanel: React.FC = () => {
             <div className="mt-3 flex flex-wrap gap-2">
               {p.status !== 'published' && p.status !== 'manual' && (p.status === 'draft' || p.status === 'rejected' || p.status === 'failed') && <button type="button" onClick={() => setStatus(p.id, 'approved')} className="inline-flex items-center gap-1 rounded-lg bg-emerald-500/20 px-3 py-1.5 text-xs font-semibold text-emerald-200"><Check className="h-3.5 w-3.5" />Approve</button>}
               {p.status === 'approved' && <button type="button" onClick={() => setStatus(p.id, 'draft')} className="rounded-lg bg-slate-700/60 px-3 py-1.5 text-xs font-semibold text-slate-200">Unapprove</button>}
-              {p.status !== 'published' && p.platform !== 'youtube' && <button type="button" disabled={busy === p.id} onClick={() => publish(p.id)} className="inline-flex items-center gap-1 rounded-lg bg-amber-400/90 px-3 py-1.5 text-xs font-bold text-slate-900"><Send className="h-3.5 w-3.5" />Publish now</button>}
+              <button type="button" onClick={() => setStudio(studio === p.id ? null : p.id)} className="inline-flex items-center gap-1 rounded-lg bg-violet-500/25 px-3 py-1.5 text-xs font-bold text-violet-100"><Palette className="h-3.5 w-3.5" />{studio === p.id ? 'Close studio' : 'HD images'}</button>
+              {p.status !== 'published' && p.platform !== 'youtube' && p.platform !== 'tiktok' && <button type="button" disabled={busy === p.id} onClick={() => publish(p.id)} className="inline-flex items-center gap-1 rounded-lg bg-amber-400/90 px-3 py-1.5 text-xs font-bold text-slate-900"><Send className="h-3.5 w-3.5" />Publish now</button>}
               <button type="button" onClick={() => copy(p)} className="inline-flex items-center gap-1 rounded-lg bg-slate-700/60 px-3 py-1.5 text-xs font-semibold text-slate-200"><Copy className="h-3.5 w-3.5" />Copy</button>
               {edit[p.id] != null ? (
                 <>
@@ -132,6 +139,7 @@ export const SocialAgentPanel: React.FC = () => {
               ) : p.status !== 'published' && <button type="button" onClick={() => setEdit({ ...edit, [p.id]: p.caption })} className="rounded-lg bg-slate-700/60 px-3 py-1.5 text-xs font-semibold text-slate-200">Edit</button>}
               <button type="button" onClick={() => del(p.id)} aria-label="Delete post" className="ml-auto rounded-lg px-2 py-1.5 text-slate-500 hover:text-red-300"><Trash2 className="h-4 w-4" /></button>
             </div>
+            {studio === p.id && <PostStudio post={p} onRate={(r) => void rate(p.id, r)} onSaveHeadlines={(h, sl) => saveHeads(p.id, h, sl)} />}
           </div>
         ))}
       </div>
