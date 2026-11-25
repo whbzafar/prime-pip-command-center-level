@@ -273,7 +273,7 @@ export const PineMainChart: React.FC<{
     const w = new VelaWorkspace(host.current, {
       layout: false, symbol: venueSymbol(entry.ticker), timeframe: tf, bars: HISTORY_BARS, theme: savedTheme(), live: true, persist: false,
       timezone: 'Asia/Karachi',
-      topbar: { left: ['timeframes', 'style', 'indicators', 'undo-redo'], right: ['alerts', 'panels', 'screenshot'] },
+      topbar: { left: ['symbol', 'timeframes', 'style', 'indicators', 'undo-redo'], right: ['alerts', 'panels', 'screenshot'] },
       drawings: { toolbar: false }, volume: false,
       timeframes: ['1', '3', '5', '15', '30', '60', '120', '240', 'D', 'W', 'M'],
       providers: { dukascopy: () => makeProvider('dukascopy'), binance: () => makeProvider('binance') },
