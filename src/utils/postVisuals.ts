@@ -11,22 +11,22 @@ export interface CardOpts {
   format: VisualFormat; headline: string; sub?: string; bg?: HTMLImageElement | null; shot?: HTMLImageElement | null;
   index?: number; total?: number; cta?: string; accent?: string; risk?: boolean;
 }
-const FONT = '"Plus Jakarta Sans","Inter","Segoe UI",system-ui,sans-serif';
+export const FONT = '"Plus Jakarta Sans","Inter","Segoe UI",system-ui,sans-serif';
 
 export function loadImage(src: string): Promise<HTMLImageElement> {
   return new Promise((res, rej) => { const i = new Image(); i.crossOrigin = 'anonymous'; i.onload = () => res(i); i.onerror = () => rej(new Error('Image failed to load')); i.src = src; });
 }
-function cover(ctx: CanvasRenderingContext2D, img: HTMLImageElement, x: number, y: number, w: number, h: number) {
+export function cover(ctx: CanvasRenderingContext2D, img: HTMLImageElement, x: number, y: number, w: number, h: number) {
   const r = Math.max(w / img.width, h / img.height); const iw = img.width * r, ih = img.height * r;
   ctx.drawImage(img, x + (w - iw) / 2, y + (h - ih) * 0.3, iw, ih);
 }
-function rr(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) { ctx.beginPath(); ctx.roundRect ? ctx.roundRect(x, y, w, h, r) : ctx.rect(x, y, w, h); }
-function wrap(ctx: CanvasRenderingContext2D, text: string, maxW: number): string[] {
+export function rr(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) { ctx.beginPath(); ctx.roundRect ? ctx.roundRect(x, y, w, h, r) : ctx.rect(x, y, w, h); }
+export function wrap(ctx: CanvasRenderingContext2D, text: string, maxW: number): string[] {
   const words = text.split(/\s+/).filter(Boolean); const lines: string[] = []; let cur = '';
   for (const w of words) { const t = cur ? `${cur} ${w}` : w; if (ctx.measureText(t).width > maxW && cur) { lines.push(cur); cur = w; } else cur = t; }
   if (cur) lines.push(cur); return lines;
 }
-function fitText(ctx: CanvasRenderingContext2D, text: string, maxW: number, maxH: number, start: number, weight = 800) {
+export function fitText(ctx: CanvasRenderingContext2D, text: string, maxW: number, maxH: number, start: number, weight = 800) {
   for (let size = start; size >= 28; size -= 4) {
     ctx.font = `${weight} ${size}px ${FONT}`; const lines = wrap(ctx, text, maxW);
     if (lines.length * size * 1.12 <= maxH) return { size, lines };
@@ -93,7 +93,7 @@ export async function captureScreen(): Promise<HTMLImageElement> {
 export const fileToImage = (f: File) => loadImage(URL.createObjectURL(f));
 
 // ---------- Quick Post: varied layouts, themes and optional free AI artwork ----------
-export type Layout = 'hero' | 'chart' | 'features' | 'quote';
+export type Layout = 'hero' | 'chart' | 'features' | 'quote' | 'shot';
 export const LAYOUTS: Layout[] = ['hero', 'chart', 'features', 'quote'];
 export const THEMES = [
   { name: 'Gold', a: '#fbbf24', b: '#f97316', up: '#34d399', dn: '#f87171', bg0: '#05070d', bg1: '#161028' },
@@ -123,7 +123,7 @@ function drawCandles(ctx: CanvasRenderingContext2D, w: number, h: number, th: Th
   ctx.save(); ctx.strokeStyle = th.a; ctx.globalAlpha = 0.35; ctx.lineWidth = 3; ctx.setLineDash([10, 14]);
   for (const f of [0.3, 0.5, 0.7]) { ctx.beginPath(); ctx.moveTo(0, h * f); ctx.lineTo(w, h * f); ctx.stroke(); } ctx.restore();
 }
-export interface VariantOpts { format: VisualFormat; layout: Layout; theme: number; seed: number; headline: string; sub?: string; slides: string[]; features?: { icon: string; label: string }[]; art?: HTMLImageElement | null; hero?: HTMLImageElement | null; cta?: string }
+export interface VariantOpts { format: VisualFormat; layout: Layout; theme: number; seed: number; headline: string; sub?: string; slides: string[]; features?: { icon: string; label: string }[]; art?: HTMLImageElement | null; hero?: HTMLImageElement | null; cta?: string; shot?: HTMLImageElement | null; shotLabel?: string }
 
 export function renderVariant(o: VariantOpts): HTMLCanvasElement {
   const th = THEMES[o.theme % THEMES.length];
@@ -142,6 +142,19 @@ export function renderVariant(o: VariantOpts): HTMLCanvasElement {
     ctx.fillStyle = '#111827'; ctx.textBaseline = 'middle'; ctx.fillText(cta, pad + bf, cy + bf); ctx.textBaseline = 'top';
     ctx.fillStyle = 'rgba(255,255,255,.5)'; ctx.font = `500 ${Math.round(w * 0.0185)}px ${FONT}`; ctx.fillText('Trading carries risk. Educational content, not financial advice.', pad, h - pad * 0.95);
   };
+  if (o.layout === 'shot' && o.shot) {
+    const t = fitText(ctx, o.headline.toUpperCase(), w - pad * 2, h * (tall ? 0.17 : 0.2), Math.round(w * 0.075));
+    ctx.font = `800 ${t.size}px ${FONT}`; t.lines.forEach((ln, i) => { ctx.fillStyle = i === t.lines.length - 1 && t.lines.length > 1 ? th.a : '#fff'; ctx.fillText(ln, pad, pad * 2 + i * t.size * 1.12); });
+    const top2 = pad * 2 + t.lines.length * t.size * 1.12 + 24; const maxW = w - pad * 2; const maxH = h - top2 - pad * 3.9 - 40;
+    const ar = o.shot.width / o.shot.height; let sw = maxW; let sh = sw / ar; if (sh > maxH) { sh = maxH; sw = sh * ar; }
+    const sx = (w - sw) / 2; const bar = Math.round(w * 0.04);
+    ctx.save(); ctx.shadowColor = th.a + '99'; ctx.shadowBlur = 50; ctx.fillStyle = '#0b1220'; rr(ctx, sx - 6, top2 - 6, sw + 12, sh + bar + 12, 26); ctx.fill(); ctx.restore();
+    ctx.save(); rr(ctx, sx, top2, sw, sh + bar, 22); ctx.clip(); ctx.fillStyle = '#111827'; ctx.fillRect(sx, top2, sw, bar);
+    ['#ef4444', '#f59e0b', '#22c55e'].forEach((col, i) => { ctx.fillStyle = col; ctx.beginPath(); ctx.arc(sx + bar * (0.6 + i * 0.7), top2 + bar / 2, bar * 0.2, 0, 7); ctx.fill(); });
+    ctx.fillStyle = 'rgba(255,255,255,.6)'; ctx.font = `600 ${Math.round(bar * 0.42)}px ${FONT}`; ctx.textBaseline = 'middle'; ctx.fillText(`primepipfx.site · ${o.shotLabel || 'Command Center'}`, sx + bar * 3, top2 + bar / 2); ctx.textBaseline = 'top';
+    ctx.drawImage(o.shot, sx, top2 + bar, sw, sh); ctx.restore();
+    footer(); return c;
+  }
   if (o.layout === 'features') {
     const feats = (o.features && o.features.length ? o.features : FEATURES).slice(0, 6);
     const t = fitText(ctx, o.headline.toUpperCase(), w - pad * 2, h * (tall ? 0.2 : 0.22), Math.round(w * 0.09));

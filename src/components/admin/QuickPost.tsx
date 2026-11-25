@@ -1,6 +1,8 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Copy, Download, Image as ImageIcon, RefreshCw, Sparkles, Type, Wand2 } from 'lucide-react';
 import JSZip from 'jszip';
+import { autoCaptureTerminal, shotStore, type Shot } from '../../utils/agentCapture';
+import { makeVideo } from '../../utils/agentVideo';
 import { ART_PROMPTS, FORMATS, LAYOUTS, Layout, THEMES, VisualFormat, aiArt, download, loadImage, renderVariant, toBlob } from '../../utils/postVisuals';
 import { getStoredToken } from '../../utils/authClient';
 
@@ -10,7 +12,7 @@ const PLATFORMS: { id: Platform; label: string; format: VisualFormat }[] = [
   { id: 'instagram', label: 'Instagram', format: 'portrait' }, { id: 'facebook', label: 'Facebook', format: 'portrait' },
   { id: 'tiktok', label: 'TikTok', format: 'story' }, { id: 'youtube', label: 'YouTube', format: 'thumb' },
 ];
-const LAYOUT_NAME: Record<Layout, string> = { hero: 'Hero', chart: 'Chart', features: 'Features', quote: 'Story' };
+const LAYOUT_NAME: Record<Layout, string> = { hero: 'Hero', chart: 'Chart', features: 'Features', quote: 'Story', shot: 'Terminal' };
 const rnd = (n: number) => Math.floor(Math.random() * n);
 
 export const QuickPost: React.FC = () => {
@@ -24,6 +26,9 @@ export const QuickPost: React.FC = () => {
   const [hi, setHi] = useState(0);
   const [art, setArt] = useState<HTMLImageElement | null>(null);
   const [hero, setHero] = useState<HTMLImageElement | null>(null);
+  const [shots, setShots] = useState<Shot[]>(shotStore.shots);
+  const [si, setSi] = useState(0);
+  const [step, setStep] = useState('');
   const [busy, setBusy] = useState('');
   const [msg, setMsg] = useState('');
   const seen = useRef<string[]>([]);
@@ -33,7 +38,7 @@ export const QuickPost: React.FC = () => {
 
   useEffect(() => { loadImage('/assets/you-can-do-it-1280.jpg').then(setHero).catch(() => setHero(null)); }, []);
 
-  const newLook = useCallback(() => { setLayout(LAYOUTS[rnd(LAYOUTS.length)]); setTheme(rnd(THEMES.length)); setSeed(1 + rnd(99999)); setArt(null); }, []);
+  const newLook = useCallback(() => { if (shotStore.shots.length) { setLayout('shot'); setSi(rnd(shotStore.shots.length)); } else setLayout(LAYOUTS[rnd(LAYOUTS.length)]); setTheme(rnd(THEMES.length)); setSeed(1 + rnd(99999)); setArt(null); }, []);
   const newText = useCallback(async (pf: Platform = platform) => {
     setBusy('text');
     try {
@@ -49,8 +54,8 @@ export const QuickPost: React.FC = () => {
 
   const opts = useCallback(() => {
     const headline = post?.hooks[hi] || post?.title || 'Everything in one app';
-    return { format, layout, theme, seed, headline, sub: post?.title && post.title !== headline ? post.title : undefined, slides: post?.slides || [], art, hero, cta: 'primepipfx.site' };
-  }, [post, hi, format, layout, theme, seed, art, hero]);
+    return { format, layout, theme, seed, headline, sub: post?.title && post.title !== headline ? post.title : undefined, slides: post?.slides || [], art, hero, cta: 'primepipfx.site', shot: shots[si]?.img || null, shotLabel: shots[si]?.label };
+  }, [post, hi, format, layout, theme, seed, art, hero, shots, si]);
   useEffect(() => {
     const v = view.current; if (!v) return; const c = renderVariant(opts()); v.width = c.width; v.height = c.height; v.getContext('2d')!.drawImage(c, 0, 0);
   }, [opts]);
@@ -60,6 +65,19 @@ export const QuickPost: React.FC = () => {
     if (!post) return; setBusy('art'); flash('Creating AI artwork… up to 40 seconds');
     const { w, h } = FORMATS[format]; const img = await aiArt(`${ART_PROMPTS[post.pillar] || ART_PROMPTS['all-in-one']}, ${THEMES[theme].name} accent colors`, w, h, seed);
     setBusy(''); if (img) { setArt(img); flash('AI artwork added'); } else flash('The free artwork service is busy. Try again, or keep the designed look.');
+  };
+  const capture = async () => {
+    setBusy('cap'); setStep('Choose “This tab” and click Share. The agent does the rest.');
+    try { const r = await autoCaptureTerminal('ADMIN', (l, i, n) => setStep(`Photographing ${l} (${i}/${n})…`)); setShots(r); setSi(0); setLayout('shot'); flash(`Captured ${r.length} real terminal screens`); }
+    catch (e: any) { flash(String(e?.message || 'Capture cancelled')); } finally { setBusy(''); setStep(''); }
+  };
+  const video = async () => {
+    setBusy('vid');
+    try {
+      const heads = [post?.hooks[hi] || post?.title || 'Everything in one app', ...(post?.slides || [])].filter(Boolean);
+      const blob = await makeVideo(shots, { theme, seed, headline: '', slides: post?.slides || [], cta: 'primepipfx.site' }, heads, 2.6, (p) => setStep(`Making video ${Math.round(p * 100)}%`));
+      download(blob, `${name}.${blob.type.includes('mp4') ? 'mp4' : 'webm'}`); flash('Video downloaded (1080×1920, ready for TikTok / Reels / Shorts)');
+    } catch (e: any) { flash(String(e?.message || e)); } finally { setBusy(''); setStep(''); }
   };
   const png = async () => toBlob(renderVariant(opts()));
   const name = `primepipfx-${platform}-${Date.now().toString(36)}`;
@@ -94,12 +112,16 @@ export const QuickPost: React.FC = () => {
             <button type="button" onClick={() => void regenerate()} disabled={!!busy} className={`${btn} bg-amber-400 text-slate-900 disabled:opacity-60`}><RefreshCw className={`h-4 w-4 ${busy === 'text' ? 'animate-spin' : ''}`} />Regenerate</button>
             <button type="button" onClick={newLook} className={`${btn} bg-slate-700/70 text-slate-100`}><ImageIcon className="h-4 w-4" />New image look</button>
             <button type="button" onClick={() => void newText()} disabled={!!busy} className={`${btn} bg-slate-700/70 text-slate-100`}><Type className="h-4 w-4" />New text</button>
+            <button type="button" onClick={() => void capture()} disabled={!!busy} className={`${btn} bg-sky-500/25 text-sky-100`} data-testid="auto-capture"><ImageIcon className="h-4 w-4" />Auto-capture terminal</button>
+            {shots.length > 0 && <button type="button" onClick={() => void video()} disabled={!!busy} className={`${btn} bg-rose-500/25 text-rose-100`} data-testid="make-video"><Wand2 className="h-4 w-4" />Make video (TikTok/Reels/Shorts)</button>}
             <button type="button" onClick={() => void makeArt()} disabled={!!busy || !post} className={`${btn} bg-violet-500/25 text-violet-100`}><Sparkles className="h-4 w-4" />AI artwork (free)</button>
           </div>
+          {step && <p className="text-xs text-sky-300" role="status">{step}</p>}
+          {shots.length > 0 && <div className="flex flex-wrap gap-1.5">{shots.map((sh, i) => <button key={sh.tab} type="button" onClick={() => { setSi(i); setLayout('shot'); }} className={`rounded-lg border px-2 py-1 text-[11px] ${layout === 'shot' && si === i ? 'border-sky-300 text-sky-100' : 'border-slate-700 text-slate-400'}`}>{sh.label}</button>)}</div>}
           <div className="flex flex-wrap items-center gap-1.5">
             {(['portrait', 'story', 'square', 'landscape', 'thumb'] as VisualFormat[]).map((k) => <button key={k} type="button" onClick={() => setFormat(k)} className={`rounded-lg border px-2 py-1 text-[11px] font-semibold ${format === k ? 'border-amber-300 text-amber-100' : 'border-slate-700 text-slate-400'}`}>{FORMATS[k].label}</button>)}
             <span className="mx-1 text-slate-600">|</span>
-            {LAYOUTS.map((l) => <button key={l} type="button" onClick={() => { setLayout(l); setArt(null); }} className={`rounded-lg border px-2 py-1 text-[11px] font-semibold ${layout === l ? 'border-sky-300 text-sky-100' : 'border-slate-700 text-slate-400'}`}>{LAYOUT_NAME[l]}</button>)}
+            {[...LAYOUTS, ...(shots.length ? (['shot'] as Layout[]) : [])].map((l) => <button key={l} type="button" onClick={() => { setLayout(l); setArt(null); }} className={`rounded-lg border px-2 py-1 text-[11px] font-semibold ${layout === l ? 'border-sky-300 text-sky-100' : 'border-slate-700 text-slate-400'}`}>{LAYOUT_NAME[l]}</button>)}
             <span className="mx-1 text-slate-600">|</span>
             {THEMES.map((t, i) => <button key={t.name} type="button" aria-label={`${t.name} colors`} onClick={() => setTheme(i)} className={`h-5 w-5 rounded-full border-2 ${theme === i ? 'border-white' : 'border-transparent'}`} style={{ background: `linear-gradient(135deg, ${t.a}, ${t.b})` }} />)}
           </div>
