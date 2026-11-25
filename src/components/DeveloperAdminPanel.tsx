@@ -32,6 +32,7 @@ import { getStoredToken, apiChangePassword, isUserAdmin } from '../utils/authCli
 import { MembersPanel } from './admin/MembersPanel';
 import { LiveAnalyticsPanel } from './admin/LiveAnalyticsPanel';
 import { LoginSecurityPanel } from './admin/LoginSecurityPanel';
+import { SocialAgentPanel } from './admin/SocialAgentPanel';
 import { PopupPreviewPanel } from './admin/PopupPreviewPanel';
 import {
   saveLocalStudent,
@@ -52,7 +53,7 @@ interface DeveloperAdminPanelProps {
 export const DeveloperAdminPanel: React.FC<DeveloperAdminPanelProps> = ({ currentUser, onClose, onUserUpdated }) => {
   const isAuthorized = isUserAdmin(currentUser);
 
-  const [activeTab, setActiveTab] = useState<'MEMBERS' | 'HUB' | 'CUSTOMERS' | 'CREATE' | 'APPOINTMENTS' | 'MODERATION' | 'REFERRALS' | 'ANALYTICS' | 'LOGIN_SECURITY' | 'POPUP_PREVIEW' | 'DEVELOPER_SECURITY' | 'EVOLUTION'>('MEMBERS');
+  const [activeTab, setActiveTab] = useState<'MEMBERS' | 'HUB' | 'CUSTOMERS' | 'CREATE' | 'APPOINTMENTS' | 'MODERATION' | 'REFERRALS' | 'ANALYTICS' | 'LOGIN_SECURITY' | 'SOCIAL_AGENT' | 'POPUP_PREVIEW' | 'DEVELOPER_SECURITY' | 'EVOLUTION'>('MEMBERS');
   const [customers, setCustomers] = useState<UserAccount[]>([]);
   const [referrals, setReferrals] = useState<ReferralRecord[]>([]);
   const [appointments, setAppointments] = useState<AppointmentRecord[]>([]);
@@ -723,6 +724,18 @@ export const DeveloperAdminPanel: React.FC<DeveloperAdminPanelProps> = ({ curren
         >
           <AlertTriangle className="w-4 h-4" />
           MODERATION LOGS ({moderationWarnings.length})
+        </button>
+
+        <button
+          onClick={() => setActiveTab('SOCIAL_AGENT')}
+          data-testid="admin-tab-social-agent"
+          className={`pb-3 px-3 font-bold uppercase tracking-wider transition-colors border-b-2 flex items-center gap-1.5 shrink-0 ${
+            activeTab === 'SOCIAL_AGENT'
+              ? 'border-amber-300 text-amber-200'
+              : 'border-transparent text-slate-400 hover:text-slate-200'
+          }`}
+        >
+          SOCIAL AGENT
         </button>
 
         <button
@@ -1477,6 +1490,7 @@ export const DeveloperAdminPanel: React.FC<DeveloperAdminPanelProps> = ({ curren
       {/* TAB 3: REFERRALS */}
       {activeTab === 'ANALYTICS' && <LiveAnalyticsPanel />}
       {activeTab === 'LOGIN_SECURITY' && <LoginSecurityPanel />}
+      {activeTab === 'SOCIAL_AGENT' && <SocialAgentPanel />}
       {activeTab === 'POPUP_PREVIEW' && <PopupPreviewPanel />}
 
       {activeTab === 'REFERRALS' && (

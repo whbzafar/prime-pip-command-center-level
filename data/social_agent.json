@@ -1,0 +1,35 @@
+{
+  "config": {},
+  "posts": [
+    {
+      "platform": "instagram",
+      "pillar": "founder",
+      "title": "Three injuries. One founder who never gave up.",
+      "caption": "Three injuries. One founder who never gave up.\nWahab Zafar was born in rural Jhang. Three serious injuries could not stop him. He built the PRIMEPIPFX Command Center and the Prime Pip SBT Indicator, and more features are coming.\nRead his full story: https://primepipfx.site/about.html\n\nTrading carries risk. Educational content only, not financial advice.",
+      "hashtags": [
+        "#PRIMEPIPFX",
+        "#ForexTrading",
+        "#XAUUSD",
+        "#GoldTrading",
+        "#TradingCommunity",
+        "#FounderStory",
+        "#NeverGiveUp",
+        "#Motivation"
+      ],
+      "keywords": [
+        "forex trading app",
+        "XAUUSD",
+        "gold trading",
+        "backtesting",
+        "PRIMEPIPFX"
+      ],
+      "cta": "Open https://primepipfx.site",
+      "imageUrl": "https://primepipfx.site/assets/you-can-do-it-1280.jpg",
+      "source": "template",
+      "id": "afa8be16-b069-4900-84ed-a51c753b4d37",
+      "createdAt": "2026-11-25T07:47:15.827Z",
+      "scheduledAt": "2026-11-25T16:00:00.000Z",
+      "status": "draft"
+    }
+  ]
+}

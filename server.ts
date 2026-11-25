@@ -261,6 +261,7 @@ if (isSupabaseAuthEnabled) {
 // Safe directory reference for CJS/ESM
 const currentAppDir = process.cwd();
 
+import { readState as saState, getConfig as saConfig, setConfig as saSetConfig, credentialStatus as saCreds, generatePosts as saGenerate, publishPost as saPublish, updatePost as saUpdate, deletePost as saDelete, schedulerTick as saTick, BEST_TIMES_PKT } from './server/socialAgent.js';
 import { trackLogin, listEvents, listWarnings, summariseUsers, placeOf, FLAG_TEXT, type SecurityWarning } from './server/loginSecurity.js';
 import { clientIp } from './server/geoip.js';
 import { resolvePin } from './server/pinResolve.js';
@@ -3957,6 +3958,29 @@ app.get('/api/motivation/trending', async (_req, res) => {
   res.set('Cache-Control', 'public, max-age=300');
   try { res.json({ ok: true, ...(await motivationTrending()) }); } catch { res.json({ ok: true, topics: [], hot: [] }); }
 });
+
+
+// ---- Social Growth Agent (admin) ----
+app.get('/api/admin/social-agent', requireDeveloper, (_req, res) => {
+  res.set('Cache-Control', 'no-store');
+  const st = saState();
+  res.json({ ok: true, config: saConfig(), creds: saCreds(), bestTimes: BEST_TIMES_PKT, ai: !!getGeminiClient(), posts: st.posts.slice(-120).reverse() });
+});
+app.post('/api/admin/social-agent/config', requireDeveloper, (req, res) => { res.json({ ok: true, config: saSetConfig(req.body || {}) }); });
+app.post('/api/admin/social-agent/generate', requireDeveloper, async (req, res) => {
+  try { const posts = await saGenerate(getGeminiClient(), { platform: req.body?.platform, count: Number(req.body?.count) || 3 }); res.json({ ok: true, posts }); }
+  catch (e: any) { res.status(500).json({ ok: false, error: String(e?.message || e) }); }
+});
+app.post('/api/admin/social-agent/post/:id', requireDeveloper, (req, res) => {
+  try { const p = saUpdate(req.params.id, req.body || {}); if (!p) return res.status(404).json({ ok: false, error: 'Not found' }); res.json({ ok: true, post: p }); }
+  catch (e: any) { res.status(400).json({ ok: false, error: String(e?.message || e) }); }
+});
+app.post('/api/admin/social-agent/post/:id/publish', requireDeveloper, async (req, res) => {
+  try { const p = await saPublish(req.params.id); res.json({ ok: p.status === 'published', post: p, error: p.error }); }
+  catch (e: any) { res.status(400).json({ ok: false, error: String(e?.message || e) }); }
+});
+app.delete('/api/admin/social-agent/post/:id', requireDeveloper, (req, res) => { saDelete(req.params.id); res.json({ ok: true }); });
+setTimeout(() => { setInterval(() => void saTick(getGeminiClient()), 60_000); }, 30_000);
 
 // ---- Login security (admin) ----
 app.get('/api/admin/login-security', requireDeveloper, async (_req, res) => {
