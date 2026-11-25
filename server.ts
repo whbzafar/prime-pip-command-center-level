@@ -263,6 +263,7 @@ if (isSupabaseAuthEnabled) {
 const currentAppDir = process.cwd();
 
 import { readState as saState, getConfig as saConfig, setConfig as saSetConfig, credentialStatus as saCreds, generatePosts as saGenerate, publishPost as saPublish, updatePost as saUpdate, deletePost as saDelete, schedulerTick as saTick, previewPost as saPreview, BEST_TIMES_PKT } from './server/socialAgent.js';
+import { writeScript } from './server/scriptWriter.js';
 import { trackLogin, listEvents, listWarnings, summariseUsers, placeOf, FLAG_TEXT, type SecurityWarning } from './server/loginSecurity.js';
 import { clientIp } from './server/geoip.js';
 import { resolvePin } from './server/pinResolve.js';
@@ -3983,6 +3984,15 @@ app.post('/api/admin/social-agent/post/:id/publish', requireDeveloper, async (re
 app.post('/api/admin/social-agent/preview', requireDeveloper, async (req, res) => {
   try { const pl = ['facebook', 'instagram', 'youtube', 'tiktok'].includes(req.body?.platform) ? req.body.platform : 'instagram'; const ex = Array.isArray(req.body?.exclude) ? req.body.exclude.map(String).slice(-6) : []; res.json({ ok: true, post: await saPreview(getGeminiClient(), pl, Number(req.body?.variant) || 0, ex) }); }
   catch (e: any) { res.status(500).json({ ok: false, error: String(e?.message || e) }); }
+});
+app.post('/api/admin/social-agent/script', requireDeveloper, async (req, res) => {
+  try {
+    const t = req.body?.topic || {}; if (!t.title) return res.status(400).json({ ok: false, error: 'topic required' });
+    const topic = { id: String(t.id || ''), title: String(t.title).slice(0, 120), short: String(t.short || '').slice(0, 300), overview: String(t.overview || '').slice(0, 900), features: (Array.isArray(t.features) ? t.features : []).map(String).slice(0, 8) };
+    const platform = ['facebook', 'instagram', 'youtube', 'tiktok'].includes(req.body?.platform) ? req.body.platform : 'tiktok';
+    const script = await writeScript(getGeminiClient(), { topic, platform, language: req.body?.language === 'roman-urdu' ? 'roman-urdu' : 'en', angle: req.body?.angle ? String(req.body.angle).slice(0, 80) : undefined, seed: Number(req.body?.seed) || 1 });
+    return script ? res.json({ ok: true, script }) : res.json({ ok: false, error: 'The AI writer did not answer in time. Using the built-in writer.' });
+  } catch (e: any) { return res.status(500).json({ ok: false, error: String(e?.message || e) }); }
 });
 app.delete('/api/admin/social-agent/post/:id', requireDeveloper, (req, res) => { saDelete(req.params.id); res.json({ ok: true }); });
 setTimeout(() => { setInterval(() => void saTick(getGeminiClient()), 60_000); }, 30_000);

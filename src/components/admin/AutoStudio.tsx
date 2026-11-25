@@ -1,10 +1,13 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Camera, Copy, Download, Film, Package, RefreshCw, Shuffle, Upload, Wand2 } from 'lucide-react';
+import { Camera, Copy, Download, Film, Package, RefreshCw, Shuffle, Sparkles, Upload, Wand2 } from 'lucide-react';
 import JSZip from 'jszip';
 import { FORMATS, Layout, THEMES, VisualFormat, download, fileToImage, renderVariant, toBlob } from '../../utils/postVisuals';
 import { captureTopics, shotStore } from '../../utils/agentCapture';
-import { recordScenes } from '../../utils/agentVideo';
-import { Platform, Topic, generateTopicPost, getTopics } from '../../utils/topicContent';
+import { recordTour, recordTours, tourStore, type TourScript } from '../../utils/tour';
+import { getStoredToken } from '../../utils/authClient';
+import { Platform, Topic, generateTopicPost, getTopics, scoreHook, templateScript } from '../../utils/topicContent';
+
+interface AiBundle { hooks: string[]; scenes: TourScript['scenes']; cta: string; caption: string; hashtags: string[]; title: string; source: string }
 
 const PLATFORMS: { id: Platform; label: string; format: VisualFormat }[] = [
   { id: 'instagram', label: 'Instagram', format: 'portrait' }, { id: 'facebook', label: 'Facebook', format: 'landscape' },
@@ -31,12 +34,17 @@ export const AutoStudio: React.FC = () => {
   const [step, setStep] = useState('');
   const [msg, setMsg] = useState('');
   const [withVideo, setWithVideo] = useState(false);
+  const [useAI, setUseAI] = useState(true);
+  const [voice, setVoice] = useState(true);
+  const [lang, setLang] = useState<'en' | 'roman-urdu'>('en');
+  const [ai, setAi] = useState<AiBundle | null>(null);
   const [variants, setVariants] = useState(2);
   const view = useRef<HTMLCanvasElement>(null);
   const flash = (m: string) => { setMsg(m); setTimeout(() => setMsg(''), 4500); };
   const topic: Topic = topics.find((t) => t.id === tid) || topics[0];
   const shot = shotStore.shots[topic.id];
   const post = useMemo(() => generateTopicPost(topic, platform, seed), [topic, platform, seed]);
+  const viewPost = useMemo(() => (ai?.hooks?.length ? { ...post, hooks: ai.hooks } : post), [ai, post]);
   const layouts = shot ? SHOT_LAYOUTS : CARD_LAYOUTS;
   const have = topics.filter((t) => shotStore.shots[t.id]).length;
 
@@ -51,9 +59,31 @@ export const AutoStudio: React.FC = () => {
     setLayout((l) => { const L = shotStore.shots[topic.id] ? SHOT_LAYOUTS : CARD_LAYOUTS; return L[(L.indexOf(l) + 1 + rnd(L.length)) % L.length] || L[0]; });
     if (!keepTopic) setTid(topics[rnd(topics.length)].id);
   }, [topic.id, topics]);
-  useEffect(() => { setText(post.text); }, [post]);
+  const composed = useMemo(() => {
+    if (!ai) return post.text; const tags = ai.hashtags.map((h) => `#${h}`).join(' ');
+    return platform === 'youtube' ? `TITLE: ${ai.title}\n\nDESCRIPTION:\n${ai.caption}\n\nTAGS: ${ai.hashtags.join(', ')}` : `${ai.caption}\n\n${tags}`;
+  }, [ai, post, platform]);
+  useEffect(() => { setText(composed); }, [composed]);
+  useEffect(() => { setAi(null); }, [tid, platform]);
+  const hookList = useMemo(() => (ai?.hooks?.length ? ai.hooks : post.hooks).map((h) => ({ h, sc: scoreHook(h, topic.title) })), [ai, post, topic.title]);
+  const bestHook = hookList.length ? hookList.reduce((b, x, i) => (x.sc.score > hookList[b].sc.score ? i : b), 0) : 0;
+  const activeHook = hookList[hi]?.h || post.headline;
+  const scriptFor = (t: Topic, bundle: AiBundle | null, sd: number, hookIdx = 0): TourScript => {
+    if (bundle) return { hook: bundle.hooks[hookIdx] || bundle.hooks[0], scenes: bundle.scenes, cta: bundle.cta };
+    const tpl = templateScript(t, sd); return { hook: tpl.hooks[hookIdx] || tpl.hooks[0], scenes: tpl.scenes, cta: tpl.cta };
+  };
+  const askAI = useCallback(async (t: Topic, pf: Platform, sd: number): Promise<AiBundle | null> => {
+    try {
+      const tk = getStoredToken(); const r = await fetch('/api/admin/social-agent/script', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json', ...(tk ? { Authorization: `Bearer ${tk}` } : {}) }, body: JSON.stringify({ topic: { id: t.id, title: t.title, short: t.short, overview: t.overview, features: t.features }, platform: pf, language: lang, seed: sd }) });
+      const j = await r.json(); return j.ok ? ({ ...j.script } as AiBundle) : null;
+    } catch { return null; }
+  }, [lang]);
+  const writeAI = useCallback(async () => {
+    setBusy(true); setStep('The AI writer is scripting this topic…'); const b = await askAI(topic, platform, seed);
+    setBusy(false); setStep(''); if (b) { setAi(b); setHi(0); flash(`Written by ${b.source === 'gemini' ? 'Gemini' : 'the free AI writer'}`); } else flash('The AI writer is not reachable right now, so the built-in writer is used. Try again in a minute.');
+  }, [askAI, topic, platform, seed]);
   useEffect(() => { setLayout((l) => (layouts.includes(l) ? l : layouts[0])); }, [layouts]);
-  useEffect(() => { const v = view.current; if (!v) return; const c = renderVariant(opts(topic, post, format, layout, theme, seed, hi)); v.width = c.width; v.height = c.height; v.getContext('2d')!.drawImage(c, 0, 0); }, [topic, post, format, layout, theme, seed, hi, opts, shot]);
+  useEffect(() => { const v = view.current; if (!v) return; const c = renderVariant(opts(topic, viewPost, format, layout, theme, seed, hi)); v.width = c.width; v.height = c.height; v.getContext('2d')!.drawImage(c, 0, 0); }, [topic, viewPost, format, layout, theme, seed, hi, opts, shot]);
 
   const pickPlatform = (p: (typeof PLATFORMS)[number]) => { setPlatform(p.id); setFormat(p.format); };
   const capture = async () => {
@@ -65,26 +95,29 @@ export const AutoStudio: React.FC = () => {
     } catch (e: any) { flash(String(e?.message || 'Capture cancelled')); } finally { setBusy(false); setStep(''); bump((n) => n + 1); }
   };
   const upload = async (f?: File | null) => { if (!f) return; const img = await fileToImage(f); shotStore.shots[topic.id] = { img, label: topic.title, tab: topic.tab, at: Date.now() }; bump((n) => n + 1); flash(`Screenshot saved for “${topic.title}”`); };
-  const png = () => toBlob(renderVariant(opts(topic, post, format, layout, theme, seed, hi)));
+  const png = () => toBlob(renderVariant(opts(topic, viewPost, format, layout, theme, seed, hi)));
   const base = `primepipfx-${slug(topic.title)}-${platform}-${seed}`;
   const copyTxt = async () => { await navigator.clipboard?.writeText(text); flash('Text copied'); };
   const copyImg = async () => { try { await navigator.clipboard.write([new ClipboardItem({ 'image/png': await png() })]); flash('Image copied'); } catch { flash('Copy is not supported here. Use Download.'); } };
 
-  const sceneList = (t: Topic, p: ReturnType<typeof generateTopicPost>, th: number, sd: number) => {
-    const o = (lay: Layout, head: string) => ({ ...opts(t, p, 'story', lay, th, sd), layout: lay, headline: head });
-    const s = shotStore.shots[t.id];
-    return s ? [{ opts: o('shot', p.hooks[0]), seconds: 3.4 }, { opts: o('shotfeat', t.title), seconds: 3.8 }, { opts: o('shotbig', 'Try it at primepipfx.site'), seconds: 2.8 }]
-      : [{ opts: o('chart', p.hooks[0]), seconds: 3.2 }, { opts: o('features', t.title), seconds: 3.8 }, { opts: o('quote', 'Try it at primepipfx.site'), seconds: 2.8 }];
-  };
   const makeVideo = async () => {
     setBusy(true);
-    try { const blob = await recordScenes(sceneList(topic, post, theme, seed), (p) => setStep(`Making video ${Math.round(p * 100)}%`)); download(blob, `${base}.${blob.type.includes('mp4') ? 'mp4' : 'webm'}`); flash('Video downloaded (1080×1920 with music, ready for TikTok / Reels / Shorts)'); }
-    catch (e: any) { flash(String(e?.message || e)); } finally { setBusy(false); setStep(''); }
+    try {
+      const sc = scriptFor(topic, ai, seed, hi);
+      setStep('In the pop-up choose “This tab” and click Share. The agent will open this feature and record it live.');
+      const blob = await recordTour({ tab: topic.tab, title: topic.title, script: sc, theme, voice }, undefined).then((b) => b);
+      download(blob, `${base}.${blob.type.includes('mp4') ? 'mp4' : 'webm'}`); flash('Live tour video downloaded (1080×1920)');
+    } catch (e: any) { flash(String(e?.message || e)); } finally { setBusy(false); setStep(''); bump((n) => n + 1); }
   };
 
   /** Everything for every topic, in one zip: per topic and platform, N image variations + ready text (+ a video per topic if ticked). */
   const buildPack = async () => {
-    setBusy(true); const z = new JSZip(); let done = 0; const total = topics.length;
+    setBusy(true);
+    if (withVideo) {
+      const list = topics.filter((t) => !tourStore.videos[t.tab]); const items: Parameters<typeof recordTours>[0] = [];
+      for (let i = 0; i < list.length; i++) { const t = list[i]; setStep(`Scripting ${t.title} (${i + 1}/${list.length})`); const b = useAI ? await askAI(t, 'tiktok', 300 + i) : null; items.push({ tab: t.tab, title: t.title, script: scriptFor(t, b, 300 + i), theme: (i + 2) % THEMES.length, voice }); }
+      try { await recordTours(items, (i, n, ok, m) => setStep(`${ok ? 'Recorded' : 'Skipped'} ${i + 1}/${n}${m ? ' — ' + m : ''}`)); } catch (e: any) { flash(String(e?.message || e)); }
+    } const z = new JSZip(); let done = 0; const total = topics.length;
     try {
       for (const t of topics) {
         done++; setStep(`Building pack: ${t.title} (${done}/${total})`);
@@ -94,7 +127,7 @@ export const AutoStudio: React.FC = () => {
           const c = renderVariant(opts(t, p, pf.format, lays[(v - 1 + done) % lays.length], (v + done) % THEMES.length, sd, 0));
           dir.file(`${pf.id}-${v}.png`, await toBlob(c)); dir.file(`${pf.id}-${v}.txt`, p.text);
         }
-        if (withVideo) { setStep(`Recording video: ${t.title} (${done}/${total})`); const p = generateTopicPost(t, 'tiktok', 500 + done); const b = await recordScenes(sceneList(t, p, done % THEMES.length, 500 + done)); dir.file(`video.${b.type.includes('mp4') ? 'mp4' : 'webm'}`, b); }
+        const tv = tourStore.videos[t.tab]; if (withVideo && tv) dir.file(`live-tour.${tv.blob.type.includes('mp4') ? 'mp4' : 'webm'}`, tv.blob);
       }
       z.file('README.txt', `PrimePipFX content pack\n${topics.length} topics x 4 platforms x ${variants} variations${withVideo ? ' + 1 video per topic' : ''}.\nEach image is made from the screenshot of the same topic its text describes.\nTopics without a captured screenshot use a designed card with the topic's own feature list.\n${new Date().toISOString()}\n`);
       download(await z.generateAsync({ type: 'blob' }), `primepipfx-content-pack-${Date.now().toString(36)}.zip`); flash('Pack downloaded');
@@ -112,7 +145,7 @@ export const AutoStudio: React.FC = () => {
         <button type="button" onClick={() => void capture()} disabled={busy} className={`${btn} bg-sky-500 text-slate-950`} data-testid="auto-capture"><Camera className="h-4 w-4" />Capture all {topics.length} screens</button>
         <span className="text-[12px] text-sky-100">{have}/{topics.length} topics have a real screenshot. Desktop Chrome/Edge, one click on “Share this tab”.</span>
         <span className="ml-auto flex flex-wrap items-center gap-2 text-[12px] text-slate-200">
-          <label className="inline-flex items-center gap-1"><input type="checkbox" className="accent-rose-400" checked={withVideo} onChange={(e) => setWithVideo(e.target.checked)} />include videos (slower)</label>
+          <label className="inline-flex items-center gap-1"><input type="checkbox" className="accent-rose-400" checked={withVideo} onChange={(e) => setWithVideo(e.target.checked)} />record a live tour video for every topic (≈30–60 s each)</label>
           <label className="inline-flex items-center gap-1">variations <select value={variants} onChange={(e) => setVariants(+e.target.value)} className="rounded bg-slate-900 px-1 py-0.5">{[1, 2, 3, 5].map((n) => <option key={n}>{n}</option>)}</select></label>
           <button type="button" onClick={() => void buildPack()} disabled={busy} className={`${btn} bg-emerald-500 text-slate-950`} data-testid="build-pack"><Package className="h-4 w-4" />Build full pack (ZIP)</button>
         </span>
@@ -131,10 +164,16 @@ export const AutoStudio: React.FC = () => {
         </div>
         <div className="space-y-3">
           <div className="flex flex-wrap gap-2">
-            <button type="button" onClick={() => regenerate(true)} className={`${btn} bg-amber-400 text-slate-900`} data-testid="regenerate"><RefreshCw className="h-4 w-4" />Regenerate</button>
+            <button type="button" onClick={() => { regenerate(true); if (useAI) setTimeout(() => void writeAI(), 50); }} disabled={busy} className={`${btn} bg-amber-400 text-slate-900`} data-testid="regenerate"><RefreshCw className="h-4 w-4" />Regenerate</button>
             <button type="button" onClick={() => regenerate(false)} className={`${btn} bg-slate-700/70 text-slate-100`}><Shuffle className="h-4 w-4" />Surprise me (random topic)</button>
             <label className={`${btn} cursor-pointer bg-slate-700/70 text-slate-100`}><Upload className="h-4 w-4" />Upload screenshot for this topic<input type="file" accept="image/*" className="hidden" onChange={(e) => { void upload(e.target.files?.[0]); e.target.value = ''; }} /></label>
-            <button type="button" onClick={() => void makeVideo()} disabled={busy} className={`${btn} bg-rose-500/30 text-rose-100`} data-testid="make-video"><Film className="h-4 w-4" />Make video</button>
+            <button type="button" onClick={() => void makeVideo()} disabled={busy} className={`${btn} bg-rose-500/30 text-rose-100`} data-testid="make-video"><Film className="h-4 w-4" />Record live tour video</button>
+          </div>
+          <div className="flex flex-wrap items-center gap-3 rounded-xl border border-violet-400/30 bg-violet-500/10 p-2 text-[12px] text-slate-200">
+            <button type="button" onClick={() => void writeAI()} disabled={busy} className={`${btn} bg-violet-500 text-white`} data-testid="write-ai"><Sparkles className="h-4 w-4" />Write script + post with AI</button>
+            <label className="inline-flex items-center gap-1"><input type="checkbox" className="accent-violet-400" checked={useAI} onChange={(e) => setUseAI(e.target.checked)} />use AI on Regenerate</label>
+            <label className="inline-flex items-center gap-1"><input type="checkbox" className="accent-violet-400" checked={voice} onChange={(e) => setVoice(e.target.checked)} />voice-over (English)</label>
+            <label className="inline-flex items-center gap-1">language <select value={lang} onChange={(e) => setLang(e.target.value as 'en' | 'roman-urdu')} className="rounded bg-slate-900 px-1 py-0.5"><option value="en">English</option><option value="roman-urdu">Roman Urdu</option></select></label>
           </div>
           <div className="flex flex-wrap items-center gap-1.5">
             {PLATFORMS.map((p) => <button key={p.id} type="button" onClick={() => pickPlatform(p)} className={`rounded-lg border px-2.5 py-1 text-xs font-semibold ${platform === p.id ? 'border-amber-300 bg-amber-300/15 text-amber-100' : 'border-slate-700 text-slate-400'}`}>{p.label}</button>)}
@@ -145,7 +184,11 @@ export const AutoStudio: React.FC = () => {
             <span className="mx-1 text-slate-600">|</span>
             {THEMES.map((t, i) => <button key={t.name} type="button" aria-label={`${t.name} colors`} onClick={() => setTheme(i)} className={`h-5 w-5 rounded-full border-2 ${theme === i ? 'border-white' : 'border-transparent'}`} style={{ background: `linear-gradient(135deg, ${t.a}, ${t.b})` }} />)}
           </div>
-          <div className="flex flex-wrap gap-1.5">{post.hooks.map((h, i) => <button key={i} type="button" onClick={() => setHi(i)} className={`rounded-lg border px-2 py-1 text-[11px] ${hi === i ? 'border-amber-300 text-amber-100' : 'border-slate-700 text-slate-400'}`}>{h}</button>)}</div>
+          <div className="space-y-1" aria-label="Hook options">
+            <div className="text-[11px] text-slate-400">Hook options, scored against the 2026 first-3-seconds checklist (a writing checklist, not a view prediction)</div>
+            {hookList.map((x, i) => <button key={i} type="button" onClick={() => setHi(i)} title={x.sc.notes.join('; ') || 'Passes the checklist'} className={`mr-1.5 inline-flex items-center gap-1.5 rounded-lg border px-2 py-1 text-[11px] ${hi === i ? 'border-amber-300 text-amber-100' : 'border-slate-700 text-slate-400'}`}><b className={x.sc.score >= 75 ? 'text-emerald-300' : x.sc.score >= 50 ? 'text-amber-300' : 'text-rose-300'}>{x.sc.score}</b>{x.h}{i === bestHook ? ' ★' : ''}</button>)}
+            {ai && <div className="mt-1 rounded-lg border border-slate-700 bg-slate-950/60 p-2 text-[11px] text-slate-300"><b className="text-slate-100">Video script</b> ({ai.scenes.length} scenes, written by {ai.source === 'gemini' ? 'Gemini' : 'free AI'}): {ai.scenes.map((sc, i) => <div key={i}>{i + 1}. <span className="text-amber-200">{sc.caption}</span> — {sc.say}</div>)}</div>}
+          </div>
           <textarea value={text} onChange={(e) => setText(e.target.value)} rows={11} className="w-full rounded-xl border border-slate-700 bg-slate-950 p-3 text-sm text-slate-100" aria-label="Post text" />
           <div className="flex flex-wrap gap-2">
             <button type="button" onClick={async () => { const z = new JSZip(); z.file(`${base}.png`, await png()); z.file(`${base}.txt`, text); download(await z.generateAsync({ type: 'blob' }), `${base}.zip`); flash('Downloaded image and text'); }} className={`${btn} bg-emerald-500/25 text-emerald-100`}><Download className="h-4 w-4" />Image + text</button>

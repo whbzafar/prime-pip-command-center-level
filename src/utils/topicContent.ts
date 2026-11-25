@@ -73,3 +73,30 @@ export function generateTopicPost(topic: Topic, platform: Platform, seed: number
   const text = platform === 'youtube' ? `TITLE: ${title}\n\nDESCRIPTION:\n${caption}\n\nTAGS: ${hashtags.map((h) => h.slice(1)).join(', ')}` : `${caption}\n\n${hashtags.join(' ')}`;
   return { headline, hooks, caption, hashtags, title, onScreen, text };
 }
+
+// ---------- hook scoring (checklist from short-form research, not a performance prediction) ----------
+export interface HookScore { score: number; notes: string[] }
+export function scoreHook(h: string, topicTitle = ''): HookScore {
+  const words = h.trim().split(/\s+/).filter(Boolean); let s = 20; const notes: string[] = [];
+  if (words.length >= 3 && words.length <= 9) { s += 25; } else notes.push(words.length > 9 ? 'shorten to 9 words or fewer' : 'too short to land');
+  if (/\d/.test(h)) s += 8; else notes.push('a number adds specificity');
+  if (/\?|\b(stop|never|don'?t|mistake|without|why|still|missing|most traders|nobody|ignore)\b/i.test(h)) s += 20; else notes.push('add tension: a question or "stop / most traders"');
+  if (/\b(secret|truth|what|here'?s|this|before|actually)\b/i.test(h)) s += 10;
+  if (/\b(you|your|traders?|gold|xauusd|forex|students?)\b/i.test(h)) s += 12; else notes.push('call out the audience (traders, gold, you)');
+  const key = topicTitle.toLowerCase().split(/\s+/).filter((w) => w.length > 3); if (key.some((k) => h.toLowerCase().includes(k))) s += 10; else notes.push('mention the feature name for search');
+  if (BANNED.test(h)) { s = 0; notes.push('contains a claim platforms penalize'); }
+  return { score: Math.max(0, Math.min(100, s)), notes };
+}
+
+export interface TemplateScript { hooks: string[]; scenes: { say: string; caption: string; focus: 'left' | 'center' | 'right'; zoom: number; scroll: number }[]; cta: string }
+/** Offline fallback when the AI writer is unavailable: still built from this topic's real feature list. */
+export function templateScript(topic: Topic, seed: number): TemplateScript {
+  const r = rng(seed * 104729 + topic.id.length); const T = topic.title;
+  const feats = shuffled(topic.features, r).slice(0, 4); const focus: ('left' | 'center' | 'right')[] = ['center', 'left', 'right', 'center'];
+  const caps = (f: string) => f.replace(/[()].*$/, '').split(/\s+/).slice(0, 4).join(' ');
+  return {
+    hooks: shuffled(HOOKS, r).slice(0, 5).map((h) => fill(h, T, feats[0] || topic.short)).sort((a, b) => scoreHook(b, T).score - scoreHook(a, T).score),
+    scenes: feats.map((f, i) => ({ say: cut(f, 90), caption: caps(f), focus: focus[i % 4], zoom: 1 + 0.12 * (i % 3), scroll: i === 0 ? 0 : Math.min(0.6, i * 0.18) })),
+    cta: pick(CTAS, r),
+  };
+}

@@ -19,3 +19,15 @@ describe('topic content', () => {
     expect(generateTopicPost(t, 'youtube', 5).title.length).toBeLessThanOrEqual(70);
   });
 });
+
+import { scoreHook, templateScript } from '../../src/utils/topicContent';
+describe('hooks and scripts', () => {
+  it('scores tension + audience + feature name higher than a flat statement', () => {
+    expect(scoreHook('Most traders ignore this Backtesting tool', 'Backtesting').score).toBeGreaterThan(scoreHook('We made a new feature available', 'Backtesting').score);
+    expect(scoreHook('Guaranteed profit with gold', '').score).toBe(0);
+  });
+  it('builds an offline script from the topic\'s own features', () => {
+    const t = getTopics()[2]; const s = templateScript(t, 4);
+    expect(s.scenes.length).toBeGreaterThanOrEqual(3); expect(s.hooks.length).toBe(5); expect(s.scenes.every((x) => x.say.length > 5 && x.caption.length > 1)).toBe(true);
+  });
+});
