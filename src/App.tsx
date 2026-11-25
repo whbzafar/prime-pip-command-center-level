@@ -1,4 +1,5 @@
 // Force HMR refresh
+import { startBackupNotice } from './utils/backupNotice';
 import { OceanWaves } from './components/OceanWaves';
 import { SecurityWarningModal } from './components/SecurityWarningModal';
 import { NewEraWelcome } from './components/welcome/NewEraWelcome';
@@ -204,6 +205,7 @@ export default function App() {
   }, []);
   // Health + usage signals (errors on screen, which sections are opened). Declared up here: hooks must run before any early return.
   useEffect(() => { startInsights(); }, []);
+  useEffect(() => { startBackupNotice(); }, []);
   useEffect(() => { trackSection(String(activeTab)); }, [activeTab]);
 
   // Demo Mode State with persistence to prevent repeated login prompts
