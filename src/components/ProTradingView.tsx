@@ -1588,9 +1588,8 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
   // TradingView feed: volume on/off is remembered for every pair (TradingView itself forgets it on each load).
   // Keep drawings on the TradingView chart: its own timeframe bar switches timeframe INSIDE the chart (drawings stay);
   // the app's buttons reload the chart, which wipes anything drawn (the free embed cannot be saved from outside).
-  // Default OFF (v2): the app's timeframe bar drives the chart AND the bar-close timer, so they can never disagree. TradingView's embedded chart cannot report a timeframe chosen inside it (verified: no message, and its own countdown setting is reset on every load), so ON keeps drawings but the timer must then be matched by hand.
-  const [tvKeep, setTvKeep] = useState<boolean>(() => { try { return localStorage.getItem('ppfx_tv_keep_v2') === 'on'; } catch { return false; } });
-  useEffect(() => { try { localStorage.setItem('ppfx_tv_keep_v2', tvKeep ? 'on' : 'off'); } catch {} }, [tvKeep]);
+  const [tvKeep, setTvKeep] = useState<boolean>(() => { try { return localStorage.getItem('ppfx_tv_keep_drawings') !== 'off'; } catch { return true; } });
+  useEffect(() => { try { localStorage.setItem('ppfx_tv_keep_drawings', tvKeep ? 'on' : 'off'); } catch {} }, [tvKeep]);
   const tvInitialInterval = useRef<string>('');
   // Timer chip: with 'Keep drawings' ON the chart's timeframe is chosen in TradingView's own bar (the single place), and TradingView's own countdown shows on the price label. The chip is only a fallback.
   const [tvChip, setTvChip] = useState<boolean>(() => { try { return localStorage.getItem('ppfx_tv_chip') === 'on'; } catch { return false; } });
@@ -3005,6 +3004,8 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
         toolbar_bg: chartSettings.backgroundColor,
         enable_publishing: 'false',
         hide_top_toolbar: 'false',
+        // TradingView's own bar-close countdown on the price label (follows the timeframe chosen in TradingView's bar, like tradingview.com).
+        ...(chartSettings.showCountdown !== false ? { overrides: JSON.stringify({ 'mainSeriesProperties.showCountdown': true }) } : {}),
         hide_side_toolbar: 'false',
         // The chart's own symbol box changes the symbol inside the sealed frame without telling the app, so the Pair Widget,
         // fundamentals and alerts stayed on the old pair. Symbols are chosen with the app's search (it drives chart AND widget).
@@ -4283,7 +4284,7 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
               </div>
 
               {chartEngine === 'tv' && (
-                <button type="button" onClick={() => { tvInitialInterval.current = ''; setTvKeep((v) => !v); }} data-testid="tv-keep-drawings" title="OFF (recommended): the app's timeframe bar drives the chart and the bar-close timer, always in step; changing timeframe reloads the chart. ON: switch with TradingView's own bar and drawings stay, but the timer has to be set to the same timeframe by hand."
+                <button type="button" onClick={() => { tvInitialInterval.current = ''; setTvKeep((v) => !v); }} data-testid="tv-keep-drawings" title="ON: switch timeframe with TradingView's own bar and your drawings stay. OFF: the app's timeframe buttons drive the chart (and the bar-close countdown), but the chart reloads and clears drawings."
                   className={`rounded-xl border px-2.5 py-1 text-[11px] font-bold cursor-pointer ${tvKeep ? 'border-emerald-400/60 bg-emerald-500/15 text-emerald-100' : 'border-slate-700 bg-slate-950 text-slate-400'}`}>
                   Keep drawings {tvKeep ? 'ON' : 'OFF'}
                 </button>
