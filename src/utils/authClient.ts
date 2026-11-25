@@ -231,6 +231,8 @@ export async function apiGetCurrentUser(): Promise<UserAccount | null> {
   const currentStored = getStoredUser();
   try {
     const token = getStoredToken();
+    // Nothing stored = visitor is signed out: skip the request (avoids a pointless 401 and a console error).
+    if (!token && !currentStored?.id) return null;
     const headers: Record<string, string> = {};
     if (token) headers['Authorization'] = `Bearer ${token}`;
 

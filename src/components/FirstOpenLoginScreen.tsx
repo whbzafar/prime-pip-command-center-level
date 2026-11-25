@@ -722,7 +722,7 @@ export const FirstOpenLoginScreen: React.FC<FirstOpenLoginScreenProps> = ({
                   className="block w-full aspect-[16/9] max-h-[34vh] sm:max-h-[38vh] object-cover object-top ppfx-hero-drift" />
               </picture>
               {/* motion: sun rays, flare, the rising soul, golden motes */}
-              <HeroMotion src="/assets/you-can-do-it-1280.jpg" />
+              <HeroMotion src="/assets/you-can-do-it-720.webp" />
               {/* light sweep + fade into the card */}
               <div className="absolute inset-0 pointer-events-none ppfx-hero-sheen" />
               <div className="absolute inset-x-0 bottom-0 h-2/5 bg-gradient-to-t from-[#070a12] via-[#070a12]/70 to-transparent pointer-events-none" />
@@ -868,7 +868,7 @@ export const FirstOpenLoginScreen: React.FC<FirstOpenLoginScreenProps> = ({
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3.5 top-3.5 text-slate-400 hover:text-slate-200 transition-colors p-0.5"
+                      className="absolute right-0.5 top-0.5 flex h-11 w-11 items-center justify-center text-slate-400 hover:text-slate-200 transition-colors"
                       aria-label="Toggle password visibility"
                     >
                       {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}

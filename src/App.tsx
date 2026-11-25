@@ -17,12 +17,9 @@ import { MarketAura } from './components/MarketAura';
 import { QuantumFx } from './components/QuantumFx';
 import { AmbientThemeRibbon } from './components/AmbientThemeRibbon';
 import { CommandCenterAtmosphere } from './components/CommandCenterAtmosphere';
-import { MainDashboard } from './components/MainDashboard';
-import { TradeJournal } from './components/TradeJournal';
 import { RiskCenter, TradeLimitAlertSystem } from './components/RiskCenter';
 import { MainNavTab } from './components/Header';
 import { AccountOnboardingModal } from './components/AccountOnboardingModal';
-import { OnboardingModal } from './components/OnboardingModal';
 import { initialRules, initialGoals } from './data/initialTrades';
 import { Trade, TradingRule, TradingGoal, AccountSettings, UserAccount } from './types';
 import { calculateDashboardMetrics } from './utils/tradeAnalytics';
@@ -35,11 +32,7 @@ import { SbtIndicatorBanner } from './components/subscription/SbtIndicatorBanner
 import { planPriceShort, isLifetimeOfferActive, PRICE_STANDARD, PRICE_WITH_CODE } from './config/pricing';
 import { LifetimeOfferCountdown } from './components/subscription/LifetimeOfferCountdown';
 import { NotificationsPanel } from './components/NotificationsPanel';
-import { UserProfileModal } from './components/UserProfileModal';
-import { TraderExperienceProfileModal } from './components/evolution/TraderExperienceProfileModal';
 import { CATEGORY_SUMMARIES, CategorySummary, isCategoryLockedInDemo } from './data/categorySummaries';
-import { LockedCategoryModal } from './components/LockedCategoryModal';
-import { PostTradeGuidanceModal } from './components/account/PostTradeGuidanceModal';
 import { PostTradeImpactSummary } from './types';
 import { calculatePostTradeImpact } from './utils/fundedRiskEngine';
 import { apiRecordTelemetrySignal } from './utils/evolutionClient';
@@ -67,12 +60,19 @@ import { playDisciplineAlert } from './utils/audioAlerts';
 import { getKarachiDate, getKarachiTime } from './utils/time';
 import { AppearanceControls } from './components/AppearanceControls';
 import { AppFooter } from './components/AppFooter';
-import { AllCategoriesModal } from './components/AllCategoriesModal';
 import { CommunicationNotifications } from './components/CommunicationNotifications';
 import { TabErrorBoundary } from './components/common/TabErrorBoundary';
 
 // Heavy modals load only when opened (keeps the first download small).
 function lazyModal<P extends object>(load: () => Promise<any>, name: string): React.FC<P> { const C = React.lazy(() => load().then((m) => ({ default: m[name] }))); return (props: P) => <React.Suspense fallback={null}><C {...(props as any)} /></React.Suspense>; }
+const AllCategoriesModal = lazyModal<any>(() => import('./components/AllCategoriesModal'), 'AllCategoriesModal');
+const UserProfileModal = lazyModal<any>(() => import('./components/UserProfileModal'), 'UserProfileModal');
+const TraderExperienceProfileModal = lazyModal<any>(() => import('./components/evolution/TraderExperienceProfileModal'), 'TraderExperienceProfileModal');
+const OnboardingModal = lazyModal<any>(() => import('./components/OnboardingModal'), 'OnboardingModal');
+const LockedCategoryModal = lazyModal<any>(() => import('./components/LockedCategoryModal'), 'LockedCategoryModal');
+const PostTradeGuidanceModal = lazyModal<any>(() => import('./components/account/PostTradeGuidanceModal'), 'PostTradeGuidanceModal');
+const MainDashboard = React.lazy(() => import('./components/MainDashboard').then((m) => ({ default: m.MainDashboard })));
+const TradeJournal = React.lazy(() => import('./components/TradeJournal').then((m) => ({ default: m.TradeJournal })));
 const TradeEntryModal = lazyModal<any>(() => import('./components/TradeEntryModal'), 'TradeEntryModal');
 const AccountManagerModal = lazyModal<any>(() => import('./components/AccountManagerModal'), 'AccountManagerModal');
 const DataBackupModal = lazyModal<any>(() => import('./components/DataBackupModal'), 'DataBackupModal');
@@ -126,6 +126,8 @@ const ProTradingView = React.lazy(() => import('./components/ProTradingView').th
 // Background prefetch of the lazy tab bundles once the app is idle, so opening a category does not
 // wait on the network. Light bundles first; the chart engine (several MB) only on desktop / unmetered.
 const PREFETCH_LIGHT: Array<() => Promise<unknown>> = [
+  () => import('./components/MainDashboard'),
+  () => import('./components/TradeJournal'),
   () => import('./components/AiTradingCoach'),
   () => import('./components/BookSessionView'),
   () => import('./components/CommunityChat'),
