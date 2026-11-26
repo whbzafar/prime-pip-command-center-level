@@ -4,6 +4,7 @@ import JSZip from 'jszip';
 import { FORMATS, Layout, THEMES, VisualFormat, download, fileToImage, renderVariant, toBlob } from '../../utils/postVisuals';
 import { captureTopics, shotStore } from '../../utils/agentCapture';
 import { recordTour, recordTours, streamTours, tourStore, type StreamItem, type TourScript } from '../../utils/tour';
+import { dailyPlan, dayKey } from '../../utils/dailyPlan';
 import { getStoredToken } from '../../utils/authClient';
 import { Platform, Topic, generateTopicPost, getTopics, scoreHook, templateScript } from '../../utils/topicContent';
 
@@ -46,7 +47,12 @@ export const AutoStudio: React.FC = () => {
   const startStream = async () => {
     streamStop.current = { stop: false }; setStreaming(true); setVideos([]);
     const ur = lang === 'roman-urdu';
-    const items: StreamItem[] = topics.map((t, i) => ({ tab: t.tab, title: t.title, theme: i % THEMES.length, script: async () => { const b = await askAI(t, 'tiktok', 900 + i); if (!b && ur) setStreamStatus(`${t.title}: the AI writer is unavailable, so this video has captions only`); return scriptFor(t, b, 900 + i); } }));
+    const today = dayKey();
+    let recent: string[] = [];
+    try { recent = JSON.parse(localStorage.getItem('pp_recorded_topics') || '[]'); } catch { recent = []; }
+    const plan = dailyPlan<Topic>(topics, today, recent);
+    const items: StreamItem[] = plan.map((p) => ({ tab: p.topic.tab, title: p.topic.title, theme: p.theme, script: async () => { const t = p.topic; const b = await askAI(t, 'tiktok', p.seed); if (!b && ur) setStreamStatus(`${t.title}: the AI writer is unavailable, so this video has captions only`); return scriptFor(t, b, p.seed); } }));
+    try { localStorage.setItem('pp_recorded_topics', JSON.stringify([...plan.map((p) => p.topic.id), ...recent].slice(0, 200))); } catch { /* storage unavailable */ }
     try { await streamTours(items, { voice, voiceLang: ur ? 'ur' : 'en', stop: streamStop.current, onVideo: (v) => setVideos((x) => [v, ...x]), onStatus: (m) => setStreamStatus(m) }); setStreamStatus(streamStop.current.stop ? 'Stopped. Every finished video is listed below.' : 'Every feature is done. Download any video below.'); }
     catch (e: any) { setStreamStatus(String(e?.message || e)); }
     finally { setStreaming(false); }
