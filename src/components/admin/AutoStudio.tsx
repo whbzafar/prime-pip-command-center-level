@@ -3,7 +3,7 @@ import { Camera, Copy, Download, Film, Package, RefreshCw, Save, Shuffle, Sparkl
 import JSZip from 'jszip';
 import { FORMATS, Layout, THEMES, VisualFormat, download, fileToImage, renderVariant, toBlob } from '../../utils/postVisuals';
 import { captureTopics, shotStore } from '../../utils/agentCapture';
-import { VIDEO_FORMATS, recordTour, recordTours, streamTours, tourStore, type StreamItem, type TourScript, type VideoFormatId } from "../../utils/tour";
+import { VIDEO_FORMATS, recordTour, recordTours, streamTours, tourStore, type AudioMode, type StreamItem, type TourScript, type VideoFormatId } from "../../utils/tour";
 import { dailyPlan, dayKey } from '../../utils/dailyPlan';
 import { getStoredToken } from '../../utils/authClient';
 import { Platform, Topic, generateAccountPost, generateTopicPost, getTopics, scoreHook, templateScript } from '../../utils/topicContent';
@@ -38,6 +38,8 @@ export const AutoStudio: React.FC = () => {
   const [withVideo, setWithVideo] = useState(false);
   const [useAI, setUseAI] = useState(true);
   const [voice, setVoice] = useState(true);
+  const [audio, setAudio] = useState<AudioMode>('ai');
+  const [perPart, setPerPart] = useState(6);
   const [lang, setLang] = useState<'en' | 'roman-urdu'>('roman-urdu');
   const [ai, setAi] = useState<AiBundle | null>(null);
   const [variants, setVariants] = useState(2);
@@ -54,7 +56,7 @@ export const AutoStudio: React.FC = () => {
     const plan = dailyPlan<Topic>(topics, today, recent);
     const items: StreamItem[] = plan.map((p) => ({ tab: p.topic.tab, title: p.topic.title, theme: p.theme, script: async () => { const t = p.topic; const b = await askAI(t, 'tiktok', p.seed); if (!b && ur) setStreamStatus(`${t.title}: the AI writer is unavailable, so this video has captions only`); return scriptFor(t, b, p.seed); } }));
     try { localStorage.setItem('pp_recorded_topics', JSON.stringify([...plan.map((p) => p.topic.id), ...recent].slice(0, 200))); } catch { /* storage unavailable */ }
-    try { await streamTours(items, { voice, voiceLang: ur ? "ur" : "en", format: videoFmt, stop: streamStop.current, onVideo: (v) => setVideos((x) => [v, ...x]), onStatus: (m) => setStreamStatus(m) }); setStreamStatus(streamStop.current.stop ? 'Stopped. Every finished video is listed below.' : 'Every feature is done. Download any video below.'); }
+    try { await streamTours(items, { voice, audio, secondsPerPart: perPart, voiceLang: ur ? "ur" : "en", format: videoFmt, stop: streamStop.current, onVideo: (v) => setVideos((x) => [v, ...x]), onStatus: (m) => setStreamStatus(m) }); setStreamStatus(streamStop.current.stop ? 'Stopped. Every finished video is listed below.' : 'Every feature is done. Download any video below.'); }
     catch (e: any) { setStreamStatus(String(e?.message || e)); }
     finally { setStreaming(false); }
   };
@@ -124,10 +126,11 @@ export const AutoStudio: React.FC = () => {
     setBusy(true);
     try {
       const sc = scriptFor(topic, ai, seed, hi);
-      setStep('In the pop-up choose “This tab” and click Share. The agent will open this feature and record it live.');
-      const blob = await recordTour({ tab: topic.tab, title: topic.title, script: sc, theme, voice, voiceLang: lang === "roman-urdu" ? "ur" : "en", format: videoFmt });
+      setStep(audio === 'mic' ? 'Allow the microphone, then choose “This tab” and click Share. Speak in Urdu while the agent walks through every part of the section; your words become captions.' : 'In the pop-up choose “This tab” and click Share. The agent will open this section and walk through every part of it.');
+      const blob = await recordTour({ tab: topic.tab, title: topic.title, script: sc, theme, voice, audio, secondsPerPart: perPart, voiceLang: lang === "roman-urdu" ? "ur" : "en", format: videoFmt, onProgress: (_p, label) => label && setStep(label) });
       const dim = VIDEO_FORMATS[videoFmt]; const ext = blob.type.includes('mp4') ? 'mp4' : 'webm';
-      download(blob, `${base}-${videoFmt.replace(':', 'x')}.${ext}`); flash(`Live tour video downloaded (${dim.w}×${dim.h}, ${ext.toUpperCase()}). Add it to Streamlabs as a Media Source.`);
+      download(blob, `${base}-${videoFmt.replace(':', 'x')}.${ext}`); if (tourStore.lastSrt) download(new Blob([tourStore.lastSrt], { type: 'text/plain' }), `${base}-${videoFmt.replace(':', 'x')}.srt`);
+      flash(`Live tour video downloaded (${dim.w}×${dim.h}, ${ext.toUpperCase()})${tourStore.lastSrt ? ' with Urdu subtitles (.srt)' : ''}.`);
     } catch (e: any) { flash(String(e?.message || e)); } finally { setBusy(false); setStep(''); bump((n) => n + 1); }
   };
 
@@ -205,7 +208,8 @@ export const AutoStudio: React.FC = () => {
           <div className="flex flex-wrap items-center gap-3 rounded-xl border border-violet-400/30 bg-violet-500/10 p-2 text-[12px] text-slate-200">
             <button type="button" onClick={() => void writeAI()} disabled={busy} className={`${btn} bg-violet-500 text-white`} data-testid="write-ai"><Sparkles className="h-4 w-4" />Write script + post with AI</button>
             <label className="inline-flex items-center gap-1"><input type="checkbox" className="accent-violet-400" checked={useAI} onChange={(e) => setUseAI(e.target.checked)} />use AI on Regenerate</label>
-            <label className="inline-flex items-center gap-1"><input type="checkbox" className="accent-violet-400" checked={voice} onChange={(e) => setVoice(e.target.checked)} />voice-over ({lang === 'roman-urdu' ? 'Uzma · Urdu, female' : 'Jenny · English, female'})</label>
+            <label className="inline-flex items-center gap-1">sound <select value={audio} onChange={(e) => { const m = e.target.value as AudioMode; setAudio(m); setVoice(m === 'ai'); }} className="rounded bg-slate-900 px-1 py-0.5" data-testid="video-audio"><option value="ai">AI voice ({lang === 'roman-urdu' ? 'Uzma · Urdu, female' : 'Jenny · English'})</option><option value="mic">My voice (microphone) + live Urdu captions</option><option value="none">Music only</option></select></label>
+            {audio === 'mic' && <label className="inline-flex items-center gap-1">seconds per part <input type="number" min={3} max={15} value={perPart} onChange={(e) => setPerPart(Math.max(3, Math.min(15, Number(e.target.value) || 6)))} className="w-14 rounded bg-slate-900 px-1 py-0.5" data-testid="video-per-part" /></label>}
             <label className="inline-flex items-center gap-1">category <select value={tid} onChange={(e) => setTid(e.target.value)} className="max-w-[14rem] rounded bg-slate-900 px-1 py-0.5" data-testid="video-category">{topics.map((t) => <option key={t.id} value={t.id}>{t.title}</option>)}</select></label>
             <label className="inline-flex items-center gap-1">aspect ratio <select value={videoFmt} onChange={(e) => setVideoFmt(e.target.value as VideoFormatId)} className="rounded bg-slate-900 px-1 py-0.5" data-testid="video-format">{(Object.keys(VIDEO_FORMATS) as VideoFormatId[]).map((k) => <option key={k} value={k}>{VIDEO_FORMATS[k].label}</option>)}</select></label>
             <label className="inline-flex items-center gap-1">language <select value={lang} onChange={(e) => setLang(e.target.value as 'en' | 'roman-urdu')} className="rounded bg-slate-900 px-1 py-0.5"><option value="roman-urdu">Urdu voice + Roman Urdu captions</option><option value="en">English</option></select></label>

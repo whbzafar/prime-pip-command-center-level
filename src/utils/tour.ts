@@ -1,30 +1,45 @@
 import { FONT, fitText, rr, THEMES } from './postVisuals';
 import { go, lockedNotice, openScreen, sleep, SLOW, waitCalm } from './agentCapture';
 import { getStoredToken } from './authClient';
+import { type Beat, type Box, bringIntoView, discoverBeats, findScroller, fitCrop, fullCrop, panCrop, scrollToTop, toVideo } from './sectionDirector';
+import { startLiveCaptions, toSrt, type LiveCaptions } from './liveCaptions';
 
-/* Live tour video: the agent opens a real feature of the running app, records its live pixels, and edits them
-   into a vertical 1080x1920 video: kinetic hook, word-by-word captions (Roman Urdu), a female Pakistani Urdu
-   voice-over (server voice), transitions, zoom and pan on the real screen, music, progress and a call to action. */
+/* Live tour video. The director reads the real section (every heading, card and safe inner tab, top to bottom),
+   scrolls the real page to each part, and the camera follows that part's live box on screen with a spotlight and a
+   label of its real name. Audio is one of: the AI Urdu voice (server), the owner's own microphone with live Urdu
+   captions (browser speech recognition, free), or music only. A generated beat ducks under the voice. */
 
 export interface TourScene { say: string; caption: string; focus: 'left' | 'center' | 'right'; zoom: number; scroll: number; urdu?: string }
 export interface TourScript { hook: string; hookUrdu?: string; scenes: TourScene[]; cta: string; ctaUrdu?: string }
-export interface TourOpts { tab: string; title: string; script: TourScript; theme: number; voice: boolean; format?: VideoFormatId; voiceLang?: 'ur' | 'en'; returnTab?: string; onProgress?: (p: number, label: string) => void }
-export const tourStore: { videos: Record<string, { blob: Blob; title: string; at: number }>; running: boolean } = { videos: {}, running: false };
-type Kind = 'hook' | 'body' | 'cta';
+export type AudioMode = 'ai' | 'mic' | 'none';
+export interface TourOpts {
+  tab: string; title: string; script: TourScript; theme: number; voice: boolean;
+  /** Overrides `voice`: 'ai' voice-over, 'mic' owner's voice with live Urdu captions, 'none' music only. */
+  audio?: AudioMode;
+  /** Seconds the camera stays on each part when the owner narrates (mic mode). */
+  secondsPerPart?: number;
+  format?: VideoFormatId; voiceLang?: 'ur' | 'en'; returnTab?: string; onProgress?: (p: number, label: string) => void;
+}
+export const tourStore: { videos: Record<string, { blob: Blob; title: string; at: number }>; running: boolean; lastSrt: string } = { videos: {}, running: false, lastSrt: '' };
 
 const wordsOf = (s: string) => s.split(/\s+/).filter(Boolean);
-const ease = (t: number) => (t < 0 ? 0 : t > 1 ? 1 : t * t * (3 - 2 * t));
-const easeOut = (t: number) => 1 - Math.pow(1 - Math.min(1, Math.max(0, t)), 3);
-export const RECORD_BITRATE = 12_000_000;
+const clamp01 = (t: number) => (t < 0 ? 0 : t > 1 ? 1 : t);
+const ease = (t: number) => { const x = clamp01(t); return x * x * (3 - 2 * x); };
+const easeOut = (t: number) => 1 - Math.pow(1 - clamp01(t), 3);
+const easeBack = (t: number) => { const x = clamp01(t); const c = 1.7; return 1 + (c + 1) * Math.pow(x - 1, 3) + c * Math.pow(x - 1, 2); };
+const latin = (s: string) => !/[؀-ۿ]/.test(s);
+const URDU_FONT = '"Noto Nastaliq Urdu","Jameel Noori Nastaleeq","Segoe UI",Tahoma,sans-serif';
+export const RECORD_BITRATE = 14_000_000;
 /** Output formats the owner can pick. Layout is proportional to the height so every ratio keeps the same structure. */
 export const VIDEO_FORMATS = {
-  "9:16": { label: "Reels, TikTok, YouTube Shorts (9:16)", w: 1080, h: 1920 },
-  "4:5": { label: "Instagram and Facebook feed (4:5)", w: 1080, h: 1350 },
-  "1:1": { label: "Square post (1:1)", w: 1080, h: 1080 },
+  '9:16': { label: 'Reels, TikTok, YouTube Shorts (9:16)', w: 1080, h: 1920 },
+  '4:5': { label: 'Instagram and Facebook feed (4:5)', w: 1080, h: 1350 },
+  '1:1': { label: 'Square post (1:1)', w: 1080, h: 1080 },
+  '16:9': { label: 'YouTube and Facebook landscape (16:9)', w: 1920, h: 1080 },
 } as const;
 export type VideoFormatId = keyof typeof VIDEO_FORMATS;
 
-/** Voice-over from the server (Azure Uzma when configured, otherwise the free fallback). Returns null if unavailable. */
+/** Voice-over from the server (Azure Uzma when configured, otherwise the free Edge voice). Returns null if unavailable. */
 async function voiceFor(ac: AudioContext, text: string, lang: 'ur' | 'en'): Promise<AudioBuffer | null> {
   try {
     const t = getStoredToken();
@@ -34,101 +49,263 @@ async function voiceFor(ac: AudioContext, text: string, lang: 'ur' | 'en'): Prom
   } catch { return null; }
 }
 
-function music(ac: AudioContext, dest: AudioNode, seconds: number) {
-  const master = ac.createGain(); master.gain.value = 0; master.connect(dest); const t = ac.currentTime;
-  master.gain.linearRampToValueAtTime(0.07, t + 0.6); master.gain.setValueAtTime(0.07, t + seconds - 1); master.gain.linearRampToValueAtTime(0, t + seconds);
-  [110, 164.81, 220, 277.18, 329.63].forEach((f, i) => { const o = ac.createOscillator(); o.type = i % 2 ? 'sine' : 'triangle'; o.frequency.value = f; const g = ac.createGain(); g.gain.value = 0.3 / (i + 1.5); o.connect(g); g.connect(master); o.start(t); o.stop(t + seconds + 0.2); });
-  const lfo = ac.createOscillator(); lfo.frequency.value = 2; const lg = ac.createGain(); lg.gain.value = 0.02; lfo.connect(lg); lg.connect(master.gain); lfo.start(t); lfo.stop(t + seconds + 0.2);
+/** Generated music (no licensing): kick, clap, hats, bass line and pad at `bpm`. Returns the ducking gain. */
+function beatTrack(ac: AudioContext, dest: AudioNode, seconds: number, bpm = 102): GainNode {
+  const t = ac.currentTime + 0.05; const spb = 60 / bpm;
+  const fade = ac.createGain(); fade.gain.setValueAtTime(0, t); fade.gain.linearRampToValueAtTime(1, t + 0.8); fade.gain.setValueAtTime(1, Math.max(t + 1, t + seconds - 1.4)); fade.gain.linearRampToValueAtTime(0, t + seconds); fade.connect(dest);
+  const duck = ac.createGain(); duck.gain.value = 1; duck.connect(fade);
+  const master = ac.createGain(); master.gain.value = 0.2; master.connect(duck);
+  const noise = ac.createBuffer(1, ac.sampleRate, ac.sampleRate); const nd = noise.getChannelData(0); for (let i = 0; i < nd.length; i++) nd[i] = Math.random() * 2 - 1;
+  const roots = [55, 43.65, 65.41, 49]; // A, F, C, G
+  const env = (g: GainNode, at: number, peak: number, len: number) => { g.gain.setValueAtTime(0.0001, at); g.gain.exponentialRampToValueAtTime(peak, at + 0.005); g.gain.exponentialRampToValueAtTime(0.0001, at + len); };
+  const hit = (at: number, filter: BiquadFilterType, freq: number, peak: number, len: number) => { const s = ac.createBufferSource(); s.buffer = noise; const f = ac.createBiquadFilter(); f.type = filter; f.frequency.value = freq; const g = ac.createGain(); env(g, at, peak, len); s.connect(f); f.connect(g); g.connect(master); s.start(at); s.stop(at + len + 0.05); };
+  const beats = Math.ceil(seconds / spb);
+  for (let b = 0; b < beats; b++) {
+    const at = t + b * spb; if (at > t + seconds) break;
+    const intro = b < 4; const bar = Math.floor(b / 4); const root = roots[bar % 4];
+    if (!intro || b % 2 === 0) { const k = ac.createOscillator(); k.type = 'sine'; k.frequency.setValueAtTime(150, at); k.frequency.exponentialRampToValueAtTime(42, at + 0.13); const g = ac.createGain(); env(g, at, 0.95, 0.28); k.connect(g); g.connect(master); k.start(at); k.stop(at + 0.3); }
+    if (!intro && b % 4 === 2) hit(at, 'bandpass', 1900, 0.45, 0.16);
+    hit(at + spb / 2, 'highpass', 7500, 0.18, 0.05);
+    if (b % 2 === 1) hit(at + spb * 0.75, 'highpass', 9000, 0.08, 0.03);
+    if (!intro) { const o = ac.createOscillator(); o.type = 'sawtooth'; o.frequency.value = b % 4 === 3 ? root * 1.5 : root; const f = ac.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 420; const g = ac.createGain(); env(g, at, 0.28, spb * 0.85); o.connect(f); f.connect(g); g.connect(master); o.start(at); o.stop(at + spb); }
+    if (b % 4 === 0) [4, 5, 6].forEach((m) => { const o = ac.createOscillator(); o.type = 'triangle'; o.frequency.value = root * m * (m === 5 && bar % 2 ? 0.96 : 1); const g = ac.createGain(); g.gain.setValueAtTime(0.0001, at); g.gain.linearRampToValueAtTime(0.05, at + 0.3); g.gain.linearRampToValueAtTime(0.0001, at + spb * 4); o.connect(g); g.connect(master); o.start(at); o.stop(at + spb * 4 + 0.05); });
+  }
+  return duck;
 }
 
-/** Records one real tour of a feature. With a shared screen (from openScreen), many tours can run after one permission click. */
+type Kind = 'intro' | 'part' | 'outro';
+interface Seg { kind: Kind; beat?: Beat; headline: string; label: string; say: string; voice: AudioBuffer | null; seconds: number }
+
+/** Records one real tour of a section. With a shared screen (from openScreen), many tours can run after one permission click. */
 export async function recordTour(o: TourOpts, shared?: { video: HTMLVideoElement }): Promise<Blob> {
   if (typeof MediaRecorder === 'undefined') throw new Error('Video recording is not supported in this browser. Use desktop Chrome or Edge.');
-  const own = shared ? null : await openScreen(); const v = shared?.video || own!.video; tourStore.running = true;
+  const mode: AudioMode = o.audio || (o.voice ? 'ai' : 'none');
   const lang = o.voiceLang || 'ur';
+  // microphone first, so the permission prompt appears before the agent leaves this screen
+  let mic: MediaStream | null = null;
+  if (mode === 'mic') {
+    try { mic = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } }); }
+    catch { throw new Error('Microphone access was blocked, so your voice cannot be recorded. Allow the microphone for this site and try again.'); }
+  }
+  const own = shared ? null : await openScreen(); const v = shared?.video || own!.video; tourStore.running = true;
+  let captions: LiveCaptions | null = null;
   try {
-    go(o.tab); await sleep(1400); window.scrollTo(0, 0); const calm = await waitCalm(v, SLOW[o.tab] || 6500);
+    o.onProgress?.(0, `Opening ${o.title}`);
+    go(o.tab); await sleep(1500); window.scrollTo(0, 0); const calm = await waitCalm(v, SLOW[o.tab] || 6500);
     if (lockedNotice()) throw new Error(`“${o.title}” is locked for this account, so it cannot be recorded.`);
-    if (!calm) await sleep(1200);
+    if (!calm) await sleep(1500);
+    try { await (document as any).fonts?.load?.(`700 40px "Noto Nastaliq Urdu"`); } catch { /* font optional */ }
+
+    // 1. read the section: what is actually on this screen, top to bottom
+    const scroller = findScroller();
+    const beats = discoverBeats(scroller, o.title, 9);
+    o.onProgress?.(0, `Found ${beats.length} parts in ${o.title}`);
+
+    // 2. build the edit: intro, one shot per real part, outro
     const AC = (window as any).AudioContext || (window as any).webkitAudioContext; const ac: AudioContext = new AC(); if (ac.state === 'suspended') await ac.resume();
     const adest = ac.createMediaStreamDestination();
-    type Sc = TourScene & { seconds: number; voice: AudioBuffer | null; kind: Kind };
-    const scenes: Sc[] = []; let silent = 0;
-    const mk = async (s: TourScene, kind: Kind, line?: string) => {
-      const voice = o.voice && line ? await voiceFor(ac, line, lang) : null;
-      if (o.voice && !voice) silent++;
-      const base = Math.max(kind === 'hook' ? 2.4 : 2.6, wordsOf(s.say).length / 2.6 + 0.7);
-      scenes.push({ ...s, kind, voice, seconds: voice ? Math.max(base * 0.8, voice.duration + 0.5) : base });
-      o.onProgress?.(0, `Voice-over ${scenes.length}/${o.script.scenes.length + 2}`);
+    // master limiter: voice, microphone and music never clip
+    const mix = ac.createDynamicsCompressor(); mix.threshold.value = -6; mix.knee.value = 4; mix.ratio.value = 20; mix.attack.value = 0.002; mix.release.value = 0.15; mix.connect(adest);
+    const scenes = o.script.scenes;
+    const parts: { beat?: Beat; scene?: TourScene }[] = beats.length ? beats.map((b, i) => ({ beat: b, scene: mode === 'mic' ? undefined : scenes[i] })) : scenes.map((s) => ({ scene: s }));
+    const segs: Seg[] = [];
+    let silent = 0; let wanted = 0;
+    const per = Math.max(3, Math.min(15, o.secondsPerPart || 6));
+    const add = async (kind: Kind, headline: string, label: string, say: string, line: string | undefined, beat?: Beat) => {
+      let voice: AudioBuffer | null = null;
+      if (mode === 'ai' && line) { wanted++; voice = await voiceFor(ac, line, lang); if (!voice) silent++; }
+      const base = mode === 'mic' ? (kind === 'part' ? per : 3.4) : Math.max(kind === 'intro' ? 2.8 : 3.2, wordsOf(say).length / 2.6 + 0.9);
+      segs.push({ kind, beat, headline, label, say, voice, seconds: voice ? Math.max(base * 0.8, voice.duration + 0.6) : base });
+      o.onProgress?.(0, mode === 'ai' ? `Voice-over ${segs.length}/${parts.length + 2}` : `Planning shot ${segs.length}/${parts.length + 2}`);
     };
-    await mk({ say: o.script.hook, caption: o.script.hook, focus: 'center', zoom: 1, scroll: 0 }, 'hook', lang === 'ur' ? o.script.hookUrdu : o.script.hook);
-    for (const s of o.script.scenes) await mk(s, 'body', lang === 'ur' ? s.urdu : s.say);
-    await mk({ say: o.script.cta, caption: 'primepipfx.site', focus: 'center', zoom: 1, scroll: 0 }, 'cta', lang === 'ur' ? o.script.ctaUrdu : o.script.cta);
-    if (o.voice && silent === scenes.length) throw new Error("No Urdu voice-over could be generated, so the video was not made. Check the voice service (Azure key or the free Edge voice) and try again.");
-    const total = scenes.reduce((a, s) => a + s.seconds, 0); const starts: number[] = []; scenes.reduce((a, s) => { starts.push(a); return a + s.seconds; }, 0);
+    await add('intro', o.script.hook, o.title, o.script.hook, lang === 'ur' ? o.script.hookUrdu : o.script.hook);
+    for (const p of parts) {
+      const head = p.beat?.label || p.scene?.caption || o.title; // the headline always names what is on screen
+      await add('part', head, p.beat?.label || p.scene?.caption || o.title, p.scene?.say || '', p.scene ? (lang === 'ur' ? p.scene.urdu : p.scene.say) : undefined, p.beat);
+    }
+    await add('outro', o.script.cta, 'primepipfx.site', o.script.cta, lang === 'ur' ? o.script.ctaUrdu : o.script.cta);
+    if (mode === 'ai' && wanted && silent === wanted) throw new Error('No Urdu voice-over could be generated, so the video was not made. Use “My voice” (microphone) or check the voice service (Azure key or the free Edge voice).');
+    const total = segs.reduce((a, s) => a + s.seconds, 0); const starts: number[] = []; segs.reduce((a, s) => { starts.push(a); return a + s.seconds; }, 0);
 
-    const fmt = VIDEO_FORMATS[o.format ?? "9:16"]; const W = fmt.w; const H = fmt.h; const CX = W / 2; const Y = (n: number) => Math.round(n * H / 1920);
+    // 3. canvas, recorder and audio graph
+    const fmt = VIDEO_FORMATS[o.format ?? '9:16']; const W = fmt.w; const H = fmt.h; const land = W > H;
+    const U = Math.min(W, H) / 1080; // type scale
     const out = document.createElement('canvas'); out.width = W; out.height = H; const ctx = out.getContext('2d')!; const th = THEMES[o.theme % THEMES.length];
-    const small = document.createElement('canvas'); small.width = 54; small.height = 96; const sctx = small.getContext('2d')!;
+    const small = document.createElement('canvas'); small.width = 64; small.height = 36; const sctx = small.getContext('2d')!;
     const stream = out.captureStream(30); stream.addTrack(adest.stream.getAudioTracks()[0]);
-    const mime = ['video/mp4;codecs=avc1.42E01E,mp4a.40.2', 'video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm'].find((m) => MediaRecorder.isTypeSupported(m)) || '';
-    const rec = new MediaRecorder(stream, { ...(mime ? { mimeType: mime } : {}), videoBitsPerSecond: RECORD_BITRATE });
+    const mime = ['video/mp4;codecs=avc1.640028,mp4a.40.2', 'video/mp4;codecs=avc1.42E01E,mp4a.40.2', 'video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm'].find((m) => MediaRecorder.isTypeSupported(m)) || '';
+    const rec = new MediaRecorder(stream, { ...(mime ? { mimeType: mime } : {}), videoBitsPerSecond: RECORD_BITRATE, audioBitsPerSecond: 192_000 });
     const chunks: Blob[] = []; rec.ondataavailable = (e) => e.data.size && chunks.push(e.data);
     const finished = new Promise<Blob>((res) => { rec.onstop = () => res(new Blob(chunks, { type: rec.mimeType || 'video/webm' })); });
 
-    const BOX = { x: Math.round(W * 60 / 1080), y: Y(500), w: Math.round(W * 960 / 1080), h: Y(1000) };
-    const cropFor = (s: TourScene) => {
-      const vw = v.videoWidth; const vh = v.videoHeight; const cw = Math.min(vw, vh * (BOX.w / BOX.h)) / Math.max(1, s.zoom); const ch = cw * (BOX.h / BOX.w);
-      const fx = s.focus === 'left' ? 0 : s.focus === 'right' ? 1 : 0.5; const x = (vw - cw) * fx; const y = Math.min(vh - ch, Math.max(0, (vh - ch) * (s.scroll * 0.6)));
-      return { x, y, w: cw, h: ch };
+    // layout: header, headline, live screen box, captions, footer (portrait); screen left + text right (landscape)
+    const M = Math.round(56 * U);
+    const BOX: Box = land ? { x: M, y: Math.round(H * 0.13), w: Math.round(W * 0.64), h: Math.round(H * 0.74) }
+      : { x: M, y: Math.round(H * (H / W > 1.5 ? 0.25 : H / W > 1.1 ? 0.24 : 0.22)), w: W - M * 2, h: Math.round(H * (H / W > 1.5 ? 0.52 : H / W > 1.1 ? 0.5 : 0.47)) };
+    const aspect = BOX.w / BOX.h;
+    const headY = land ? Math.round(H * 0.3) : Math.round(BOX.y * 0.6);
+    const capY = land ? Math.round(H * 0.62) : Math.round(BOX.y + BOX.h + (H - BOX.y - BOX.h) * 0.28);
+    const textX = land ? BOX.x + BOX.w + M : M; const textW = land ? W - textX - M : W - M * 2; const textCX = textX + textW / 2;
+
+    const music = beatTrack(ac, mix, total + 0.3);
+    const t0 = ac.currentTime + 0.05;
+    if (mode === 'ai') segs.forEach((s, i) => {
+      if (!s.voice) return; const at = t0 + starts[i] + 0.2;
+      const src = ac.createBufferSource(); src.buffer = s.voice; const vg = ac.createGain(); vg.gain.value = 1.15; src.connect(vg); vg.connect(mix); src.start(at);
+      music.gain.setTargetAtTime(0.28, at - 0.1, 0.06); music.gain.setTargetAtTime(1, at + s.voice.duration, 0.25);
+    });
+    if (mic) {
+      const src = ac.createMediaStreamSource(mic); const hp = ac.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 85;
+      const comp = ac.createDynamicsCompressor(); comp.threshold.value = -26; comp.ratio.value = 4; comp.attack.value = 0.004; comp.release.value = 0.2;
+      const g = ac.createGain(); g.gain.value = 1.7; src.connect(hp); hp.connect(comp); comp.connect(g); g.connect(mix);
+      music.gain.value = 0.3; // music stays under your voice the whole time
+    }
+
+    // 4. live render loop; the director moves the real page while the camera follows
+    const vw = () => v.videoWidth || 1280; const vh = () => v.videoHeight || 720;
+    let cam = fullCrop(aspect, vw(), vh()); let segIdx = -1; let segAt = 0; let lastT = 0; let spot: Box | null = null;
+    rec.start(250); if (mode === 'mic') captions = startLiveCaptions(lang === 'ur' ? 'ur-PK' : 'en-US');
+    const start = performance.now();
+    const enter = (i: number) => {
+      const s = segs[i];
+      if (s.kind === 'part' && s.beat) {
+        if (s.beat.click) { try { s.beat.click.click(); } catch { /* ignore */ } }
+        bringIntoView(scroller, s.beat.el);
+      } else if (s.kind === 'part') {
+        const max = Math.max(0, scroller.scrollHeight - scroller.clientHeight); const frac = (i - 1) / Math.max(1, segs.length - 3);
+        if (scroller === document.scrollingElement || scroller === document.documentElement) window.scrollTo({ top: max * frac, behavior: 'smooth' }); else scroller.scrollTo({ top: max * frac, behavior: 'smooth' });
+      } else scrollToTop(scroller);
     };
-    let cur = cropFor(scenes[0]); let prev = cur; let lastScene = -1; let flashAt = -10; const t0 = ac.currentTime; music(ac, adest, total);
-    scenes.forEach((s, i) => { if (s.voice) { const src = ac.createBufferSource(); src.buffer = s.voice; src.connect(adest); src.start(t0 + starts[i] + 0.15); } });
-    rec.start(250); const start = performance.now();
+
     await new Promise<void>((resolve) => {
       const tick = () => {
         const t = (performance.now() - start) / 1000; if (t >= total) return resolve();
-        let i = scenes.length - 1; while (i > 0 && t < starts[i]) i--; const sc = scenes[i]; const local = t - starts[i];
-        if (i !== lastScene) { lastScene = i; flashAt = t; prev = cur; if (sc.kind === 'body' && sc.scroll > 0) { const max = Math.max(0, document.documentElement.scrollHeight - window.innerHeight); window.scrollTo({ top: max * sc.scroll, behavior: 'smooth' }); } if (sc.kind === 'cta') window.scrollTo({ top: 0, behavior: 'smooth' }); }
-        const tgt = cropFor(sc); const k = ease(local / 0.7); const drift = 1 + 0.04 * (local / sc.seconds);
-        cur = { x: prev.x + (tgt.x - prev.x) * k, y: prev.y + (tgt.y - prev.y) * k, w: (prev.w + (tgt.w - prev.w) * k) / drift, h: (prev.h + (tgt.h - prev.h) * k) / drift };
-        // backdrop: blurred live screen + brand tint
-        const g = ctx.createLinearGradient(0, 0, 0, H); g.addColorStop(0, th.bg0); g.addColorStop(1, th.bg1); ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
-        sctx.drawImage(v, 0, 0, 54, 96); ctx.globalAlpha = 0.35; ctx.drawImage(small, 0, 0, W, H); ctx.globalAlpha = 1; ctx.fillStyle = 'rgba(2,6,23,.62)'; ctx.fillRect(0, 0, W, H);
-        // header
-        ctx.textBaseline = 'top'; ctx.font = `800 34px ${FONT}`; ctx.fillStyle = th.a; ctx.fillText('PRIMEPIPFX', 60, 60); ctx.fillStyle = 'rgba(255,255,255,.55)'; ctx.font = `600 22px ${FONT}`; ctx.fillText(o.title.toUpperCase(), 60, 104);
-        // kinetic caption (Roman Urdu / English)
-        const pop = easeOut(local / 0.35); const big = sc.kind === 'hook';
-        ctx.save(); ctx.translate(CX, big ? Y(330) : Y(280)); ctx.scale(0.9 + 0.1 * pop, 0.9 + 0.1 * pop); ctx.globalAlpha = pop; ctx.translate(-CX, big ? -Y(330) : -Y(280));
-        const fit = fitText(ctx, sc.caption.toUpperCase(), 940, big ? 320 : 200, big ? 118 : 92); ctx.font = `900 ${fit.size}px ${FONT}`; ctx.shadowColor = 'rgba(0,0,0,.7)'; ctx.shadowBlur = 24;
-        const blockH = fit.lines.length * fit.size * 1.1; const y0 = (big ? Y(330) : Y(280)) - blockH / 2;
-        fit.lines.forEach((ln, li) => { ctx.fillStyle = li === fit.lines.length - 1 ? th.a : '#fff'; const w = ctx.measureText(ln).width; ctx.fillText(ln, CX - w / 2, y0 + li * fit.size * 1.1); }); ctx.restore();
-        // live screen in a glass frame
-        ctx.save(); ctx.shadowColor = th.a + '88'; ctx.shadowBlur = 50; ctx.fillStyle = '#0b1220'; rr(ctx, BOX.x - 8, BOX.y - 8, BOX.w + 16, BOX.h + 16, 34); ctx.fill(); ctx.restore();
-        ctx.save(); rr(ctx, BOX.x, BOX.y, BOX.w, BOX.h, 28); ctx.clip(); ctx.drawImage(v, cur.x, cur.y, cur.w, cur.h, BOX.x, BOX.y, BOX.w, BOX.h); ctx.restore();
-        // word-by-word subtitles (Roman Urdu caption text)
-        const ws = wordsOf(sc.say); const reveal = Math.min(ws.length, Math.floor((local / (sc.seconds * 0.85)) * ws.length) + 1);
-        ctx.font = `800 54px ${FONT}`; const lines: string[][] = [[]];
-        for (const w of ws) { const test = [...lines[lines.length - 1], w].join(' '); if (ctx.measureText(test).width > 940 && lines[lines.length - 1].length) lines.push([w]); else lines[lines.length - 1].push(w); }
-        let idx = 0; const ty = Y(1560); ctx.shadowColor = 'rgba(0,0,0,.8)'; ctx.shadowBlur = 14;
-        lines.slice(0, 3).forEach((ln, li) => { const text = ln.join(' '); let x = CX - ctx.measureText(text).width / 2; ln.forEach((w) => { const shown = idx < reveal; const active = idx === reveal - 1; ctx.fillStyle = !shown ? 'rgba(255,255,255,.18)' : active ? th.a : '#fff'; ctx.fillText(w, x, ty + li * 66); x += ctx.measureText(w + ' ').width; idx++; }); });
-        ctx.shadowBlur = 0;
-        // footer: call to action pill, risk line, progress
-        const bw = 520; const gg = ctx.createLinearGradient(CX - bw / 2, 0, CX + bw / 2, 0); gg.addColorStop(0, th.a); gg.addColorStop(1, th.b); ctx.fillStyle = gg; rr(ctx, CX - bw / 2, Y(1770), bw, 76, 38); ctx.fill();
-        ctx.fillStyle = '#111827'; ctx.font = `800 36px ${FONT}`; ctx.textBaseline = 'middle'; const cta = 'primepipfx.site'; ctx.fillText(cta, CX - ctx.measureText(cta).width / 2, Y(1809)); ctx.textBaseline = 'top';
-        ctx.fillStyle = 'rgba(255,255,255,.45)'; ctx.font = `500 20px ${FONT}`; const d = 'Educational content, not financial advice. Trading carries risk.'; ctx.fillText(d, CX - ctx.measureText(d).width / 2, Y(1868));
-        ctx.fillStyle = 'rgba(255,255,255,.15)'; ctx.fillRect(0, Y(1906), W, 14); ctx.fillStyle = th.a; ctx.fillRect(0, Y(1906), W * (t / total), 14);
-        // scene-change flash (transition)
-        const fa = Math.max(0, 1 - (t - flashAt) / 0.35); if (fa > 0) { ctx.fillStyle = `rgba(255,255,255,${0.22 * fa})`; ctx.fillRect(0, 0, W, H); }
-        o.onProgress?.(t / total, `Recording ${o.title}`); requestAnimationFrame(tick);
+        const dt = Math.min(0.1, t - lastT); lastT = t;
+        let i = segs.length - 1; while (i > 0 && t < starts[i]) i--;
+        if (i !== segIdx) { segIdx = i; segAt = t; enter(i); }
+        const s = segs[i]; const local = t - starts[i]; const since = t - segAt; const prog = local / s.seconds;
+
+        // camera target: the part's live box on screen, else the whole screen
+        const box = s.kind === 'part' && s.beat ? toVideo(s.beat.el, vw(), vh()) : null;
+        const fit0 = box ? fitCrop(box, aspect, vw(), vh()) : fullCrop(aspect, vw(), vh());
+        const tgt = box ? panCrop(box, fit0, vw(), vh(), ease((since - 0.8) / Math.max(0.5, s.seconds - 1.2))) : fit0;
+        const k = 1 - Math.exp(-dt * (since < 1 ? 4.2 : 2.6));
+        cam = { x: cam.x + (tgt.x - cam.x) * k, y: cam.y + (tgt.y - cam.y) * k, w: cam.w + (tgt.w - cam.w) * k, h: cam.h + (tgt.h - cam.h) * k };
+        const push = 1 + 0.045 * ease(prog); // slow push-in
+        const shot = { x: cam.x + (cam.w - cam.w / push) / 2, y: cam.y + (cam.h - cam.h / push) / 2, w: cam.w / push, h: cam.h / push };
+        spot = box;
+
+        // backdrop: blurred live screen + brand gradient
+        const g = ctx.createLinearGradient(0, 0, W, H); g.addColorStop(0, th.bg0); g.addColorStop(1, th.bg1); ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+        sctx.drawImage(v, 0, 0, 64, 36); ctx.globalAlpha = 0.4; ctx.imageSmoothingQuality = 'low'; ctx.drawImage(small, 0, 0, W, H); ctx.globalAlpha = 1; ctx.imageSmoothingQuality = 'high';
+        ctx.fillStyle = 'rgba(2,6,23,.58)'; ctx.fillRect(0, 0, W, H);
+        const glow = ctx.createRadialGradient(W * 0.5, BOX.y, 0, W * 0.5, BOX.y, W * 0.8); glow.addColorStop(0, th.a + '33'); glow.addColorStop(1, 'transparent'); ctx.fillStyle = glow; ctx.fillRect(0, 0, W, H);
+
+        // header: brand, section, part counter
+        ctx.textBaseline = 'top'; ctx.font = `800 ${34 * U}px ${FONT}`; ctx.fillStyle = th.a; ctx.fillText('PRIMEPIPFX', M, M);
+        ctx.fillStyle = 'rgba(255,255,255,.6)'; ctx.font = `600 ${22 * U}px ${FONT}`; ctx.fillText(o.title.toUpperCase(), M, M + 44 * U);
+        const partNo = segs.slice(0, i + 1).filter((x) => x.kind === 'part').length; const partTotal = segs.filter((x) => x.kind === 'part').length;
+        if (s.kind === 'part') { const lab = `${String(partNo).padStart(2, '0')} / ${String(partTotal).padStart(2, '0')}`; ctx.font = `800 ${26 * U}px ${FONT}`; const lw = ctx.measureText(lab).width; ctx.fillStyle = 'rgba(255,255,255,.1)'; rr(ctx, W - M - lw - 36 * U, M - 6 * U, lw + 36 * U, 46 * U, 23 * U); ctx.fill(); ctx.fillStyle = '#fff'; ctx.fillText(lab, W - M - lw - 18 * U, M + 4 * U); }
+
+        // live screen: transition punch + whip on every cut, then the camera shot
+        const punch = Math.max(0, 1 - since / 0.45); const sc = 1 + 0.06 * punch * punch;
+        ctx.save(); ctx.translate(BOX.x + BOX.w / 2, BOX.y + BOX.h / 2); ctx.scale(sc, sc); ctx.translate(-(BOX.x + BOX.w / 2), -(BOX.y + BOX.h / 2));
+        ctx.save(); ctx.shadowColor = th.a + '99'; ctx.shadowBlur = 60 * U; ctx.fillStyle = '#0b1220'; rr(ctx, BOX.x - 8 * U, BOX.y - 8 * U, BOX.w + 16 * U, BOX.h + 16 * U, 34 * U); ctx.fill(); ctx.restore();
+        ctx.save(); rr(ctx, BOX.x, BOX.y, BOX.w, BOX.h, 28 * U); ctx.clip();
+        ctx.drawImage(v, shot.x, shot.y, shot.w, shot.h, BOX.x, BOX.y, BOX.w, BOX.h);
+        if (since < 0.22 && i > 0) { const off = (1 - since / 0.22) * BOX.w * 0.08; ctx.globalAlpha = 0.28; ctx.drawImage(v, shot.x, shot.y, shot.w, shot.h, BOX.x - off, BOX.y, BOX.w, BOX.h); ctx.drawImage(v, shot.x, shot.y, shot.w, shot.h, BOX.x + off, BOX.y, BOX.w, BOX.h); ctx.globalAlpha = 1; }
+        // spotlight on the real part, with its real name
+        if (spot && s.kind === 'part') {
+          const fx = BOX.w / shot.w; const fy = BOX.h / shot.h;
+          const hx = BOX.x + (spot.x - shot.x) * fx; const hy = BOX.y + (spot.y - shot.y) * fy; const hw = spot.w * fx; const hh = spot.h * fy;
+          const a = ease((since - 0.5) / 0.5);
+          if (a > 0) {
+            ctx.fillStyle = `rgba(2,6,23,${0.5 * a})`; ctx.beginPath(); ctx.rect(BOX.x, BOX.y, BOX.w, BOX.h);
+            if (ctx.roundRect) ctx.roundRect(hx - 10 * U, hy - 10 * U, hw + 20 * U, hh + 20 * U, 18 * U); else ctx.rect(hx - 10 * U, hy - 10 * U, hw + 20 * U, hh + 20 * U);
+            ctx.fill('evenodd');
+            const pulse = 0.65 + 0.35 * Math.sin(t * 5); ctx.strokeStyle = th.a; ctx.globalAlpha = a * pulse; ctx.lineWidth = 5 * U; ctx.shadowColor = th.a; ctx.shadowBlur = 24 * U; rr(ctx, hx - 10 * U, hy - 10 * U, hw + 20 * U, hh + 20 * U, 18 * U); ctx.stroke(); ctx.shadowBlur = 0; ctx.globalAlpha = 1;
+            // callout pill with the part's real label
+            const pa = easeBack((since - 0.7) / 0.45);
+            if (pa > 0 && s.label) {
+              ctx.font = `800 ${30 * U}px ${FONT}`; const txt = s.label.toUpperCase(); const pw = Math.min(BOX.w - 40 * U, ctx.measureText(txt).width + 70 * U); const ph = 56 * U;
+              let px = Math.min(BOX.x + BOX.w - pw - 20 * U, Math.max(BOX.x + 20 * U, hx)); let py = hy - ph - 22 * U; if (py < BOX.y + 16 * U) py = Math.min(BOX.y + BOX.h - ph - 16 * U, hy + hh + 22 * U);
+              ctx.save(); ctx.translate(px + pw / 2, py + ph / 2); ctx.scale(pa, pa); ctx.translate(-(px + pw / 2), -(py + ph / 2));
+              ctx.fillStyle = th.a; rr(ctx, px, py, pw, ph, ph / 2); ctx.fill(); ctx.fillStyle = '#0b0b0b'; ctx.beginPath(); ctx.arc(px + ph / 2, py + ph / 2, ph * 0.32, 0, Math.PI * 2); ctx.fill();
+              ctx.fillStyle = th.a; ctx.font = `900 ${22 * U}px ${FONT}`; ctx.textBaseline = 'middle'; const n = String(partNo); ctx.fillText(n, px + ph / 2 - ctx.measureText(n).width / 2, py + ph / 2 + 1);
+              ctx.fillStyle = '#0b0b0b'; ctx.font = `800 ${30 * U}px ${FONT}`; let shown = txt; while (ctx.measureText(shown).width > pw - ph - 26 * U && shown.length > 4) shown = shown.slice(0, -2); if (shown !== txt) shown += '…';
+              ctx.fillText(shown, px + ph + 6 * U, py + ph / 2 + 1); ctx.textBaseline = 'top'; ctx.restore();
+              px = 0; py = 0;
+            }
+          }
+        }
+        ctx.restore(); ctx.restore();
+
+        // headline (kinetic): hook, part caption, call to action
+        const pop = easeBack(since / 0.4); const big = s.kind !== 'part';
+        const head = latin(s.headline) ? s.headline.toUpperCase() : s.headline;
+        ctx.save(); ctx.translate(textCX, headY); ctx.scale(0.85 + 0.15 * pop, 0.85 + 0.15 * pop); ctx.globalAlpha = clamp01(since / 0.25); ctx.translate(-textCX, -headY);
+        const maxH = land ? H * 0.32 : Math.max(120, BOX.y - M - 120 * U);
+        const fit = fitText(ctx, head, textW, maxH, (big ? 112 : 84) * U, 900); ctx.font = `900 ${fit.size}px ${latin(head) ? FONT : URDU_FONT}`; ctx.shadowColor = 'rgba(0,0,0,.75)'; ctx.shadowBlur = 26 * U;
+        const lh = fit.size * (latin(head) ? 1.08 : 1.6); const y0 = headY - (fit.lines.length * lh) / 2;
+        fit.lines.forEach((ln, li) => { ctx.fillStyle = li === fit.lines.length - 1 ? th.a : '#fff'; const w = ctx.measureText(ln).width; ctx.fillText(ln, land ? textX : textCX - w / 2, y0 + li * lh); }); ctx.restore();
+
+        // captions: live transcript of your voice (Urdu script) or word-by-word voice-over captions
+        if (mode === 'mic') {
+          const said = (captions?.current() || '').trim();
+          if (said) {
+            ctx.save(); ctx.font = `700 ${50 * U}px ${URDU_FONT}`; ctx.direction = 'rtl'; ctx.textBaseline = 'middle';
+            const words = said.split(/\s+/); const lines: string[] = []; let line = '';
+            for (const w of words) { const test = line ? `${line} ${w}` : w; if (ctx.measureText(test).width > textW - 60 * U && line) { lines.push(line); line = w; } else line = test; }
+            if (line) lines.push(line); const keep = lines.slice(-2); const lh2 = 92 * U; const bh = keep.length * lh2 + 34 * U;
+            const bw = Math.min(textW, Math.max(...keep.map((l) => ctx.measureText(l).width)) + 70 * U);
+            ctx.fillStyle = '#FACC15'; rr(ctx, textCX - bw / 2, capY - 17 * U, bw, bh, 22 * U); ctx.fill();
+            ctx.fillStyle = '#0b0b0b'; keep.forEach((l, li) => { const w = ctx.measureText(l).width; ctx.fillText(l, textCX + w / 2, capY + lh2 / 2 + li * lh2); });
+            ctx.restore();
+          } else if (s.kind === 'part' && since < 1.2) {
+            ctx.fillStyle = 'rgba(255,255,255,.25)'; ctx.font = `600 ${26 * U}px ${FONT}`; const hint = '● LIVE'; ctx.fillText(hint, textCX - ctx.measureText(hint).width / 2, capY);
+          }
+        } else if (s.say) {
+          const ws = wordsOf(s.say); const reveal = Math.min(ws.length, Math.floor((local / (s.seconds * 0.85)) * ws.length) + 1);
+          ctx.font = `800 ${50 * U}px ${FONT}`; const lines: string[][] = [[]];
+          for (const w of ws) { const test = [...lines[lines.length - 1], w].join(' '); if (ctx.measureText(test).width > textW - 50 * U && lines[lines.length - 1].length) lines.push([w]); else lines[lines.length - 1].push(w); }
+          const curLine = (() => { let n = 0; for (let li = 0; li < lines.length; li++) { n += lines[li].length; if (reveal <= n) return li; } return lines.length - 1; })();
+          const from = Math.max(0, Math.min(curLine, lines.length - 2)); const show = lines.slice(from, from + 2); let idx = lines.slice(0, from).reduce((a, l) => a + l.length, 0);
+          const lh2 = 64 * U; const bw = Math.min(textW, Math.max(...show.map((l) => ctx.measureText(l.join(' ')).width)) + 60 * U);
+          ctx.fillStyle = 'rgba(0,0,0,.55)'; rr(ctx, textCX - bw / 2, capY - 14 * U, bw, show.length * lh2 + 22 * U, 20 * U); ctx.fill();
+          show.forEach((ln, li) => { const text = ln.join(' '); let x = textCX - ctx.measureText(text).width / 2; ln.forEach((w) => { const shown = idx < reveal; const active = idx === reveal - 1; ctx.fillStyle = !shown ? 'rgba(255,255,255,.3)' : active ? '#FACC15' : '#fff'; ctx.fillText(w, x, capY + li * lh2); x += ctx.measureText(w + ' ').width; idx++; }); });
+        }
+
+        // outro card
+        if (s.kind === 'outro') {
+          const a = ease(since / 0.5); ctx.fillStyle = `rgba(2,6,23,${0.55 * a})`; ctx.fillRect(BOX.x, BOX.y, BOX.w, BOX.h);
+          const pa = easeBack((since - 0.25) / 0.5); if (pa > 0) {
+            const cx = BOX.x + BOX.w / 2; const cy = BOX.y + BOX.h / 2; ctx.save(); ctx.translate(cx, cy); ctx.scale(pa, pa);
+            ctx.font = `900 ${84 * U}px ${FONT}`; const site = 'primepipfx.site'; const sw = ctx.measureText(site).width; const gg = ctx.createLinearGradient(-sw / 2, 0, sw / 2, 0); gg.addColorStop(0, th.a); gg.addColorStop(1, th.b); ctx.fillStyle = gg; ctx.textBaseline = 'middle'; ctx.fillText(site, -sw / 2, 0);
+            ctx.font = `700 ${34 * U}px ${FONT}`; ctx.fillStyle = '#fff'; const sub = 'Link in bio · Free to try'; ctx.fillText(sub, -ctx.measureText(sub).width / 2, 80 * U); ctx.restore(); ctx.textBaseline = 'top';
+          }
+        }
+
+        // footer: risk line and progress
+        ctx.fillStyle = 'rgba(255,255,255,.5)'; ctx.font = `500 ${20 * U}px ${FONT}`; const d = 'Educational content, not financial advice. Trading carries risk.'; ctx.fillText(d, W / 2 - ctx.measureText(d).width / 2, H - 52 * U);
+        ctx.fillStyle = 'rgba(255,255,255,.12)'; ctx.fillRect(0, H - 12 * U, W, 12 * U); ctx.fillStyle = th.a; ctx.fillRect(0, H - 12 * U, W * (t / total), 12 * U);
+        // cut flash
+        const fa = Math.max(0, 1 - since / 0.3); if (fa > 0 && i > 0) { ctx.fillStyle = `rgba(255,255,255,${0.18 * fa})`; ctx.fillRect(0, 0, W, H); }
+        o.onProgress?.(t / total, s.kind === 'part' ? `Recording ${o.title}: ${s.label} (${partNo}/${partTotal})` : `Recording ${o.title}`);
+        requestAnimationFrame(tick);
       };
       tick();
     });
-    rec.stop(); const blob = await finished; void ac.close();
+    rec.stop(); const blob = await finished;
+    if (captions) { captions.stop(); tourStore.lastSrt = toSrt(captions.lines()); } else tourStore.lastSrt = '';
+    void ac.close();
     tourStore.videos[o.tab] = { blob, title: o.title, at: Date.now() };
-    if (silent) o.onProgress?.(1, `${silent} scene(s) had no Urdu voice line: those use captions only`);
+    if (mode === 'ai' && silent) o.onProgress?.(1, `${silent} line(s) had no Urdu voice: those use captions only`);
     return blob;
-  } finally { tourStore.running = false; window.scrollTo(0, 0); if (own) { own.stream.getTracks().forEach((t) => t.stop()); go(o.returnTab || 'ADMIN'); } }
+  } finally {
+    captions?.stop(); mic?.getTracks().forEach((t) => t.stop());
+    tourStore.running = false; window.scrollTo(0, 0);
+    if (own) { own.stream.getTracks().forEach((t) => t.stop()); go(o.returnTab || 'ADMIN'); }
+  }
 }
 
 /** One "Share this tab" click, then every listed topic gets its own recorded tour (batch). */
@@ -139,7 +316,7 @@ export async function recordTours(items: Omit<TourOpts, 'returnTab'>[], onEach?:
 }
 
 export interface StreamItem { tab: string; title: string; theme: number; script: () => Promise<TourScript> }
-export interface StreamOpts { voice: boolean; voiceLang: 'ur' | 'en'; format?: VideoFormatId; stop: { stop: boolean }; pauseMs?: number; onVideo: (v: { title: string; url: string; bytes: number; at: number; ext: string }) => void; onStatus: (s: string) => void }
+export interface StreamOpts { voice: boolean; audio?: AudioMode; secondsPerPart?: number; voiceLang: 'ur' | 'en'; format?: VideoFormatId; stop: { stop: boolean }; pauseMs?: number; onVideo: (v: { title: string; url: string; bytes: number; at: number; ext: string }) => void; onStatus: (s: string) => void }
 /** Non-stop production: one permission click, then each feature is scripted, recorded and handed over as soon as it is ready. Stops when opts.stop.stop is set. */
 export async function streamTours(items: StreamItem[], opts: StreamOpts): Promise<void> {
   const scr = await openScreen();
@@ -150,7 +327,7 @@ export async function streamTours(items: StreamItem[], opts: StreamOpts): Promis
       try { script = await it.script(); } catch (e: any) { opts.onStatus(`Skipped ${it.title}: ${String(e?.message || e)}`); continue; }
       if (opts.stop.stop) break;
       try {
-        const blob = await recordTour({ tab: it.tab, title: it.title, script, theme: it.theme, voice: opts.voice, voiceLang: opts.voiceLang, format: opts.format, onProgress: (p, label) => opts.onStatus(`(${i + 1}/${items.length}) ${it.title}: ${label || Math.round(p * 100) + '%'}`) }, scr);
+        const blob = await recordTour({ tab: it.tab, title: it.title, script, theme: it.theme, voice: opts.voice, audio: opts.audio, secondsPerPart: opts.secondsPerPart, voiceLang: opts.voiceLang, format: opts.format, onProgress: (p, label) => opts.onStatus(`(${i + 1}/${items.length}) ${it.title}: ${label || Math.round(p * 100) + '%'}`) }, scr);
         opts.onVideo({ title: it.title, url: URL.createObjectURL(blob), bytes: blob.size, at: Date.now(), ext: blob.type.includes('mp4') ? 'mp4' : 'webm' });
       } catch (e: any) { opts.onStatus(`Skipped ${it.title}: ${String(e?.message || e)}`); }
       await sleep(opts.pauseMs ?? 1500);
