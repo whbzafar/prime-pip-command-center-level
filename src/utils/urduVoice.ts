@@ -63,6 +63,8 @@ function pieces(text: string): string[] {
 
 /** Speaks `text` (Urdu script) and returns mono PCM at the model's sample rate. */
 export async function speakUrdu(text: string, onProgress?: (label: string) => void): Promise<{ pcm: Float32Array; sampleRate: number }> {
+  const key = `https://voice.local/urdu/${encodeURIComponent(text.trim())}`;
+  try { const c = await caches.open(CACHE); const hit = await c.match(key); if (hit) return { pcm: new Float32Array(await hit.arrayBuffer()), sampleRate: 22050 }; } catch { /* no cache */ }
   await loadUrduVoice(onProgress);
   const sr = config!.audio.sample_rate; const chunks: Float32Array[] = [];
   for (const piece of pieces(text)) {
@@ -78,6 +80,7 @@ export async function speakUrdu(text: string, onProgress?: (label: string) => vo
   }
   const total = chunks.reduce((a, c) => a + c.length, 0); if (!total) throw new Error('The Urdu voice produced no sound');
   const pcm = new Float32Array(total); let o = 0; for (const c of chunks) { pcm.set(c, o); o += c.length; }
+  try { const c = await caches.open(CACHE); await c.put(key, new Response(pcm.buffer.slice(0))); } catch { /* no cache */ }
   return { pcm, sampleRate: sr };
 }
 
