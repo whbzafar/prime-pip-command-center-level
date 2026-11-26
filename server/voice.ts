@@ -85,7 +85,8 @@ export async function translateUrdu(text: string): Promise<string> {
   } catch { return t; }
 }
 
-export async function urduSpeech(text: string, lang: 'ur' | 'en' = 'ur'): Promise<Buffer | null> {
+export async function urduSpeech(text: string, lang: 'ur' | 'en' = 'ur', trace?: string[]): Promise<Buffer | null> {
+  const note = (m: string) => { trace?.push(m); };
   const key = process.env.AZURE_SPEECH_KEY; const region = process.env.AZURE_SPEECH_REGION || 'eastus';
   if (key) {
     try {
@@ -95,15 +96,19 @@ export async function urduSpeech(text: string, lang: 'ur' | 'en' = 'ur'): Promis
         body: buildSsml(text, lang),
       }), 20000);
       if (r.ok) return Buffer.from(await r.arrayBuffer());
-    } catch { /* fall through */ }
+      note(`azure: HTTP ${r.status}`);
+    } catch (e: any) { note(`azure: ${String(e?.message || e).slice(0, 80)}`); }
   }
   const edge = await edgeSpeech(text, lang);
-  if (edge) return edge;
+  if (edge) { note('edge: ok'); return edge; }
+  note('edge: failed (no audio)');
   const goog = await googleSpeech(text, lang);
-  if (goog) return goog;
+  if (goog) { note('google: ok'); return goog; }
+  note('google: failed (no audio)');
   try {
     const r = await timeout(fetch(`https://text.pollinations.ai/${encodeURIComponent(text)}?model=openai-audio&voice=nova`), 25000);
-    if (r.ok && (r.headers.get('content-type') || '').includes('audio')) return Buffer.from(await r.arrayBuffer());
-  } catch { /* none */ }
+    if (r.ok && (r.headers.get('content-type') || '').includes('audio')) { note('pollinations: ok'); return Buffer.from(await r.arrayBuffer()); }
+    note(`pollinations: HTTP ${r.status}`);
+  } catch (e: any) { note(`pollinations: ${String(e?.message || e).slice(0, 80)}`); }
   return null;
 }

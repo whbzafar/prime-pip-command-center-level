@@ -3,7 +3,7 @@ import { Camera, Copy, Download, Film, Package, RefreshCw, Save, Shuffle, Sparkl
 import JSZip from 'jszip';
 import { FORMATS, Layout, THEMES, VisualFormat, download, fileToImage, renderVariant, toBlob } from '../../utils/postVisuals';
 import { captureTopics, shotStore } from '../../utils/agentCapture';
-import { VIDEO_FORMATS, recordTour, recordTours, streamTours, tourStore, type AudioMode, type StreamItem, type TourScript, type VideoFormatId } from "../../utils/tour";
+import { VIDEO_FORMATS, recordTour, recordTours, testServerVoice, browserVoice, streamTours, tourStore, type AudioMode, type StreamItem, type TourScript, type VideoFormatId } from "../../utils/tour";
 import { dailyPlan, dayKey } from '../../utils/dailyPlan';
 import { getStoredToken } from '../../utils/authClient';
 import { Platform, Topic, generateAccountPost, generateTopicPost, getTopics, scoreHook, templateScript } from '../../utils/topicContent';
@@ -55,6 +55,13 @@ export const AutoStudio: React.FC = () => {
   useEffect(() => { void refreshLive(); }, [refreshLive]);
   const [voice, setVoice] = useState(true);
   const [audio, setAudio] = useState<AudioMode>('ai');
+  const [voiceTest, setVoiceTest] = useState('');
+  const runVoiceTest = async () => {
+    setVoiceTest('Testing the Urdu voice…');
+    const r = await testServerVoice(); const bv = browserVoice('ur');
+    setVoiceTest(`${r.ok ? '✅ Server Urdu voice works' : '❌ Server Urdu voice failed'}${r.ms ? ` (${Math.round(r.ms / 1000)}s)` : ''}${r.error ? ' — ' + r.error : ''}${r.trace?.length ? ' — ' + r.trace.join(', ') : ''}. ${bv ? '✅ This browser has an Urdu voice: ' + bv.name : '⚠️ This browser has no Urdu voice (use Edge).'}`);
+    if (bv) { try { const u = new SpeechSynthesisUtterance('پرائم پپ میں خوش آمدید'); u.voice = bv; u.lang = bv.lang; window.speechSynthesis.speak(u); } catch { /* ignore */ } }
+  };
   const [perPart, setPerPart] = useState(6);
   const [lang, setLang] = useState<'en' | 'roman-urdu'>('roman-urdu');
   const [ai, setAi] = useState<AiBundle | null>(null);
@@ -243,6 +250,8 @@ export const AutoStudio: React.FC = () => {
             <button type="button" onClick={() => void writeAI()} disabled={busy} className={`${btn} bg-violet-500 text-white`} data-testid="write-ai"><Sparkles className="h-4 w-4" />Write script + post with AI</button>
             <label className="inline-flex items-center gap-1"><input type="checkbox" className="accent-violet-400" checked={useAI} onChange={(e) => setUseAI(e.target.checked)} />use AI on Regenerate</label>
             <label className="inline-flex items-center gap-1">sound <select value={audio} onChange={(e) => { const m = e.target.value as AudioMode; setAudio(m); setVoice(m === 'ai'); }} className="rounded bg-slate-900 px-1 py-0.5" data-testid="video-audio"><option value="ai">AI voice ({lang === 'roman-urdu' ? 'Uzma · Urdu, female' : 'Jenny · English'})</option><option value="mic">My voice (microphone) + live Urdu captions</option><option value="none">Music only</option></select></label>
+            <button type="button" onClick={runVoiceTest} className="rounded bg-slate-800 px-2 py-0.5 text-xs text-amber-300" data-testid="voice-test">Test Urdu voice</button>
+            {voiceTest && <span className="basis-full text-xs text-slate-200" data-testid="voice-test-result">{voiceTest}</span>}
             {audio === 'mic' && <label className="inline-flex items-center gap-1">seconds per part <input type="number" min={3} max={15} value={perPart} onChange={(e) => setPerPart(Math.max(3, Math.min(15, Number(e.target.value) || 6)))} className="w-14 rounded bg-slate-900 px-1 py-0.5" data-testid="video-per-part" /></label>}
             <label className="inline-flex items-center gap-1">category <select value={tid} onChange={(e) => setTid(e.target.value)} className="max-w-[14rem] rounded bg-slate-900 px-1 py-0.5" data-testid="video-category">{topics.map((t) => <option key={t.id} value={t.id}>{t.title}</option>)}</select></label>
             <label className="inline-flex items-center gap-1">aspect ratio <select value={videoFmt} onChange={(e) => setVideoFmt(e.target.value as VideoFormatId)} className="rounded bg-slate-900 px-1 py-0.5" data-testid="video-format">{(Object.keys(VIDEO_FORMATS) as VideoFormatId[]).map((k) => <option key={k} value={k}>{VIDEO_FORMATS[k].label}</option>)}</select></label>

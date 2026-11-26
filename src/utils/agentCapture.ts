@@ -54,7 +54,7 @@ export async function captureTopics(topics: { id: string; tab: string; title: st
 export async function openScreen(): Promise<{ stream: MediaStream; video: HTMLVideoElement }> {
   const md = navigator.mediaDevices as MediaDevices & { getDisplayMedia?: (c?: unknown) => Promise<MediaStream> };
   if (!md?.getDisplayMedia) throw new Error('Recording the live terminal needs desktop Chrome or Edge.');
-  const stream = await md.getDisplayMedia({ video: { displaySurface: 'browser', frameRate: 30 }, audio: false, preferCurrentTab: true, selfBrowserSurface: 'include', surfaceSwitching: 'exclude' } as unknown);
+  const stream = await md.getDisplayMedia({ video: { displaySurface: 'browser', frameRate: 30 }, audio: true, preferCurrentTab: true, selfBrowserSurface: 'include', surfaceSwitching: 'exclude' } as unknown);
   const video = document.createElement('video'); video.srcObject = stream; video.muted = true; await video.play(); await sleep(600); return { stream, video };
 }
 /** Waits until the screen stopped changing (finished loading). Returns false if it never settled. */

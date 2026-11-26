@@ -4031,10 +4031,16 @@ app.post('/api/admin/social-brain/tts', requireDeveloper, async (req, res) => {
   if (text.length < 2) return res.status(400).json({ ok: false, error: 'Text required' });
   const key = `${lang}:${text}`; const hit = ttsCache.get(key);
   if (hit) { res.set('Content-Type', 'audio/mpeg'); return res.send(hit); }
-  const audio = await urduSpeech(text, lang);
-  if (!audio) return res.status(503).json({ ok: false, error: 'Voice service is not reachable right now. This video will use captions only.' });
+  const trace: string[] = [];
+  const audio = await urduSpeech(text, lang, trace);
+  if (!audio) { console.warn('[voice] all engines failed:', trace.join(' | ')); return res.status(503).json({ ok: false, error: 'Voice service is not reachable right now.', trace }); }
   if (ttsCache.size > 400) ttsCache.delete(ttsCache.keys().next().value as string);
   ttsCache.set(key, audio); res.set('Content-Type', 'audio/mpeg'); return res.send(audio);
+});
+app.post('/api/admin/social-brain/tts/test', requireDeveloper, async (_req, res) => {
+  const trace: string[] = []; const t0 = Date.now();
+  const audio = await urduSpeech('پرائم پپ کمانڈ سینٹر میں خوش آمدید۔', 'ur', trace);
+  return res.json({ ok: !!audio, bytes: audio?.length || 0, ms: Date.now() - t0, trace, ...voiceStatus() });
 });
 app.post('/api/admin/social-brain/finish', requireDeveloper, express.raw({ type: () => true, limit: '150mb' }), async (req, res) => {
   const body = req.body as Buffer;

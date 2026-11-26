@@ -75,6 +75,25 @@ async function voiceFor(ac: AudioContext, text: string, lang: 'ur' | 'en'): Prom
   } catch { return null; }
 }
 
+/** Voices installed in this browser (Edge ships a free natural Urdu female voice, "Uzma"). */
+export function browserVoice(lang: 'ur' | 'en'): SpeechSynthesisVoice | null {
+  try {
+    const all = window.speechSynthesis?.getVoices?.() || [];
+    const pre = lang === 'ur' ? 'ur' : 'en';
+    const mine = all.filter((x) => x.lang.toLowerCase().startsWith(pre));
+    return mine.find((x) => /uzma|female|zira|aria|jenny/i.test(x.name)) || mine[0] || null;
+  } catch { return null; }
+}
+/** Asks the server which voice engines work from where it runs. */
+export async function testServerVoice(): Promise<{ ok: boolean; trace: string[]; ms?: number; error?: string; azure?: boolean }> {
+  try {
+    const t = getStoredToken();
+    const r = await fetch('/api/admin/social-brain/tts/test', { method: 'POST', credentials: 'include', headers: { ...(t ? { Authorization: `Bearer ${t}` } : {}) } });
+    const j = await r.json().catch(() => ({})); if (!r.ok) return { ok: false, trace: [], error: j?.error || `HTTP ${r.status}` };
+    return j;
+  } catch (e: any) { return { ok: false, trace: [], error: String(e?.message || e) }; }
+}
+
 /** Generated music (no licensing): kick, clap, hats, bass line and pad at `bpm`. Returns the ducking gain. */
 function beatTrack(ac: AudioContext, dest: AudioNode, seconds: number, bpm = 102): GainNode {
   const t = ac.currentTime + 0.05; const spb = 60 / bpm;
@@ -100,7 +119,7 @@ function beatTrack(ac: AudioContext, dest: AudioNode, seconds: number, bpm = 102
 }
 
 type Kind = 'intro' | 'overview' | 'part' | 'outro';
-interface Seg { kind: Kind; beat?: Beat; headline: string; label: string; say: string; ur?: string; chunks?: string[]; feats?: string[]; voice: AudioBuffer | null; seconds: number }
+interface Seg { spoken?: string; spokenLang?: 'ur' | 'en'; kind: Kind; beat?: Beat; headline: string; label: string; say: string; ur?: string; chunks?: string[]; feats?: string[]; voice: AudioBuffer | null; seconds: number }
 
 /** Records one real tour of a section. With a shared screen (from openScreen), many tours can run after one permission click. */
 export async function recordTour(o: TourOpts, shared?: { video: HTMLVideoElement }): Promise<Blob> {
@@ -136,7 +155,7 @@ export async function recordTour(o: TourOpts, shared?: { video: HTMLVideoElement
     const mix = ac.createDynamicsCompressor(); mix.threshold.value = -6; mix.knee.value = 4; mix.ratio.value = 20; mix.attack.value = 0.002; mix.release.value = 0.15; mix.connect(adest);
     const feats = (o.features || []).filter(Boolean);
     const segs: Seg[] = [];
-    let silent = 0; let wanted = 0; let rate = 1;
+    let silent = 0; let wanted = 0; let rate = 1; let browserSpeech: { lang: 'ur' | 'en'; tab: MediaStreamTrack[] } | null = null;
     const per = Math.max(3, Math.min(15, o.secondsPerPart || 6));
     const useUrdu = mode === 'ai' && lang === 'ur';
     if (mode === 'mic') {
@@ -167,11 +186,19 @@ export async function recordTour(o: TourOpts, shared?: { video: HTMLVideoElement
         let next = 0; let done = 0;
         const worker = async () => { while (next < src.length) { const i = next++; const line = useUrdu ? urdu[i] : src[i].en; if (!line) continue; wanted++; voices[i] = await voiceFor(ac, line, useUrdu && urdu[i] ? 'ur' : 'en'); if (!voices[i]) silent++; o.onProgress?.(0, `Voice-over ${++done}/${src.length}`); } };
         await Promise.all([worker(), worker(), worker(), worker()]);
-        if (wanted && silent === wanted) throw new Error('No voice-over could be generated, so the video was not made. Use “My voice” (microphone) or check the voice service on the server.');
+        if (wanted && silent === wanted) {
+          // the server voices are unreachable: the browser speaks instead and its sound is captured from the shared tab
+          const ts = (v.srcObject as MediaStream | null)?.getAudioTracks?.() || [];
+          const bu = browserVoice(useUrdu ? 'ur' : 'en') ? 'ur' : null; const be = browserVoice('en');
+          if (!ts.length) throw new Error('The server voice is unreachable, so the browser voice is needed. When sharing the tab, tick “Also share tab audio”, then try again.');
+          if (!bu && !be) throw new Error('No voice is available: the server voice is unreachable and this browser has no speech voice. Open the site in Microsoft Edge (it includes the free Urdu voice “Uzma”) or use “My voice”.');
+          browserSpeech = { lang: bu && useUrdu ? 'ur' : 'en', tab: ts };
+          o.onProgress?.(0, bu && useUrdu ? 'Using this browser’s Urdu voice' : 'Using this browser’s English voice (no Urdu voice installed)');
+        }
       }
       const items: Item[] = src.map((x, i) => ({ kind: x.kind, voice: voices[i]?.duration ?? null, base: Math.max(x.kind === 'overview' ? 5 : 3, wordsOf(x.en).length / 2.6 + 0.9) }));
       const plan = planTimeline(items, 30, 58); rate = plan.rate;
-      src.forEach((x, i) => { if (!plan.keep[i]) return; const ur = useUrdu && urdu[i] ? urdu[i] : undefined; segs.push({ kind: x.kind, beat: x.beat, headline: x.headline, label: x.label, say: x.en, ur, chunks: ur ? chunkCaption(ur, 6) : undefined, feats: x.feats, voice: voices[i], seconds: plan.seconds[i] }); });
+      src.forEach((x, i) => { if (!plan.keep[i]) return; const ur = useUrdu && urdu[i] ? urdu[i] : undefined; segs.push({ spoken: browserSpeech ? (browserSpeech.lang === 'ur' ? (urdu[i] && /[\u0600-\u06FF]/.test(urdu[i]) ? urdu[i] : x.en) : x.en) : undefined, spokenLang: browserSpeech ? (browserSpeech.lang === 'ur' && urdu[i] && /[\u0600-\u06FF]/.test(urdu[i]) ? 'ur' : 'en') : undefined, kind: x.kind, beat: x.beat, headline: x.headline, label: x.label, say: x.en, ur, chunks: ur ? chunkCaption(ur, 6) : undefined, feats: x.feats, voice: voices[i], seconds: plan.seconds[i] }); });
     }
     const total = segs.reduce((a, s) => a + s.seconds, 0); const starts: number[] = []; segs.reduce((a, s) => { starts.push(a); return a + s.seconds; }, 0);
     o.onProgress?.(0, `Edit ready: ${segs.length} shots, ${Math.round(total)} seconds`);
@@ -203,6 +230,7 @@ export async function recordTour(o: TourOpts, shared?: { video: HTMLVideoElement
       const src = ac.createBufferSource(); src.buffer = s.voice; src.playbackRate.value = rate; const vg = ac.createGain(); vg.gain.value = 1.15; src.connect(vg); vg.connect(mix); src.start(at);
       music.gain.setTargetAtTime(0.28, at - 0.1, 0.06); music.gain.setTargetAtTime(1, at + s.voice.duration / rate, 0.25);
     });
+    if (browserSpeech) { try { const tg = ac.createGain(); tg.gain.value = 1.2; ac.createMediaStreamSource(new MediaStream(browserSpeech.tab)).connect(tg); tg.connect(mix); } catch { /* tab audio unavailable */ } }
     if (mic) {
       const src = ac.createMediaStreamSource(mic); const hp = ac.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 85;
       const comp = ac.createDynamicsCompressor(); comp.threshold.value = -26; comp.ratio.value = 4; comp.attack.value = 0.004; comp.release.value = 0.2;
@@ -217,6 +245,7 @@ export async function recordTour(o: TourOpts, shared?: { video: HTMLVideoElement
     const start = performance.now();
     const enter = (i: number) => {
       const s = segs[i];
+      if (s.spoken) { try { window.speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(s.spoken); const bv = browserVoice(s.spokenLang || 'en'); if (bv) u.voice = bv; u.lang = bv?.lang || (s.spokenLang === 'ur' ? 'ur-PK' : 'en-US'); u.rate = Math.min(1.35, Math.max(0.85, (s.spoken.split(/\s+/).length / 2.6) / Math.max(1, s.seconds - 0.4))); window.speechSynthesis.speak(u); } catch { /* speech unavailable */ } }
       if (s.kind === 'part' && s.beat) {
         if (s.beat.click) { try { s.beat.click.click(); } catch { /* ignore */ } }
         bringIntoView(scroller, s.beat.el);
@@ -366,6 +395,7 @@ export async function recordTour(o: TourOpts, shared?: { video: HTMLVideoElement
       };
       tick();
     });
+    try { window.speechSynthesis?.cancel(); } catch { /* ignore */ }
     rec.stop(); let blob = await finished;
     if (o.finish !== false) { o.onProgress?.(1, 'Finishing the video (MP4, loudness)'); blob = await finishOnServer(blob); }
     if (captions) { captions.stop(); tourStore.lastSrt = toSrt(captions.lines()); } else tourStore.lastSrt = '';
