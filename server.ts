@@ -264,6 +264,7 @@ const currentAppDir = process.cwd();
 
 import { readState as saState, getConfig as saConfig, setConfig as saSetConfig, credentialStatus as saCreds, generatePosts as saGenerate, publishPost as saPublish, updatePost as saUpdate, deletePost as saDelete, schedulerTick as saTick, previewPost as saPreview, BEST_TIMES_PKT } from './server/socialAgent.js';
 import { writeScript } from './server/scriptWriter.js';
+import { readBrain, saveBrand, logPerf, weeklyReport, weeklyPlan, qualityCheck, classifyComments, campaign as socialCampaign } from './server/socialBrain.js';
 import { trackLogin, listEvents, listWarnings, summariseUsers, placeOf, FLAG_TEXT, type SecurityWarning } from './server/loginSecurity.js';
 import { clientIp } from './server/geoip.js';
 import { resolvePin } from './server/pinResolve.js';
@@ -3993,6 +3994,20 @@ app.post('/api/admin/social-agent/script', requireDeveloper, async (req, res) =>
     const script = await writeScript(getGeminiClient(), { topic, platform, language: req.body?.language === 'roman-urdu' ? 'roman-urdu' : 'en', angle: req.body?.angle ? String(req.body.angle).slice(0, 80) : undefined, seed: Number(req.body?.seed) || 1 });
     return script ? res.json({ ok: true, script }) : res.json({ ok: false, error: 'The AI writer did not answer in time. Using the built-in writer.' });
   } catch (e: any) { return res.status(500).json({ ok: false, error: String(e?.message || e) }); }
+});
+app.get('/api/admin/social-brain', requireDeveloper, (_req, res) => { res.set('Cache-Control', 'no-store'); const b = readBrain(); res.json({ ok: true, brand: b.brand, perfCount: b.perf.length }); });
+app.put('/api/admin/social-brain/brand', requireDeveloper, (req, res) => res.json({ ok: true, brand: saveBrand(req.body || {}) }));
+app.post('/api/admin/social-brain/perf', requireDeveloper, (req, res) => { const r = logPerf(req.body || {}); res.status(r.ok ? 200 : 400).json(r); });
+app.get('/api/admin/social-brain/report', requireDeveloper, (_req, res) => res.json({ ok: true, report: weeklyReport() }));
+app.get('/api/admin/social-brain/plan', requireDeveloper, (_req, res) => res.json({ ok: true, plan: weeklyPlan() }));
+app.post('/api/admin/social-brain/quality', requireDeveloper, (req, res) => {
+  const b = req.body || {}; const existing = saState().posts.map((p) => p.caption).slice(-200);
+  res.json({ ok: true, qc: qualityCheck({ platform: String(b.platform || 'instagram'), title: String(b.title || ''), caption: String(b.caption || ''), hashtags: Array.isArray(b.hashtags) ? b.hashtags.map(String) : [], hooks: Array.isArray(b.hooks) ? b.hooks.map(String) : [], cta: String(b.cta || ''), video: b.video }, existing) });
+});
+app.post('/api/admin/social-brain/community', requireDeveloper, (req, res) => res.json({ ok: true, items: classifyComments(Array.isArray(req.body?.comments) ? req.body.comments.map(String) : []) }));
+app.post('/api/admin/social-brain/campaign', requireDeveloper, (req, res) => {
+  const topics = (Array.isArray(req.body?.topics) ? req.body.topics : []).slice(0, 40).map((t: any) => ({ id: String(t.id || ''), title: String(t.title || '').slice(0, 120), short: String(t.short || '').slice(0, 300), features: (Array.isArray(t.features) ? t.features : []).map(String).slice(0, 8) }));
+  res.json({ ok: true, campaign: socialCampaign(String(req.body?.sentence || ''), topics) });
 });
 app.delete('/api/admin/social-agent/post/:id', requireDeveloper, (req, res) => { saDelete(req.params.id); res.json({ ok: true }); });
 setTimeout(() => { setInterval(() => void saTick(getGeminiClient()), 60_000); }, 30_000);
