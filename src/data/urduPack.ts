@@ -136,6 +136,11 @@ export const PACKS: Record<string, CategoryPack> = {
     P('Drive Backup', 'Google Drive par automatic backup.', 'گوگل ڈرائیو پر خودکار بیک اپ۔'),
     P('Any Device', 'Kisi bhi device par data wapas, koi server kharcha nahi.', 'کسی بھی ڈیوائس پر ڈیٹا واپس، کوئی سرور خرچہ نہیں۔'),
     P('Full Privacy', 'Poori privacy, data ki malkiyat aap ki.', 'پوری پرائیویسی، ڈیٹا کی ملکیت آپ کی۔')] },
+  META5_PREMIUM: { hook: ['Poora MT5 terminal, ab aap ke browser mein.', 'پورا ایم ٹی فائیو ٹرمنل، اب آپ کے براؤزر میں۔'], parts: [
+    P('Live Bid and Ask', 'Live bid ask quotes, simple aur advanced pip view ke saath.', 'لائیو بڈ ایسک کوٹس، سمپل اور ایڈوانسڈ پپ ویو کے ساتھ۔'),
+    P('50+ Brokers', 'Pachas se zyada brokers aur prop firms se foran connection.', 'پچاس سے زیادہ بروکرز اور پراپ فرمز سے فوراً کنکشن۔'),
+    P('One Click Trading', 'Ek click mein trade, aur journal mein khud darj.', 'ایک کلک میں ٹریڈ، اور جرنل میں خود درج۔'),
+    P('Charts and History', 'Charts, trade history aur settings, bilkul mobile MT5 jaisi.', 'چارٹس، ٹریڈ ہسٹری اور سیٹنگز، بالکل موبائل ایم ٹی فائیو جیسی۔')] },
   ADMIN: { hook: ['Poora students system, ek hi panel se.', 'پورا اسٹوڈنٹس سسٹم، ایک ہی پینل سے۔'], parts: [
     P('Student Accounts', 'Student account aur credentials ek click mein.', 'اسٹوڈنٹ اکاؤنٹ اور کریڈنشلز ایک کلک میں۔'),
     P('WhatsApp Activation', 'Ek click mein WhatsApp activation link.', 'ایک کلک میں واٹس ایپ ایکٹیویشن لنک۔'),

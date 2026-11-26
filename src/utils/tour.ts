@@ -3,6 +3,7 @@ import { go, grab, lockedNotice, openScreen, shotStore, sleep, SLOW, waitCalm } 
 import { getStoredToken } from './authClient';
 import { type Beat, type Box, bringIntoView, discoverBeats, findScroller, fitCrop, fullCrop, panCrop, scrollToTop, toVideo } from './sectionDirector';
 import { startLiveCaptions, toSrt, type LiveCaptions } from './liveCaptions';
+import { loadClipBuffer } from './voiceClips';
 import { OUTRO_LINE, OVERVIEW_LINE, PACKS } from '../data/urduPack';
 import { chunkCaption, pickFeature, planTimeline, titleCase, type Item } from './timeline';
 
@@ -26,7 +27,9 @@ export interface TourOpts {
   features?: string[];
   format?: VideoFormatId; voiceLang?: 'ur' | 'en'; returnTab?: string; onProgress?: (p: number, label: string) => void;
 }
-export const tourStore: { videos: Record<string, { blob: Blob; title: string; at: number }>; running: boolean; lastSrt: string } = { videos: {}, running: false, lastSrt: '' };
+export const tourStore: { videos: Record<string, { blob: Blob; title: string; at: number }>; running: boolean; lastSrt: string; finished: { blob: Blob; category: string; title: string; headline: string; at: number } | null; handled: Set<number> } = { videos: {}, running: false, lastSrt: '', finished: null, handled: new Set() };
+/** After the tour returns to the admin page, reopen the Social Agent tab so the studio (and the publish panel) is on screen again. */
+export function reopenStudio() { let n = 0; const t = window.setInterval(() => { const el = document.querySelector('[data-testid="admin-tab-social-agent"]') as HTMLElement | null; if (el) { el.click(); window.clearInterval(t); } else if (++n > 40) window.clearInterval(t); }, 250); }
 
 const wordsOf = (s: string) => s.split(/\s+/).filter(Boolean);
 const clamp01 = (t: number) => (t < 0 ? 0 : t > 1 ? 1 : t);
@@ -78,6 +81,7 @@ export async function finishOnServer(blob: Blob): Promise<Blob> {
 let serverVoiceDown = false;
 /** Voice-over. Urdu: server voice (Azure/Edge/Google) first; if it is unreachable, the Urdu female voice that runs inside the browser. English: server voice. */
 async function voiceFor(ac: AudioContext, text: string, lang: 'ur' | 'en', note?: (m: string) => void): Promise<AudioBuffer | null> {
+  const real = await loadClipBuffer(ac, text); if (real) return real; // a real recorded voice always wins
   if (!serverVoiceDown) {
     try {
       const t = getStoredToken();
@@ -90,6 +94,20 @@ async function voiceFor(ac: AudioContext, text: string, lang: 'ur' | 'en', note?
     try { const uv = await import('./urduVoice'); return uv.toAudioBuffer(ac, await uv.speakUrdu(text, note)); } catch (e) { note?.(`Browser Urdu voice failed: ${String((e as Error)?.message || e).slice(0, 120)}`); }
   }
   return null;
+}
+
+/** Short sound effects that make each cut feel edited: whoosh on every transition, a pop on every feature, a rising hit on the hook. */
+function sfx(ac: AudioContext, dest: AudioNode, kind: 'whoosh' | 'pop' | 'hit') {
+  const t = ac.currentTime; const g = ac.createGain(); g.connect(dest);
+  if (kind === 'whoosh') {
+    const len = Math.floor(ac.sampleRate * 0.45); const buf = ac.createBuffer(1, len, ac.sampleRate); const d = buf.getChannelData(0); for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / len);
+    const src = ac.createBufferSource(); src.buffer = buf; const f = ac.createBiquadFilter(); f.type = 'bandpass'; f.Q.value = 1.2; f.frequency.setValueAtTime(400, t); f.frequency.exponentialRampToValueAtTime(4200, t + 0.38);
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.5, t + 0.12); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.45); src.connect(f); f.connect(g); src.start(t);
+  } else {
+    const o = ac.createOscillator(); o.type = kind === 'pop' ? 'sine' : 'sawtooth'; const f0 = kind === 'pop' ? 520 : 70; const f1 = kind === 'pop' ? 1040 : 220;
+    o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(f1, t + (kind === 'pop' ? 0.09 : 0.5));
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(kind === 'pop' ? 0.35 : 0.55, t + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t + (kind === 'pop' ? 0.2 : 0.7)); o.connect(g); o.start(t); o.stop(t + 0.8);
+  }
 }
 
 /** Voices installed in this browser (Edge ships a free natural Urdu female voice, "Uzma"). */
@@ -187,7 +205,7 @@ export async function recordTour(o: TourOpts, shared?: { video: HTMLVideoElement
       const pack = useUrdu ? PACKS[o.tab] : undefined;
       if (pack) {
         // hand-written Urdu for this category: voice speaks Urdu script, viewers read Roman Urdu captions
-        src.push({ kind: 'intro', headline: o.script.hook, label: o.title, en: pack.hook[0], rm: pack.hook[0], urdu: pack.hook[1] });
+        src.push({ kind: 'intro', headline: pack.hook[0], label: o.title, en: pack.hook[0], rm: pack.hook[0], urdu: pack.hook[1] });
         if (feats.length) src.push({ kind: 'overview', headline: `Inside ${o.title}`, label: o.title, en: OVERVIEW_LINE[0], rm: OVERVIEW_LINE[0], urdu: OVERVIEW_LINE[1], feats: pack.parts.map((p) => p[0]) });
         // each line is paired with the part of the screen it describes (by name where known), the rest in reading order
         const free = beats.slice(); const pick: (Beat | undefined)[] = pack.parts.map((pt) => { const k = pt[3] ? free.findIndex((b) => pt[3]!.test(b.label)) : -1; return k >= 0 ? free.splice(k, 1)[0] : undefined; });
@@ -273,6 +291,7 @@ export async function recordTour(o: TourOpts, shared?: { video: HTMLVideoElement
     const start = performance.now();
     const enter = (i: number) => {
       const s = segs[i];
+      try { sfx(ac, mix, i === 0 ? 'hit' : 'whoosh'); if (s.kind === 'part') window.setTimeout(() => { try { sfx(ac, mix, 'pop'); } catch { /* ignore */ } }, 380); } catch { /* ignore */ }
       if (s.spoken) { try { window.speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(s.spoken); const bv = browserVoice(s.spokenLang || 'en'); if (bv) u.voice = bv; u.lang = bv?.lang || (s.spokenLang === 'ur' ? 'ur-PK' : 'en-US'); u.rate = Math.min(1.35, Math.max(0.85, (s.spoken.split(/\s+/).length / 2.6) / Math.max(1, s.seconds - 0.4))); window.speechSynthesis.speak(u); } catch { /* speech unavailable */ } }
       if (s.kind === 'part' && s.beat) {
         if (s.beat.click) { try { s.beat.click.click(); } catch { /* ignore */ } }
@@ -434,7 +453,7 @@ export async function recordTour(o: TourOpts, shared?: { video: HTMLVideoElement
   } finally {
     captions?.stop(); mic?.getTracks().forEach((t) => t.stop());
     tourStore.running = false; window.scrollTo(0, 0);
-    if (own) { own.stream.getTracks().forEach((t) => t.stop()); go(o.returnTab || 'ADMIN'); }
+    if (own) { own.stream.getTracks().forEach((t) => t.stop()); go(o.returnTab || 'ADMIN'); if ((o.returnTab || 'ADMIN') === 'ADMIN') reopenStudio(); }
   }
 }
 
@@ -442,7 +461,7 @@ export async function recordTour(o: TourOpts, shared?: { video: HTMLVideoElement
 export async function recordTours(items: Omit<TourOpts, 'returnTab'>[], onEach?: (i: number, n: number, ok: boolean, msg?: string) => void, returnTab = 'ADMIN'): Promise<void> {
   const scr = await openScreen();
   try { for (let i = 0; i < items.length; i++) { try { await recordTour({ ...items[i], returnTab }, scr); onEach?.(i, items.length, true); } catch (e: any) { onEach?.(i, items.length, false, String(e?.message || e)); } } }
-  finally { scr.stream.getTracks().forEach((t) => t.stop()); go(returnTab); }
+  finally { scr.stream.getTracks().forEach((t) => t.stop()); go(returnTab); if (returnTab === 'ADMIN') reopenStudio(); }
 }
 
 export interface StreamItem { tab: string; title: string; features?: string[]; theme: number; script: () => Promise<TourScript> }

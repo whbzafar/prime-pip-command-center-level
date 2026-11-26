@@ -266,6 +266,7 @@ import { readState as saState, getConfig as saConfig, setConfig as saSetConfig, 
 import { writeScript } from './server/scriptWriter.js';
 import { translateUrdu, urduSpeech, voiceStatus } from './server/voice.js';
 import { finishVideo } from './server/finish.js';
+import { registerPublishRoutes } from './server/publish.js';
 import { readBrain, saveBrand, logPerf, weeklyReport, weeklyPlan, qualityCheck, classifyComments, campaign as socialCampaign, readLibrary, addAsset, moveAsset, removeAsset, queueWeek, type AssetStatus } from './server/socialBrain.js';
 import { trackLogin, listEvents, listWarnings, summariseUsers, placeOf, FLAG_TEXT, type SecurityWarning } from './server/loginSecurity.js';
 import { clientIp } from './server/geoip.js';
@@ -4042,6 +4043,7 @@ app.post('/api/admin/social-brain/tts/test', requireDeveloper, async (_req, res)
   const audio = await urduSpeech('پرائم پپ کمانڈ سینٹر میں خوش آمدید۔', 'ur', trace);
   return res.json({ ok: !!audio, bytes: audio?.length || 0, ms: Date.now() - t0, trace, ...voiceStatus() });
 });
+registerPublishRoutes(app, requireDeveloper);
 app.post('/api/admin/social-brain/finish', requireDeveloper, express.raw({ type: () => true, limit: '150mb' }), async (req, res) => {
   const body = req.body as Buffer;
   if (!Buffer.isBuffer(body) || body.length < 1000) return res.status(400).json({ ok: false, error: 'No video received' });

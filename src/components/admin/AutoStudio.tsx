@@ -1,9 +1,12 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { VoiceClips } from './VoiceClips';
+import { PublishPanel, type FinishedVideo } from './PublishPanel';
 import { Camera, Copy, Download, Film, Package, RefreshCw, Save, Shuffle, Sparkles, Upload, Wand2 } from 'lucide-react';
 import JSZip from 'jszip';
 import { FORMATS, Layout, THEMES, VisualFormat, download, fileToImage, renderVariant, toBlob } from '../../utils/postVisuals';
 import { captureTopics, shotStore } from '../../utils/agentCapture';
 import { VIDEO_FORMATS, recordTour, recordTours, testServerVoice, streamTours, tourStore, type AudioMode, type StreamItem, type TourScript, type VideoFormatId } from "../../utils/tour";
+import { PACKS } from '../../data/urduPack';
 import { dailyPlan, dayKey } from '../../utils/dailyPlan';
 import { getStoredToken } from '../../utils/authClient';
 import { Platform, Topic, generateAccountPost, generateTopicPost, getTopics, scoreHook, templateScript } from '../../utils/topicContent';
@@ -22,6 +25,7 @@ const slug = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(
 
 export const AutoStudio: React.FC = () => {
   const topics = useMemo(() => getTopics(), []);
+  const [finished, setFinished] = useState<FinishedVideo | null>(() => tourStore.finished);
   const [tid, setTid] = useState(topics[0]?.id || 'DASHBOARD');
   const [videoFmt, setVideoFmt] = useState<VideoFormatId>("9:16");
   const [platform, setPlatform] = useState<Platform>('instagram');
@@ -176,6 +180,7 @@ export const AutoStudio: React.FC = () => {
       setStep(audio === 'mic' ? 'Allow the microphone, then choose “This tab” and click Share. Speak in Urdu while the agent walks through every part of the section; your words become captions.' : 'In the pop-up choose “This tab” and click Share. The agent will open this section and walk through every part of it.');
       const blob = await recordTour({ tab: topic.tab, title: topic.title, script: sc, theme, voice, audio, secondsPerPart: perPart, features: topic.features, voiceLang: lang === "roman-urdu" ? "ur" : "en", format: videoFmt, onProgress: (_p, label) => label && setStep(label) });
       const dim = VIDEO_FORMATS[videoFmt]; const ext = blob.type.includes('mp4') ? 'mp4' : 'webm';
+      { const fv = { blob, category: topic.id, title: topic.title, headline: PACKS[topic.id]?.hook[0] || sc.hook, at: Date.now() }; tourStore.finished = fv; setFinished(fv); }
       download(blob, `${base}-${videoFmt.replace(':', 'x')}.${ext}`); if (tourStore.lastSrt) download(new Blob([tourStore.lastSrt], { type: 'text/plain' }), `${base}-${videoFmt.replace(':', 'x')}.srt`);
       flash(`Live tour video downloaded (${dim.w}×${dim.h}, ${ext.toUpperCase()})${tourStore.lastSrt ? ' with Urdu subtitles (.srt)' : ''}.`);
     } catch (e: any) { flash(String(e?.message || e)); } finally { setBusy(false); setStep(''); bump((n) => n + 1); }
@@ -280,6 +285,8 @@ export const AutoStudio: React.FC = () => {
             <button type="button" onClick={async () => { const ok = await refreshLive(); flash(ok ? 'Live data refreshed' : 'Live data is not reachable right now'); }} className="rounded border border-slate-600 px-2 py-0.5 hover:bg-slate-700/50" data-testid="live-refresh">Refresh</button>
             <label className="inline-flex items-center gap-1"><input type="checkbox" className="accent-emerald-400" checked={useLive} onChange={(e) => setUseLive(e.target.checked)} />put it in the post and the image</label>
           </div>
+          <PublishPanel video={finished} />
+          <VoiceClips category={tid} title={topics.find((t) => t.id === tid)?.title || tid} />
           {history.length > 0 && (
             <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-slate-400" data-testid="studio-history">
               <span>Recent:</span>
