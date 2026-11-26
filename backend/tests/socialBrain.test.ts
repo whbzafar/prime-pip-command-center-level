@@ -72,3 +72,19 @@ describe('content library and approval queue', () => {
     expect(transition(p.asset!, 'draft').ok).toBe(false);
   });
 });
+
+import { carouselSlides, textFor, DEFAULT_LOOK, RISK } from '../../src/utils/posterStudio';
+describe('poster studio content rules', () => {
+  const look = { ...DEFAULT_LOOK, slogans: [] as string[] };
+  it('every graphic carries the site and the risk line', () => {
+    const t = textFor({ kind: 'poster', headline: 'Backtesting', sub: 'Replay bars.' }, look);
+    expect(t).toContain('primepipfx.site'); expect(t).toContain(RISK);
+  });
+  it('never shows a slogan that is not in Brand memory', () => {
+    expect(textFor({ kind: 'poster', headline: 'X', showSlogan: true }, look)).not.toMatch(/slogan/i);
+  });
+  it('builds a carousel: cover, one slide per feature, then a call to action', () => {
+    const s = carouselSlides({ title: 'Backtesting', short: 'Replay.', features: ['A', 'B', 'C'] }, look);
+    expect(s).toHaveLength(5); expect(s[0].headline).toBe('Backtesting'); expect(s[4].headline).toMatch(/inside the app/);
+  });
+});

@@ -3,6 +3,7 @@ import { Bot, Check, Copy, Palette, RefreshCw, Send, Sparkles, Trash2, X } from 
 import { PostStudio } from './PostStudio';
 import { AutoStudio } from './AutoStudio';
 import { SocialBrainPanel } from './SocialBrainPanel';
+import { PosterStudio } from './PosterStudio';
 import { getStoredToken } from '../../utils/authClient';
 
 type Platform = 'facebook' | 'instagram' | 'youtube' | 'tiktok';
@@ -46,6 +47,7 @@ export const SocialAgentPanel: React.FC = () => {
   const copy = (p: Post) => void navigator.clipboard?.writeText(`${p.title}\n\n${p.caption}\n\n${p.hashtags.join(' ')}`);
 
   if (!d) return <div className="space-y-3 p-1"><SocialBrainPanel />
+      <PosterStudio />
       <AutoStudio /><div className="p-3 text-sm text-slate-400">{err || 'Loading the agent…'}</div></div>;
   const c = d.config;
   const posts = d.posts.filter((p) => filter === 'all' || p.platform === filter);
