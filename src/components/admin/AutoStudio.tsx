@@ -125,7 +125,8 @@ export const AutoStudio: React.FC = () => {
       const sc = scriptFor(topic, ai, seed, hi);
       setStep('In the pop-up choose “This tab” and click Share. The agent will open this feature and record it live.');
       const blob = await recordTour({ tab: topic.tab, title: topic.title, script: sc, theme, voice, voiceLang: lang === "roman-urdu" ? "ur" : "en", format: videoFmt });
-      download(blob, `${base}.${blob.type.includes('mp4') ? 'mp4' : 'webm'}`); flash('Live tour video downloaded (1080×1920)');
+      const dim = VIDEO_FORMATS[videoFmt]; const ext = blob.type.includes('mp4') ? 'mp4' : 'webm';
+      download(blob, `${base}-${videoFmt.replace(':', 'x')}.${ext}`); flash(`Live tour video downloaded (${dim.w}×${dim.h}, ${ext.toUpperCase()}). Add it to Streamlabs as a Media Source.`);
     } catch (e: any) { flash(String(e?.message || e)); } finally { setBusy(false); setStep(''); bump((n) => n + 1); }
   };
 
