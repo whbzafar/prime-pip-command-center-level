@@ -100,3 +100,21 @@ describe('weekly plan to review queue', () => {
     expect(weekDrafts([], brand, days)).toEqual([]);
   });
 });
+
+import { parseScript } from '../../server/scriptWriter';
+import { buildSsml, escapeXml } from '../../server/voice';
+describe('Urdu voice and Roman Urdu script', () => {
+  const json = JSON.stringify({ hooks: ['Most traders skip replay', 'Replay bars before you risk money', 'Kya aap ye tool use karte hain?'], hooksUrdu: ['زیادہ تر تاجر ری پلے چھوڑ دیتے ہیں', 'پیسہ لگانے سے پہلے ری پلے کریں', 'کیا آپ یہ ٹول استعمال کرتے ہیں؟'], scenes: [{ say: 'Replay bars one by one.', caption: 'Bar replay', focus: 'center', zoom: 1.1, scroll: 0, urdu: 'بارز کو ایک ایک کر کے دیکھیں۔' }, { say: 'Check your stats.', caption: 'Check stats', focus: 'left', zoom: 1.2, scroll: 0.2, urdu: 'اپنے اعداد و شمار دیکھیں۔' }, { say: 'Learn first.', caption: 'Learn first', focus: 'right', zoom: 1.1, scroll: 0.4, urdu: 'پہلے سیکھیں۔' }], cta: 'Try it at primepipfx.site', ctaUrdu: 'primepipfx.site پر جائیں', caption: 'Learn the replay. Educational content, not financial advice.', title: 'Backtesting', hashtags: ['forex'], keywords: ['forex'] });
+  it('keeps the Urdu script and the Roman Urdu captions side by side', () => {
+    const s = parseScript(json, 'gemini')!;
+    expect(s.hooksUrdu?.[0]).toMatch(/[؀-ۿ]/); expect(s.scenes[0].urdu).toMatch(/[؀-ۿ]/); expect(s.scenes[0].caption).toBe('Bar replay'); expect(s.ctaUrdu).toBeTruthy();
+  });
+  it('rejects a script with a profit promise', () => {
+    expect(parseScript(json.replace('Learn the replay.', 'Guaranteed profit.'), 'gemini')).toBeNull();
+  });
+  it('builds a safe Pakistani Urdu SSML request with the female voice', () => {
+    const x = buildSsml('A & B <tag>', 'ur');
+    expect(x).toContain('ur-PK-UzmaNeural'); expect(x).toContain('xml:lang=\'ur-PK\''); expect(x).toContain('&amp;'); expect(x).not.toContain('<tag>');
+    expect(escapeXml("'")).toBe('&apos;');
+  });
+});

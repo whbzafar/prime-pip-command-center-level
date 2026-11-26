@@ -3,11 +3,11 @@ import { Camera, Copy, Download, Film, Package, RefreshCw, Save, Shuffle, Sparkl
 import JSZip from 'jszip';
 import { FORMATS, Layout, THEMES, VisualFormat, download, fileToImage, renderVariant, toBlob } from '../../utils/postVisuals';
 import { captureTopics, shotStore } from '../../utils/agentCapture';
-import { recordTour, recordTours, tourStore, type TourScript } from '../../utils/tour';
+import { recordTour, recordTours, streamTours, tourStore, type StreamItem, type TourScript } from '../../utils/tour';
 import { getStoredToken } from '../../utils/authClient';
 import { Platform, Topic, generateTopicPost, getTopics, scoreHook, templateScript } from '../../utils/topicContent';
 
-interface AiBundle { hooks: string[]; scenes: TourScript['scenes']; cta: string; caption: string; hashtags: string[]; title: string; source: string }
+interface AiBundle { hooks: string[]; hooksUrdu?: string[]; scenes: TourScript['scenes']; cta: string; ctaUrdu?: string; caption: string; hashtags: string[]; title: string; source: string }
 
 const PLATFORMS: { id: Platform; label: string; format: VisualFormat }[] = [
   { id: 'instagram', label: 'Instagram', format: 'portrait' }, { id: 'facebook', label: 'Facebook', format: 'landscape' },
@@ -36,9 +36,21 @@ export const AutoStudio: React.FC = () => {
   const [withVideo, setWithVideo] = useState(false);
   const [useAI, setUseAI] = useState(true);
   const [voice, setVoice] = useState(true);
-  const [lang, setLang] = useState<'en' | 'roman-urdu'>('en');
+  const [lang, setLang] = useState<'en' | 'roman-urdu'>('roman-urdu');
   const [ai, setAi] = useState<AiBundle | null>(null);
   const [variants, setVariants] = useState(2);
+  const [streaming, setStreaming] = useState(false);
+  const [streamStatus, setStreamStatus] = useState('');
+  const [videos, setVideos] = useState<{ title: string; url: string; bytes: number; at: number; ext: string }[]>([]);
+  const streamStop = useRef<{ stop: boolean }>({ stop: false });
+  const startStream = async () => {
+    streamStop.current = { stop: false }; setStreaming(true); setVideos([]);
+    const ur = lang === 'roman-urdu';
+    const items: StreamItem[] = topics.map((t, i) => ({ tab: t.tab, title: t.title, theme: i % THEMES.length, script: async () => { const b = await askAI(t, 'tiktok', 900 + i); if (!b && ur) setStreamStatus(`${t.title}: the AI writer is unavailable, so this video has captions only`); return scriptFor(t, b, 900 + i); } }));
+    try { await streamTours(items, { voice, voiceLang: ur ? 'ur' : 'en', stop: streamStop.current, onVideo: (v) => setVideos((x) => [v, ...x]), onStatus: (m) => setStreamStatus(m) }); setStreamStatus(streamStop.current.stop ? 'Stopped. Every finished video is listed below.' : 'Every feature is done. Download any video below.'); }
+    catch (e: any) { setStreamStatus(String(e?.message || e)); }
+    finally { setStreaming(false); }
+  };
   const view = useRef<HTMLCanvasElement>(null);
   const flash = (m: string) => { setMsg(m); setTimeout(() => setMsg(''), 4500); };
   const topic: Topic = topics.find((t) => t.id === tid) || topics[0];
@@ -69,7 +81,7 @@ export const AutoStudio: React.FC = () => {
   const bestHook = hookList.length ? hookList.reduce((b, x, i) => (x.sc.score > hookList[b].sc.score ? i : b), 0) : 0;
   const activeHook = hookList[hi]?.h || post.headline;
   const scriptFor = (t: Topic, bundle: AiBundle | null, sd: number, hookIdx = 0): TourScript => {
-    if (bundle) return { hook: bundle.hooks[hookIdx] || bundle.hooks[0], scenes: bundle.scenes, cta: bundle.cta };
+    if (bundle) return { hook: bundle.hooks[hookIdx] || bundle.hooks[0], hookUrdu: bundle.hooksUrdu?.[hookIdx] || bundle.hooksUrdu?.[0], scenes: bundle.scenes, cta: bundle.cta, ctaUrdu: bundle.ctaUrdu };
     const tpl = templateScript(t, sd); return { hook: tpl.hooks[hookIdx] || tpl.hooks[0], scenes: tpl.scenes, cta: tpl.cta };
   };
   const askAI = useCallback(async (t: Topic, pf: Platform, sd: number): Promise<AiBundle | null> => {
@@ -105,7 +117,7 @@ export const AutoStudio: React.FC = () => {
     try {
       const sc = scriptFor(topic, ai, seed, hi);
       setStep('In the pop-up choose “This tab” and click Share. The agent will open this feature and record it live.');
-      const blob = await recordTour({ tab: topic.tab, title: topic.title, script: sc, theme, voice }, undefined).then((b) => b);
+      const blob = await recordTour({ tab: topic.tab, title: topic.title, script: sc, theme, voice, voiceLang: lang === 'roman-urdu' ? 'ur' : 'en' });
       download(blob, `${base}.${blob.type.includes('mp4') ? 'mp4' : 'webm'}`); flash('Live tour video downloaded (1080×1920)');
     } catch (e: any) { flash(String(e?.message || e)); } finally { setBusy(false); setStep(''); bump((n) => n + 1); }
   };
@@ -115,7 +127,7 @@ export const AutoStudio: React.FC = () => {
     setBusy(true);
     if (withVideo) {
       const list = topics.filter((t) => !tourStore.videos[t.tab]); const items: Parameters<typeof recordTours>[0] = [];
-      for (let i = 0; i < list.length; i++) { const t = list[i]; setStep(`Scripting ${t.title} (${i + 1}/${list.length})`); const b = useAI ? await askAI(t, 'tiktok', 300 + i) : null; items.push({ tab: t.tab, title: t.title, script: scriptFor(t, b, 300 + i), theme: (i + 2) % THEMES.length, voice }); }
+      for (let i = 0; i < list.length; i++) { const t = list[i]; setStep(`Scripting ${t.title} (${i + 1}/${list.length})`); const b = useAI ? await askAI(t, 'tiktok', 300 + i) : null; items.push({ tab: t.tab, title: t.title, script: scriptFor(t, b, 300 + i), theme: (i + 2) % THEMES.length, voice, voiceLang: lang === 'roman-urdu' ? 'ur' : 'en' }); }
       try { await recordTours(items, (i, n, ok, m) => setStep(`${ok ? 'Recorded' : 'Skipped'} ${i + 1}/${n}${m ? ' — ' + m : ''}`)); } catch (e: any) { flash(String(e?.message || e)); }
     } const z = new JSZip(); let done = 0; const total = topics.length;
     try {
@@ -153,6 +165,18 @@ export const AutoStudio: React.FC = () => {
       {step && <p className="mb-2 text-xs text-sky-300" role="status">{step}</p>}
       {shotStore.fails.length > 0 && <p className="mb-2 text-[11.5px] text-amber-300">Not captured: {shotStore.fails.map((x) => `${x.tab} (${x.reason})`).join('; ')}. Those topics use a designed card, or upload a screenshot for them below.</p>}
 
+      <div className="mb-3 rounded-xl border border-rose-400/40 bg-rose-500/10 p-3" data-testid="video-stream">
+        <div className="flex flex-wrap items-center gap-2">
+          <Film className="h-4 w-4 text-rose-200" />
+          <b className="text-sm text-white">Non-stop video stream</b>
+          <span className="text-[12px] text-rose-100">Records a live tour of every feature in turn, each with its own script. Keep this tab open while it runs.</span>
+          {!streaming
+            ? <button type="button" onClick={() => void startStream()} disabled={busy} className={`${btn} ml-auto bg-rose-500 text-white`} data-testid="stream-start">Start stream</button>
+            : <button type="button" onClick={() => { streamStop.current.stop = true; setStreamStatus('Stopping after the current video…'); }} className={`${btn} ml-auto bg-slate-200 text-slate-900`} data-testid="stream-stop">Stop</button>}
+        </div>
+        {streamStatus && <p className="mt-1 text-[12px] text-rose-200" role="status">{streamStatus}</p>}
+        {videos.length > 0 && <div className="mt-2 max-h-72 space-y-1 overflow-auto text-[12px]">{videos.map((v) => <div key={v.at} className="flex items-center gap-2 rounded-lg border border-slate-700 p-2"><span className="flex-1 text-slate-200">{v.title}</span><span className="text-[11px] text-slate-400">{(v.bytes / 1048576).toFixed(1)} MB</span><a href={v.url} download={`primepipfx-${slug(v.title)}.${v.ext}`} className="rounded bg-emerald-500 px-2 py-1 text-[11px] font-bold text-slate-950">Download</a></div>)}</div>}
+      </div>
       <div className="mb-3 flex flex-wrap gap-1.5" aria-label="Topics">
         {topics.map((t) => <button key={t.id} type="button" onClick={() => { setTid(t.id); setHi(0); }} className={`rounded-lg border px-2 py-1 text-[11px] font-semibold ${tid === t.id ? 'border-amber-300 bg-amber-300/15 text-amber-100' : 'border-slate-700 text-slate-400'}`}>{shotStore.shots[t.id] ? '📸 ' : ''}{t.title}</button>)}
       </div>
@@ -172,8 +196,8 @@ export const AutoStudio: React.FC = () => {
           <div className="flex flex-wrap items-center gap-3 rounded-xl border border-violet-400/30 bg-violet-500/10 p-2 text-[12px] text-slate-200">
             <button type="button" onClick={() => void writeAI()} disabled={busy} className={`${btn} bg-violet-500 text-white`} data-testid="write-ai"><Sparkles className="h-4 w-4" />Write script + post with AI</button>
             <label className="inline-flex items-center gap-1"><input type="checkbox" className="accent-violet-400" checked={useAI} onChange={(e) => setUseAI(e.target.checked)} />use AI on Regenerate</label>
-            <label className="inline-flex items-center gap-1"><input type="checkbox" className="accent-violet-400" checked={voice} onChange={(e) => setVoice(e.target.checked)} />voice-over (English)</label>
-            <label className="inline-flex items-center gap-1">language <select value={lang} onChange={(e) => setLang(e.target.value as 'en' | 'roman-urdu')} className="rounded bg-slate-900 px-1 py-0.5"><option value="en">English</option><option value="roman-urdu">Roman Urdu</option></select></label>
+            <label className="inline-flex items-center gap-1"><input type="checkbox" className="accent-violet-400" checked={voice} onChange={(e) => setVoice(e.target.checked)} />voice-over ({lang === 'roman-urdu' ? 'Uzma · Urdu, female' : 'Jenny · English, female'})</label>
+            <label className="inline-flex items-center gap-1">language <select value={lang} onChange={(e) => setLang(e.target.value as 'en' | 'roman-urdu')} className="rounded bg-slate-900 px-1 py-0.5"><option value="roman-urdu">Urdu voice + Roman Urdu captions</option><option value="en">English</option></select></label>
           </div>
           <div className="flex flex-wrap items-center gap-1.5">
             {PLATFORMS.map((p) => <button key={p.id} type="button" onClick={() => pickPlatform(p)} className={`rounded-lg border px-2.5 py-1 text-xs font-semibold ${platform === p.id ? 'border-amber-300 bg-amber-300/15 text-amber-100' : 'border-slate-700 text-slate-400'}`}>{p.label}</button>)}

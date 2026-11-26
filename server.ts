@@ -264,6 +264,7 @@ const currentAppDir = process.cwd();
 
 import { readState as saState, getConfig as saConfig, setConfig as saSetConfig, credentialStatus as saCreds, generatePosts as saGenerate, publishPost as saPublish, updatePost as saUpdate, deletePost as saDelete, schedulerTick as saTick, previewPost as saPreview, BEST_TIMES_PKT } from './server/socialAgent.js';
 import { writeScript } from './server/scriptWriter.js';
+import { urduSpeech, voiceStatus } from './server/voice.js';
 import { readBrain, saveBrand, logPerf, weeklyReport, weeklyPlan, qualityCheck, classifyComments, campaign as socialCampaign, readLibrary, addAsset, moveAsset, removeAsset, queueWeek, type AssetStatus } from './server/socialBrain.js';
 import { trackLogin, listEvents, listWarnings, summariseUsers, placeOf, FLAG_TEXT, type SecurityWarning } from './server/loginSecurity.js';
 import { clientIp } from './server/geoip.js';
@@ -4021,6 +4022,19 @@ app.post('/api/admin/social-brain/calendar/queue', requireDeveloper, (req, res) 
   res.json({ ok: true, result: queueWeek(topics) });
 });
 app.delete('/api/admin/social-brain/library/:id', requireDeveloper, (req, res) => { removeAsset(req.params.id); res.json({ ok: true }); });
+const ttsCache = new Map<string, Buffer>();
+app.get('/api/admin/social-brain/tts/status', requireDeveloper, (_req, res) => res.json({ ok: true, ...voiceStatus() }));
+app.post('/api/admin/social-brain/tts', requireDeveloper, async (req, res) => {
+  const text = String(req.body?.text || '').replace(/[\u0000-\u001f]/g, ' ').trim().slice(0, 600);
+  const lang = req.body?.lang === 'en' ? 'en' : 'ur';
+  if (text.length < 2) return res.status(400).json({ ok: false, error: 'Text required' });
+  const key = `${lang}:${text}`; const hit = ttsCache.get(key);
+  if (hit) { res.set('Content-Type', 'audio/mpeg'); return res.send(hit); }
+  const audio = await urduSpeech(text, lang);
+  if (!audio) return res.status(503).json({ ok: false, error: 'Voice service is not reachable right now. This video will use captions only.' });
+  if (ttsCache.size > 400) ttsCache.delete(ttsCache.keys().next().value as string);
+  ttsCache.set(key, audio); res.set('Content-Type', 'audio/mpeg'); return res.send(audio);
+});
 app.delete('/api/admin/social-agent/post/:id', requireDeveloper, (req, res) => { saDelete(req.params.id); res.json({ ok: true }); });
 setTimeout(() => { setInterval(() => void saTick(getGeminiClient()), 60_000); }, 30_000);
 
