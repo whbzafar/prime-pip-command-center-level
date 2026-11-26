@@ -118,3 +118,19 @@ describe('Urdu voice and Roman Urdu script', () => {
     expect(escapeXml("'")).toBe('&apos;');
   });
 });
+
+describe('splitForTts', () => {
+  it('keeps every piece within the limit and loses no words', async () => {
+    const { splitForTts } = await import('../../server/voice');
+    const text = 'یہ پہلا جملہ ہے۔ ' + 'لفظ '.repeat(120) + 'اور یہ آخری جملہ ہے۔';
+    const parts = splitForTts(text, 180);
+    expect(parts.length).toBeGreaterThan(1);
+    parts.forEach((p) => expect(p.length).toBeLessThanOrEqual(180));
+    expect(parts.join(' ').replace(/\s+/g, ' ')).toBe(text.replace(/\s+/g, ' ').trim());
+  });
+  it('returns nothing for empty text and one piece for short text', async () => {
+    const { splitForTts } = await import('../../server/voice');
+    expect(splitForTts('   ')).toEqual([]);
+    expect(splitForTts('Hello there.')).toEqual(['Hello there.']);
+  });
+});

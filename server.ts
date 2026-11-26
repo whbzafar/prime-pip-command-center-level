@@ -264,7 +264,8 @@ const currentAppDir = process.cwd();
 
 import { readState as saState, getConfig as saConfig, setConfig as saSetConfig, credentialStatus as saCreds, generatePosts as saGenerate, publishPost as saPublish, updatePost as saUpdate, deletePost as saDelete, schedulerTick as saTick, previewPost as saPreview, BEST_TIMES_PKT } from './server/socialAgent.js';
 import { writeScript } from './server/scriptWriter.js';
-import { urduSpeech, voiceStatus } from './server/voice.js';
+import { translateUrdu, urduSpeech, voiceStatus } from './server/voice.js';
+import { finishVideo } from './server/finish.js';
 import { readBrain, saveBrand, logPerf, weeklyReport, weeklyPlan, qualityCheck, classifyComments, campaign as socialCampaign, readLibrary, addAsset, moveAsset, removeAsset, queueWeek, type AssetStatus } from './server/socialBrain.js';
 import { trackLogin, listEvents, listWarnings, summariseUsers, placeOf, FLAG_TEXT, type SecurityWarning } from './server/loginSecurity.js';
 import { clientIp } from './server/geoip.js';
@@ -4034,6 +4035,20 @@ app.post('/api/admin/social-brain/tts', requireDeveloper, async (req, res) => {
   if (!audio) return res.status(503).json({ ok: false, error: 'Voice service is not reachable right now. This video will use captions only.' });
   if (ttsCache.size > 400) ttsCache.delete(ttsCache.keys().next().value as string);
   ttsCache.set(key, audio); res.set('Content-Type', 'audio/mpeg'); return res.send(audio);
+});
+app.post('/api/admin/social-brain/finish', requireDeveloper, express.raw({ type: () => true, limit: '150mb' }), async (req, res) => {
+  const body = req.body as Buffer;
+  if (!Buffer.isBuffer(body) || body.length < 1000) return res.status(400).json({ ok: false, error: 'No video received' });
+  try {
+    const mp4 = await finishVideo(body, String(req.query.ext || 'webm'));
+    res.set('Content-Type', 'video/mp4'); return res.send(mp4);
+  } catch (e: any) { return res.status(500).json({ ok: false, error: String(e?.message || e).slice(0, 300) }); }
+});
+app.post('/api/admin/social-brain/urdu', requireDeveloper, async (req, res) => {
+  const list: string[] = Array.isArray(req.body?.texts) ? req.body.texts.slice(0, 40).map((x: unknown) => String(x || '').slice(0, 500)) : [];
+  const out: string[] = [];
+  for (const t of list) out.push(await translateUrdu(t));
+  res.json({ ok: true, texts: out, translated: out.map((o, i) => o !== list[i]) });
 });
 app.delete('/api/admin/social-agent/post/:id', requireDeveloper, (req, res) => { saDelete(req.params.id); res.json({ ok: true }); });
 setTimeout(() => { setInterval(() => void saTick(getGeminiClient()), 60_000); }, 30_000);

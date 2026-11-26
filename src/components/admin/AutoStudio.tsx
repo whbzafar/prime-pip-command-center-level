@@ -37,6 +37,22 @@ export const AutoStudio: React.FC = () => {
   const [msg, setMsg] = useState('');
   const [withVideo, setWithVideo] = useState(false);
   const [useAI, setUseAI] = useState(true);
+  const [live, setLive] = useState<{ line: string; short: string; head: string; at: number } | null>(null);
+  const [useLive, setUseLive] = useState(true);
+  const liveRef = useRef<string | undefined>(undefined);
+  liveRef.current = useLive ? live?.short : undefined;
+  const [history, setHistory] = useState<{ at: number; tid: string; platform: Platform; scope: 'section' | 'account'; seed: number; headline: string }[]>(() => { try { return JSON.parse(localStorage.getItem('pp_studio_history') || '[]'); } catch { return []; } });
+  const refreshLive = useCallback(async () => {
+    const one = async (sym: string) => { try { const r = await fetch(`/api/charts/price?symbol=${sym}`); const j = await r.json(); return j?.ok && j.price > 0 ? { sym, price: Number(j.price), ch: Number(j.change24h) || 0 } : null; } catch { return null; } };
+    const rows = (await Promise.all(['XAUUSD', 'EURUSD', 'BTCUSDT'].map(one))).filter(Boolean) as { sym: string; price: number; ch: number }[];
+    let head = ''; try { const r = await fetch('/api/market-headlines'); const j = await r.json(); head = String(j?.items?.[0]?.title || '').slice(0, 140); } catch { /* optional */ }
+    if (!rows.length && !head) { setLive(null); return false; }
+    const name: Record<string, string> = { XAUUSD: 'Gold', EURUSD: 'EUR/USD', BTCUSDT: 'Bitcoin' }; const fmtp = (r: { sym: string; price: number }) => (r.sym === 'EURUSD' ? r.price.toFixed(4) : r.price.toLocaleString('en-US', { maximumFractionDigits: 2 }));
+    const arrow = (c: number) => `${c >= 0 ? '▲' : '▼'}${Math.abs(c).toFixed(2)}%`;
+    const line = rows.map((r) => `${name[r.sym]} ${fmtp(r)} (${arrow(r.ch)})`).join(' · ');
+    const g = rows[0]; setLive({ line, short: g ? `${g.sym === 'XAUUSD' ? 'XAU/USD' : name[g.sym]} ${fmtp(g)} ${arrow(g.ch)}` : '', head, at: Date.now() }); return true;
+  }, []);
+  useEffect(() => { void refreshLive(); }, [refreshLive]);
   const [voice, setVoice] = useState(true);
   const [audio, setAudio] = useState<AudioMode>('ai');
   const [perPart, setPerPart] = useState(6);
@@ -54,7 +70,7 @@ export const AutoStudio: React.FC = () => {
     let recent: string[] = [];
     try { recent = JSON.parse(localStorage.getItem('pp_recorded_topics') || '[]'); } catch { recent = []; }
     const plan = dailyPlan<Topic>(topics, today, recent);
-    const items: StreamItem[] = plan.map((p) => ({ tab: p.topic.tab, title: p.topic.title, theme: p.theme, script: async () => { const t = p.topic; const b = await askAI(t, 'tiktok', p.seed); if (!b && ur) setStreamStatus(`${t.title}: the AI writer is unavailable, so this video has captions only`); return scriptFor(t, b, p.seed); } }));
+    const items: StreamItem[] = plan.map((p) => ({ tab: p.topic.tab, title: p.topic.title, features: p.topic.features, theme: p.theme, script: async () => { const t = p.topic; const b = await askAI(t, 'tiktok', p.seed); if (!b && ur) setStreamStatus(`${t.title}: the AI writer is unavailable, so this video has captions only`); return scriptFor(t, b, p.seed); } }));
     try { localStorage.setItem('pp_recorded_topics', JSON.stringify([...plan.map((p) => p.topic.id), ...recent].slice(0, 200))); } catch { /* storage unavailable */ }
     try { await streamTours(items, { voice, audio, secondsPerPart: perPart, voiceLang: ur ? "ur" : "en", format: videoFmt, stop: streamStop.current, onVideo: (v) => setVideos((x) => [v, ...x]), onStatus: (m) => setStreamStatus(m) }); setStreamStatus(streamStop.current.stop ? 'Stopped. Every finished video is listed below.' : 'Every feature is done. Download any video below.'); }
     catch (e: any) { setStreamStatus(String(e?.message || e)); }
@@ -73,7 +89,7 @@ export const AutoStudio: React.FC = () => {
   const opts = useCallback((t: Topic, p: ReturnType<typeof generateTopicPost>, fmt: VisualFormat, lay: Layout, th: number, sd: number, h = 0) => {
     const s = shotStore.shots[t.id];
     const useLay: Layout = s ? (SHOT_LAYOUTS.includes(lay) ? lay : 'shot') : (CARD_LAYOUTS.includes(lay) ? lay : 'features');
-    return { format: fmt, layout: useLay, theme: th, seed: sd, headline: useLay === 'shotbig' || useLay === 'shot' ? p.headline : (p.hooks[h] || p.headline), sub: t.short, slides: t.features.slice(0, 3), bullets: t.features.slice(0, 3).map((f) => f.length > 52 ? f.slice(0, 50).replace(/\s+\S*$/, '') + '…' : f), features: t.features.slice(0, 6).map((f) => ({ icon: '✓', label: f.length > 40 ? f.slice(0, 38).replace(/\s+\S*$/, '') + '…' : f })), shot: s?.img || null, shotLabel: t.title, cta: 'primepipfx.site' };
+    return { live: liveRef.current, format: fmt, layout: useLay, theme: th, seed: sd, headline: useLay === 'shotbig' || useLay === 'shot' ? p.headline : (p.hooks[h] || p.headline), sub: t.short, slides: t.features.slice(0, 3), bullets: t.features.slice(0, 3).map((f) => f.length > 52 ? f.slice(0, 50).replace(/\s+\S*$/, '') + '…' : f), features: t.features.slice(0, 6).map((f) => ({ icon: '✓', label: f.length > 40 ? f.slice(0, 38).replace(/\s+\S*$/, '') + '…' : f })), shot: s?.img || null, shotLabel: t.title, cta: 'primepipfx.site' };
   }, []);
 
   const regenerate = useCallback((keepTopic = true) => {
@@ -82,9 +98,12 @@ export const AutoStudio: React.FC = () => {
     if (!keepTopic) setTid(topics[rnd(topics.length)].id);
   }, [topic.id, topics]);
   const composed = useMemo(() => {
-    if (!ai) return post.text; const tags = ai.hashtags.map((h) => `#${h}`).join(' ');
-    return platform === 'youtube' ? `TITLE: ${ai.title}\n\nDESCRIPTION:\n${ai.caption}\n\nTAGS: ${ai.hashtags.join(', ')}` : `${ai.caption}\n\n${tags}`;
-  }, [ai, post, platform]);
+    const tags = ai ? ai.hashtags.map((h) => `#${h}`).join(' ') : '';
+    const base = !ai ? post.text : platform === 'youtube' ? `TITLE: ${ai.title}\n\nDESCRIPTION:\n${ai.caption}\n\nTAGS: ${ai.hashtags.join(', ')}` : `${ai.caption}\n\n${tags}`;
+    if (!useLive || !live?.line) return base;
+    const ins = `📈 Market now: ${live.line}`;
+    return base.includes('Educational content') ? base.replace('Educational content', `${ins}\n\nEducational content`) : `${base}\n\n${ins}`;
+  }, [ai, post, platform, live, useLive]);
   useEffect(() => { setText(composed); }, [composed]);
   useEffect(() => { setAi(null); }, [tid, platform]);
   const hookList = useMemo(() => (ai?.hooks?.length ? ai.hooks : post.hooks).map((h) => ({ h, sc: scoreHook(h, topic.title) })), [ai, post, topic.title]);
@@ -105,8 +124,23 @@ export const AutoStudio: React.FC = () => {
     setBusy(false); setStep(''); if (b) { setAi(b); setHi(0); flash(`Written by ${b.source === 'gemini' ? 'Gemini' : 'the free AI writer'}`); } else flash('The AI writer is not reachable right now, so the built-in writer is used. Try again in a minute.');
   }, [askAI, topic, platform, seed]);
   useEffect(() => { setLayout((l) => (layouts.includes(l) ? l : layouts[0])); }, [layouts]);
-  useEffect(() => { const v = view.current; if (!v) return; const c = renderVariant(opts(topic, viewPost, format, layout, theme, seed, hi)); v.width = c.width; v.height = c.height; v.getContext('2d')!.drawImage(c, 0, 0); }, [topic, viewPost, format, layout, theme, seed, hi, opts, shot]);
+  useEffect(() => { const v = view.current; if (!v) return; const c = renderVariant(opts(topic, viewPost, format, layout, theme, seed, hi)); v.width = c.width; v.height = c.height; v.getContext('2d')!.drawImage(c, 0, 0); }, [topic, viewPost, format, layout, theme, seed, hi, opts, shot, live, useLive]);
 
+  const restored = useRef(false);
+  useEffect(() => {
+    if (restored.current) return; restored.current = true;
+    try { const j = JSON.parse(localStorage.getItem('pp_studio_state') || 'null'); if (!j) return;
+      if (topics.some((t) => t.id === j.tid)) setTid(j.tid); if (j.platform) setPlatform(j.platform); if (j.scope) setScope(j.scope); if (j.format) setFormat(j.format); if (j.layout) setLayout(j.layout); if (typeof j.theme === 'number') setTheme(j.theme); if (typeof j.seed === 'number') setSeed(j.seed); if (j.videoFmt) setVideoFmt(j.videoFmt);
+    } catch { /* ignore */ }
+  }, [topics]);
+  useEffect(() => {
+    if (!restored.current) return;
+    try { localStorage.setItem('pp_studio_state', JSON.stringify({ tid, platform, scope, format, layout, theme, seed, videoFmt })); } catch { /* ignore */ }
+    const t = setTimeout(() => {
+      setHistory((h) => { const e = { at: Date.now(), tid, platform, scope, seed, headline: post.headline }; const next = [e, ...h.filter((x) => !(x.tid === tid && x.platform === platform && x.scope === scope && x.seed === seed))].slice(0, 12); try { localStorage.setItem('pp_studio_history', JSON.stringify(next)); } catch { /* ignore */ } return next; });
+    }, 2500);
+    return () => clearTimeout(t);
+  }, [tid, platform, scope, format, layout, theme, seed, videoFmt, post.headline]);
   const pickPlatform = (p: (typeof PLATFORMS)[number]) => { setPlatform(p.id); setFormat(p.format); };
   const capture = async () => {
     setBusy(true); setStep('In the pop-up choose “This tab” and click Share. The agent does the rest.');
@@ -127,7 +161,7 @@ export const AutoStudio: React.FC = () => {
     try {
       const sc = scriptFor(topic, ai, seed, hi);
       setStep(audio === 'mic' ? 'Allow the microphone, then choose “This tab” and click Share. Speak in Urdu while the agent walks through every part of the section; your words become captions.' : 'In the pop-up choose “This tab” and click Share. The agent will open this section and walk through every part of it.');
-      const blob = await recordTour({ tab: topic.tab, title: topic.title, script: sc, theme, voice, audio, secondsPerPart: perPart, voiceLang: lang === "roman-urdu" ? "ur" : "en", format: videoFmt, onProgress: (_p, label) => label && setStep(label) });
+      const blob = await recordTour({ tab: topic.tab, title: topic.title, script: sc, theme, voice, audio, secondsPerPart: perPart, features: topic.features, voiceLang: lang === "roman-urdu" ? "ur" : "en", format: videoFmt, onProgress: (_p, label) => label && setStep(label) });
       const dim = VIDEO_FORMATS[videoFmt]; const ext = blob.type.includes('mp4') ? 'mp4' : 'webm';
       download(blob, `${base}-${videoFmt.replace(':', 'x')}.${ext}`); if (tourStore.lastSrt) download(new Blob([tourStore.lastSrt], { type: 'text/plain' }), `${base}-${videoFmt.replace(':', 'x')}.srt`);
       flash(`Live tour video downloaded (${dim.w}×${dim.h}, ${ext.toUpperCase()})${tourStore.lastSrt ? ' with Urdu subtitles (.srt)' : ''}.`);
@@ -224,6 +258,21 @@ export const AutoStudio: React.FC = () => {
             <span className="mx-1 text-slate-600">|</span>
             {THEMES.map((t, i) => <button key={t.name} type="button" aria-label={`${t.name} colors`} onClick={() => setTheme(i)} className={`h-5 w-5 rounded-full border-2 ${theme === i ? 'border-white' : 'border-transparent'}`} style={{ background: `linear-gradient(135deg, ${t.a}, ${t.b})` }} />)}
           </div>
+          <div className="flex flex-wrap items-center gap-2 rounded-lg border border-emerald-400/20 bg-emerald-400/5 px-3 py-2 text-[11.5px] text-slate-200" data-testid="live-strip">
+            <span className="font-bold text-emerald-300">● LIVE</span>
+            <span>{live ? live.line || 'headlines only' : 'Live prices are not reachable right now'}</span>
+            {live?.head && <span className="text-slate-400">· {live.head}</span>}
+            <button type="button" onClick={async () => { const ok = await refreshLive(); flash(ok ? 'Live data refreshed' : 'Live data is not reachable right now'); }} className="rounded border border-slate-600 px-2 py-0.5 hover:bg-slate-700/50" data-testid="live-refresh">Refresh</button>
+            <label className="inline-flex items-center gap-1"><input type="checkbox" className="accent-emerald-400" checked={useLive} onChange={(e) => setUseLive(e.target.checked)} />put it in the post and the image</label>
+          </div>
+          {history.length > 0 && (
+            <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-slate-400" data-testid="studio-history">
+              <span>Recent:</span>
+              {history.slice(0, 8).map((h) => (
+                <button key={`${h.at}-${h.seed}`} type="button" onClick={() => { setTid(h.tid); setPlatform(h.platform); setScope(h.scope); setSeed(h.seed); setHi(0); }} className="max-w-[16rem] truncate rounded border border-slate-700 px-2 py-0.5 hover:bg-slate-700/50" title={h.headline}>{(topics.find((t) => t.id === h.tid)?.title || h.tid)} · {h.platform}{h.scope === 'account' ? ' · account' : ''}</button>
+              ))}
+            </div>
+          )}
           <div className="space-y-1" aria-label="Hook options">
             <div className="text-[11px] text-slate-400">Hook options, scored against the 2026 first-3-seconds checklist (a writing checklist, not a view prediction)</div>
             {hookList.map((x, i) => <button key={i} type="button" onClick={() => setHi(i)} title={x.sc.notes.join('; ') || 'Passes the checklist'} className={`mr-1.5 inline-flex items-center gap-1.5 rounded-lg border px-2 py-1 text-[11px] ${hi === i ? 'border-amber-300 text-amber-100' : 'border-slate-700 text-slate-400'}`}><b className={x.sc.score >= 75 ? 'text-emerald-300' : x.sc.score >= 50 ? 'text-amber-300' : 'text-rose-300'}>{x.sc.score}</b>{x.h}{i === bestHook ? ' ★' : ''}</button>)}

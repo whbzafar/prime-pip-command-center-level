@@ -1,8 +1,9 @@
 import { FONT, fitText, rr, THEMES } from './postVisuals';
-import { go, lockedNotice, openScreen, sleep, SLOW, waitCalm } from './agentCapture';
+import { go, grab, lockedNotice, openScreen, shotStore, sleep, SLOW, waitCalm } from './agentCapture';
 import { getStoredToken } from './authClient';
 import { type Beat, type Box, bringIntoView, discoverBeats, findScroller, fitCrop, fullCrop, panCrop, scrollToTop, toVideo } from './sectionDirector';
 import { startLiveCaptions, toSrt, type LiveCaptions } from './liveCaptions';
+import { chunkCaption, pickFeature, planTimeline, titleCase, type Item } from './timeline';
 
 /* Live tour video. The director reads the real section (every heading, card and safe inner tab, top to bottom),
    scrolls the real page to each part, and the camera follows that part's live box on screen with a spotlight and a
@@ -18,6 +19,10 @@ export interface TourOpts {
   audio?: AudioMode;
   /** Seconds the camera stays on each part when the owner narrates (mic mode). */
   secondsPerPart?: number;
+  /** Final ffmpeg pass on the server (default on). */
+  finish?: boolean;
+  /** Every feature of the category; shown as an overview card and used for the narration. */
+  features?: string[];
   format?: VideoFormatId; voiceLang?: 'ur' | 'en'; returnTab?: string; onProgress?: (p: number, label: string) => void;
 }
 export const tourStore: { videos: Record<string, { blob: Blob; title: string; at: number }>; running: boolean; lastSrt: string } = { videos: {}, running: false, lastSrt: '' };
@@ -38,6 +43,27 @@ export const VIDEO_FORMATS = {
   '16:9': { label: 'YouTube and Facebook landscape (16:9)', w: 1920, h: 1080 },
 } as const;
 export type VideoFormatId = keyof typeof VIDEO_FORMATS;
+
+/** English lines to Urdu script through the server (free Google Translate). Unchanged text comes back when it cannot translate. */
+async function urduFor(texts: string[]): Promise<string[]> {
+  if (!texts.length) return [];
+  try {
+    const t = getStoredToken();
+    const r = await fetch('/api/admin/social-brain/urdu', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json', ...(t ? { Authorization: `Bearer ${t}` } : {}) }, body: JSON.stringify({ texts }) });
+    if (!r.ok) return texts;
+    const j = await r.json(); return Array.isArray(j.texts) ? j.texts : texts;
+  } catch { return texts; }
+}
+
+/** Final pass on the server with ffmpeg: H.264 + AAC MP4 at short-video loudness. Returns the original recording if the server cannot do it. */
+export async function finishOnServer(blob: Blob): Promise<Blob> {
+  try {
+    const t = getStoredToken(); const ext = blob.type.includes('mp4') ? 'mp4' : 'webm';
+    const r = await fetch(`/api/admin/social-brain/finish?ext=${ext}`, { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/octet-stream', ...(t ? { Authorization: `Bearer ${t}` } : {}) }, body: blob });
+    if (!r.ok || !(r.headers.get('content-type') || '').includes('video/mp4')) return blob;
+    const out = await r.blob(); return out.size > 1000 ? new Blob([out], { type: 'video/mp4' }) : blob;
+  } catch { return blob; }
+}
 
 /** Voice-over from the server (Azure Uzma when configured, otherwise the free Edge voice). Returns null if unavailable. */
 async function voiceFor(ac: AudioContext, text: string, lang: 'ur' | 'en'): Promise<AudioBuffer | null> {
@@ -73,8 +99,8 @@ function beatTrack(ac: AudioContext, dest: AudioNode, seconds: number, bpm = 102
   return duck;
 }
 
-type Kind = 'intro' | 'part' | 'outro';
-interface Seg { kind: Kind; beat?: Beat; headline: string; label: string; say: string; voice: AudioBuffer | null; seconds: number }
+type Kind = 'intro' | 'overview' | 'part' | 'outro';
+interface Seg { kind: Kind; beat?: Beat; headline: string; label: string; say: string; ur?: string; chunks?: string[]; feats?: string[]; voice: AudioBuffer | null; seconds: number }
 
 /** Records one real tour of a section. With a shared screen (from openScreen), many tours can run after one permission click. */
 export async function recordTour(o: TourOpts, shared?: { video: HTMLVideoElement }): Promise<Blob> {
@@ -94,6 +120,8 @@ export async function recordTour(o: TourOpts, shared?: { video: HTMLVideoElement
     go(o.tab); await sleep(1500); window.scrollTo(0, 0); const calm = await waitCalm(v, SLOW[o.tab] || 6500);
     if (lockedNotice()) throw new Error(`“${o.title}” is locked for this account, so it cannot be recorded.`);
     if (!calm) await sleep(1500);
+    // every recording also leaves a real screenshot of this section for the image posts
+    try { if (v.videoWidth) shotStore.shots[o.tab] = { img: await grab(v), label: o.title, tab: o.tab, at: Date.now() }; } catch { /* optional */ }
     try { await (document as any).fonts?.load?.(`700 40px "Noto Nastaliq Urdu"`); } catch { /* font optional */ }
 
     // 1. read the section: what is actually on this screen, top to bottom
@@ -106,26 +134,47 @@ export async function recordTour(o: TourOpts, shared?: { video: HTMLVideoElement
     const adest = ac.createMediaStreamDestination();
     // master limiter: voice, microphone and music never clip
     const mix = ac.createDynamicsCompressor(); mix.threshold.value = -6; mix.knee.value = 4; mix.ratio.value = 20; mix.attack.value = 0.002; mix.release.value = 0.15; mix.connect(adest);
-    const scenes = o.script.scenes;
-    const parts: { beat?: Beat; scene?: TourScene }[] = beats.length ? beats.map((b, i) => ({ beat: b, scene: mode === 'mic' ? undefined : scenes[i] })) : scenes.map((s) => ({ scene: s }));
+    const feats = (o.features || []).filter(Boolean);
     const segs: Seg[] = [];
-    let silent = 0; let wanted = 0;
+    let silent = 0; let wanted = 0; let rate = 1;
     const per = Math.max(3, Math.min(15, o.secondsPerPart || 6));
-    const add = async (kind: Kind, headline: string, label: string, say: string, line: string | undefined, beat?: Beat) => {
-      let voice: AudioBuffer | null = null;
-      if (mode === 'ai' && line) { wanted++; voice = await voiceFor(ac, line, lang); if (!voice) silent++; }
-      const base = mode === 'mic' ? (kind === 'part' ? per : 3.4) : Math.max(kind === 'intro' ? 2.8 : 3.2, wordsOf(say).length / 2.6 + 0.9);
-      segs.push({ kind, beat, headline, label, say, voice, seconds: voice ? Math.max(base * 0.8, voice.duration + 0.6) : base });
-      o.onProgress?.(0, mode === 'ai' ? `Voice-over ${segs.length}/${parts.length + 2}` : `Planning shot ${segs.length}/${parts.length + 2}`);
-    };
-    await add('intro', o.script.hook, o.title, o.script.hook, lang === 'ur' ? o.script.hookUrdu : o.script.hook);
-    for (const p of parts) {
-      const head = p.beat?.label || p.scene?.caption || o.title; // the headline always names what is on screen
-      await add('part', head, p.beat?.label || p.scene?.caption || o.title, p.scene?.say || '', p.scene ? (lang === 'ur' ? p.scene.urdu : p.scene.say) : undefined, p.beat);
+    const useUrdu = mode === 'ai' && lang === 'ur';
+    if (mode === 'mic') {
+      // the owner narrates: one shot per real part, no generated speech
+      segs.push({ kind: 'intro', headline: o.script.hook, label: o.title, say: '', voice: null, seconds: 3.4 });
+      (beats.length ? beats : [undefined]).forEach((bt, i) => segs.push({ kind: 'part', beat: bt, headline: bt?.label || o.script.scenes[i]?.caption || o.title, label: bt?.label || o.title, say: '', voice: null, seconds: per }));
+      segs.push({ kind: 'outro', headline: o.script.cta, label: 'primepipfx.site', say: '', voice: null, seconds: 3.4 });
+    } else {
+      // what is said about each real part: its name plus the best matching feature of the category
+      const used = new Set<number>();
+      const src: { kind: Kind; headline: string; label: string; en: string; urdu?: string; beat?: Beat; feats?: string[] }[] = [];
+      src.push({ kind: 'intro', headline: o.script.hook, label: o.title, en: o.script.hook, urdu: o.script.hookUrdu });
+      if (feats.length) src.push({ kind: 'overview', headline: `Inside ${o.title}`, label: o.title, en: `Here is everything inside ${o.title}: ${feats.length} tools, all in one place.`, feats });
+      (beats.length ? beats : o.script.scenes.map(() => undefined)).forEach((bt, i) => {
+        const label = bt?.label || o.script.scenes[i]?.caption || o.title; const f = pickFeature(label, feats, used);
+        src.push({ kind: 'part', headline: label, label, en: `${titleCase(label)}.${f ? ' ' + f : ''}`, beat: bt });
+      });
+      src.push({ kind: 'outro', headline: o.script.cta, label: 'primepipfx.site', en: o.script.cta, urdu: o.script.ctaUrdu });
+      let urdu: string[] = src.map((x) => x.urdu || '');
+      if (useUrdu) {
+        o.onProgress?.(0, 'Writing the Urdu narration');
+        const need = src.map((x, i) => (urdu[i] ? -1 : i)).filter((i) => i >= 0);
+        const tr = await urduFor(need.map((i) => src[i].en)); need.forEach((i, k) => { if (/[\u0600-\u06FF]/.test(tr[k] || '')) urdu[i] = tr[k]; });
+      }
+      // voices, four at a time
+      const voices: (AudioBuffer | null)[] = src.map(() => null);
+      if (mode === 'ai') {
+        let next = 0; let done = 0;
+        const worker = async () => { while (next < src.length) { const i = next++; const line = useUrdu ? urdu[i] : src[i].en; if (!line) continue; wanted++; voices[i] = await voiceFor(ac, line, useUrdu && urdu[i] ? 'ur' : 'en'); if (!voices[i]) silent++; o.onProgress?.(0, `Voice-over ${++done}/${src.length}`); } };
+        await Promise.all([worker(), worker(), worker(), worker()]);
+        if (wanted && silent === wanted) throw new Error('No voice-over could be generated, so the video was not made. Use “My voice” (microphone) or check the voice service on the server.');
+      }
+      const items: Item[] = src.map((x, i) => ({ kind: x.kind, voice: voices[i]?.duration ?? null, base: Math.max(x.kind === 'overview' ? 5 : 3, wordsOf(x.en).length / 2.6 + 0.9) }));
+      const plan = planTimeline(items, 30, 58); rate = plan.rate;
+      src.forEach((x, i) => { if (!plan.keep[i]) return; const ur = useUrdu && urdu[i] ? urdu[i] : undefined; segs.push({ kind: x.kind, beat: x.beat, headline: x.headline, label: x.label, say: x.en, ur, chunks: ur ? chunkCaption(ur, 6) : undefined, feats: x.feats, voice: voices[i], seconds: plan.seconds[i] }); });
     }
-    await add('outro', o.script.cta, 'primepipfx.site', o.script.cta, lang === 'ur' ? o.script.ctaUrdu : o.script.cta);
-    if (mode === 'ai' && wanted && silent === wanted) throw new Error('No Urdu voice-over could be generated, so the video was not made. Use “My voice” (microphone) or check the voice service (Azure key or the free Edge voice).');
     const total = segs.reduce((a, s) => a + s.seconds, 0); const starts: number[] = []; segs.reduce((a, s) => { starts.push(a); return a + s.seconds; }, 0);
+    o.onProgress?.(0, `Edit ready: ${segs.length} shots, ${Math.round(total)} seconds`);
 
     // 3. canvas, recorder and audio graph
     const fmt = VIDEO_FORMATS[o.format ?? '9:16']; const W = fmt.w; const H = fmt.h; const land = W > H;
@@ -151,8 +200,8 @@ export async function recordTour(o: TourOpts, shared?: { video: HTMLVideoElement
     const t0 = ac.currentTime + 0.05;
     if (mode === 'ai') segs.forEach((s, i) => {
       if (!s.voice) return; const at = t0 + starts[i] + 0.2;
-      const src = ac.createBufferSource(); src.buffer = s.voice; const vg = ac.createGain(); vg.gain.value = 1.15; src.connect(vg); vg.connect(mix); src.start(at);
-      music.gain.setTargetAtTime(0.28, at - 0.1, 0.06); music.gain.setTargetAtTime(1, at + s.voice.duration, 0.25);
+      const src = ac.createBufferSource(); src.buffer = s.voice; src.playbackRate.value = rate; const vg = ac.createGain(); vg.gain.value = 1.15; src.connect(vg); vg.connect(mix); src.start(at);
+      music.gain.setTargetAtTime(0.28, at - 0.1, 0.06); music.gain.setTargetAtTime(1, at + s.voice.duration / rate, 0.25);
     });
     if (mic) {
       const src = ac.createMediaStreamSource(mic); const hp = ac.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 85;
@@ -250,20 +299,24 @@ export async function recordTour(o: TourOpts, shared?: { video: HTMLVideoElement
         fit.lines.forEach((ln, li) => { ctx.fillStyle = li === fit.lines.length - 1 ? th.a : '#fff'; const w = ctx.measureText(ln).width; ctx.fillText(ln, land ? textX : textCX - w / 2, y0 + li * lh); }); ctx.restore();
 
         // captions: live transcript of your voice (Urdu script) or word-by-word voice-over captions
+        const urduBox = (said: string) => {
+          ctx.save(); ctx.font = `700 ${50 * U}px ${URDU_FONT}`; ctx.direction = 'rtl'; ctx.textBaseline = 'middle';
+          const words = said.split(/\s+/); const lines: string[] = []; let line = '';
+          for (const w of words) { const test = line ? `${line} ${w}` : w; if (ctx.measureText(test).width > textW - 60 * U && line) { lines.push(line); line = w; } else line = test; }
+          if (line) lines.push(line); const keep = lines.slice(-2); const lh2 = 92 * U; const bh = keep.length * lh2 + 34 * U;
+          const bw = Math.min(textW, Math.max(...keep.map((l) => ctx.measureText(l).width)) + 70 * U);
+          ctx.fillStyle = '#FACC15'; rr(ctx, textCX - bw / 2, capY - 17 * U, bw, bh, 22 * U); ctx.fill();
+          ctx.fillStyle = '#0b0b0b'; keep.forEach((l, li) => { const w = ctx.measureText(l).width; ctx.fillText(l, textCX + w / 2, capY + lh2 / 2 + li * lh2); });
+          ctx.restore();
+        };
         if (mode === 'mic') {
           const said = (captions?.current() || '').trim();
-          if (said) {
-            ctx.save(); ctx.font = `700 ${50 * U}px ${URDU_FONT}`; ctx.direction = 'rtl'; ctx.textBaseline = 'middle';
-            const words = said.split(/\s+/); const lines: string[] = []; let line = '';
-            for (const w of words) { const test = line ? `${line} ${w}` : w; if (ctx.measureText(test).width > textW - 60 * U && line) { lines.push(line); line = w; } else line = test; }
-            if (line) lines.push(line); const keep = lines.slice(-2); const lh2 = 92 * U; const bh = keep.length * lh2 + 34 * U;
-            const bw = Math.min(textW, Math.max(...keep.map((l) => ctx.measureText(l).width)) + 70 * U);
-            ctx.fillStyle = '#FACC15'; rr(ctx, textCX - bw / 2, capY - 17 * U, bw, bh, 22 * U); ctx.fill();
-            ctx.fillStyle = '#0b0b0b'; keep.forEach((l, li) => { const w = ctx.measureText(l).width; ctx.fillText(l, textCX + w / 2, capY + lh2 / 2 + li * lh2); });
-            ctx.restore();
-          } else if (s.kind === 'part' && since < 1.2) {
+          if (said) urduBox(said);
+          else if (s.kind === 'part' && since < 1.2) {
             ctx.fillStyle = 'rgba(255,255,255,.25)'; ctx.font = `600 ${26 * U}px ${FONT}`; const hint = '● LIVE'; ctx.fillText(hint, textCX - ctx.measureText(hint).width / 2, capY);
           }
+        } else if (s.chunks && s.chunks.length) {
+          urduBox(s.chunks[Math.min(s.chunks.length - 1, Math.floor((local / Math.max(0.5, s.seconds - 0.4)) * s.chunks.length))]);
         } else if (s.say) {
           const ws = wordsOf(s.say); const reveal = Math.min(ws.length, Math.floor((local / (s.seconds * 0.85)) * ws.length) + 1);
           ctx.font = `800 ${50 * U}px ${FONT}`; const lines: string[][] = [[]];
@@ -273,6 +326,24 @@ export async function recordTour(o: TourOpts, shared?: { video: HTMLVideoElement
           const lh2 = 64 * U; const bw = Math.min(textW, Math.max(...show.map((l) => ctx.measureText(l.join(' ')).width)) + 60 * U);
           ctx.fillStyle = 'rgba(0,0,0,.55)'; rr(ctx, textCX - bw / 2, capY - 14 * U, bw, show.length * lh2 + 22 * U, 20 * U); ctx.fill();
           show.forEach((ln, li) => { const text = ln.join(' '); let x = textCX - ctx.measureText(text).width / 2; ln.forEach((w) => { const shown = idx < reveal; const active = idx === reveal - 1; ctx.fillStyle = !shown ? 'rgba(255,255,255,.3)' : active ? '#FACC15' : '#fff'; ctx.fillText(w, x, capY + li * lh2); x += ctx.measureText(w + ' ').width; idx++; }); });
+        }
+
+        // overview card: every feature of the category, checked off one by one
+        if (s.kind === 'overview' && s.feats) {
+          const a = ease(since / 0.4); ctx.fillStyle = `rgba(2,6,23,${0.82 * a})`; rr(ctx, BOX.x, BOX.y, BOX.w, BOX.h, 28 * U); ctx.fill();
+          const list = s.feats.slice(0, 8); const more = s.feats.length - list.length;
+          ctx.textBaseline = 'middle'; ctx.font = `900 ${40 * U}px ${FONT}`; ctx.fillStyle = th.a; ctx.fillText('WHAT’S INSIDE', BOX.x + 40 * U, BOX.y + 56 * U);
+          const rowH = Math.min(86 * U, (BOX.h - 150 * U) / (list.length + (more > 0 ? 1 : 0)));
+          list.forEach((f, li) => {
+            const at = 0.5 + (li * Math.max(0.3, s.seconds - 1.2)) / list.length; const pa = easeBack((since - at) / 0.35); if (pa <= 0) return;
+            const y = BOX.y + 120 * U + li * rowH + rowH / 2; ctx.save(); ctx.globalAlpha = clamp01(pa); ctx.translate(0, (1 - clamp01(pa)) * 18 * U);
+            ctx.fillStyle = th.a; ctx.beginPath(); ctx.arc(BOX.x + 62 * U, y, 20 * U, 0, Math.PI * 2); ctx.fill();
+            ctx.strokeStyle = '#0b0b0b'; ctx.lineWidth = 5 * U; ctx.beginPath(); ctx.moveTo(BOX.x + 52 * U, y); ctx.lineTo(BOX.x + 60 * U, y + 8 * U); ctx.lineTo(BOX.x + 73 * U, y - 8 * U); ctx.stroke();
+            ctx.fillStyle = '#fff'; ctx.font = `700 ${31 * U}px ${FONT}`; let t = f; const maxw = BOX.w - 140 * U; while (ctx.measureText(t).width > maxw && t.length > 6) t = t.slice(0, -2); if (t !== f) t = t.trimEnd() + '…';
+            ctx.fillText(t, BOX.x + 100 * U, y); ctx.restore();
+          });
+          if (more > 0 && since > s.seconds - 1) { ctx.fillStyle = 'rgba(255,255,255,.7)'; ctx.font = `700 ${28 * U}px ${FONT}`; ctx.fillText(`+ ${more} more inside`, BOX.x + 100 * U, BOX.y + BOX.h - 40 * U); }
+          ctx.textBaseline = 'top';
         }
 
         // outro card
@@ -295,7 +366,8 @@ export async function recordTour(o: TourOpts, shared?: { video: HTMLVideoElement
       };
       tick();
     });
-    rec.stop(); const blob = await finished;
+    rec.stop(); let blob = await finished;
+    if (o.finish !== false) { o.onProgress?.(1, 'Finishing the video (MP4, loudness)'); blob = await finishOnServer(blob); }
     if (captions) { captions.stop(); tourStore.lastSrt = toSrt(captions.lines()); } else tourStore.lastSrt = '';
     void ac.close();
     tourStore.videos[o.tab] = { blob, title: o.title, at: Date.now() };
@@ -315,7 +387,7 @@ export async function recordTours(items: Omit<TourOpts, 'returnTab'>[], onEach?:
   finally { scr.stream.getTracks().forEach((t) => t.stop()); go(returnTab); }
 }
 
-export interface StreamItem { tab: string; title: string; theme: number; script: () => Promise<TourScript> }
+export interface StreamItem { tab: string; title: string; features?: string[]; theme: number; script: () => Promise<TourScript> }
 export interface StreamOpts { voice: boolean; audio?: AudioMode; secondsPerPart?: number; voiceLang: 'ur' | 'en'; format?: VideoFormatId; stop: { stop: boolean }; pauseMs?: number; onVideo: (v: { title: string; url: string; bytes: number; at: number; ext: string }) => void; onStatus: (s: string) => void }
 /** Non-stop production: one permission click, then each feature is scripted, recorded and handed over as soon as it is ready. Stops when opts.stop.stop is set. */
 export async function streamTours(items: StreamItem[], opts: StreamOpts): Promise<void> {
@@ -327,7 +399,7 @@ export async function streamTours(items: StreamItem[], opts: StreamOpts): Promis
       try { script = await it.script(); } catch (e: any) { opts.onStatus(`Skipped ${it.title}: ${String(e?.message || e)}`); continue; }
       if (opts.stop.stop) break;
       try {
-        const blob = await recordTour({ tab: it.tab, title: it.title, script, theme: it.theme, voice: opts.voice, audio: opts.audio, secondsPerPart: opts.secondsPerPart, voiceLang: opts.voiceLang, format: opts.format, onProgress: (p, label) => opts.onStatus(`(${i + 1}/${items.length}) ${it.title}: ${label || Math.round(p * 100) + '%'}`) }, scr);
+        const blob = await recordTour({ tab: it.tab, title: it.title, script, theme: it.theme, voice: opts.voice, audio: opts.audio, secondsPerPart: opts.secondsPerPart, features: it.features, voiceLang: opts.voiceLang, format: opts.format, onProgress: (p, label) => opts.onStatus(`(${i + 1}/${items.length}) ${it.title}: ${label || Math.round(p * 100) + '%'}`) }, scr);
         opts.onVideo({ title: it.title, url: URL.createObjectURL(blob), bytes: blob.size, at: Date.now(), ext: blob.type.includes('mp4') ? 'mp4' : 'webm' });
       } catch (e: any) { opts.onStatus(`Skipped ${it.title}: ${String(e?.message || e)}`); }
       await sleep(opts.pauseMs ?? 1500);

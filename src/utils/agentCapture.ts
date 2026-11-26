@@ -17,7 +17,7 @@ export function fingerprint(v: HTMLVideoElement): Uint8Array {
 export function frameDiff(a: Uint8Array, b: Uint8Array): number { let n = 0; for (let i = 0; i < a.length; i++) if (Math.abs(a[i] - b[i]) > 14) n++; return n / a.length; }
 export const lockedNotice = () => { const d = document.querySelector('[role="dialog"]'); return !!d && /subscription required|owner access only|coming soon|upgrade to unlock/i.test(d.textContent || ''); };
 
-async function grab(v: HTMLVideoElement): Promise<HTMLImageElement> {
+export async function grab(v: HTMLVideoElement): Promise<HTMLImageElement> {
   const c = document.createElement('canvas'); c.width = v.videoWidth; c.height = v.videoHeight; c.getContext('2d')!.drawImage(v, 0, 0);
   return loadImage(c.toDataURL('image/jpeg', 0.93));
 }

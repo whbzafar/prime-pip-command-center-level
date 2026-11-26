@@ -123,7 +123,7 @@ function drawCandles(ctx: CanvasRenderingContext2D, w: number, h: number, th: Th
   ctx.save(); ctx.strokeStyle = th.a; ctx.globalAlpha = 0.35; ctx.lineWidth = 3; ctx.setLineDash([10, 14]);
   for (const f of [0.3, 0.5, 0.7]) { ctx.beginPath(); ctx.moveTo(0, h * f); ctx.lineTo(w, h * f); ctx.stroke(); } ctx.restore();
 }
-export interface VariantOpts { format: VisualFormat; layout: Layout; theme: number; seed: number; headline: string; sub?: string; slides: string[]; features?: { icon: string; label: string }[]; art?: HTMLImageElement | null; hero?: HTMLImageElement | null; cta?: string; shot?: HTMLImageElement | null; shotLabel?: string; bullets?: string[] }
+export interface VariantOpts { live?: string; format: VisualFormat; layout: Layout; theme: number; seed: number; headline: string; sub?: string; slides: string[]; features?: { icon: string; label: string }[]; art?: HTMLImageElement | null; hero?: HTMLImageElement | null; cta?: string; shot?: HTMLImageElement | null; shotLabel?: string; bullets?: string[] }
 
 export function renderVariant(o: VariantOpts): HTMLCanvasElement {
   const th = THEMES[o.theme % THEMES.length];
@@ -135,6 +135,11 @@ export function renderVariant(o: VariantOpts): HTMLCanvasElement {
   const glow = ctx.createRadialGradient(w * (0.2 + r() * 0.6), h * 0.15, 10, w * 0.5, h * 0.2, w * 0.8); glow.addColorStop(0, th.a + '40'); glow.addColorStop(1, th.a + '00'); ctx.fillStyle = glow; ctx.fillRect(0, 0, w, h);
   ctx.textBaseline = 'top'; ctx.fillStyle = th.a; ctx.font = `800 ${Math.round(w * 0.03)}px ${FONT}`; ctx.fillText('PRIMEPIPFX', pad, pad * 0.8);
   ctx.fillStyle = 'rgba(255,255,255,.55)'; ctx.font = `600 ${Math.round(w * 0.019)}px ${FONT}`; ctx.fillText('TRADING COMMAND CENTER', pad, pad * 0.8 + w * 0.04);
+  if (o.live) { // live market chip, top right
+    const f = Math.round(w * 0.022); ctx.font = `700 ${f}px ${FONT}`; const tw = ctx.measureText(o.live).width; const ph = f * 1.9; const pw = tw + f * 2.4; const px = w - pad - pw; const py = pad * 0.8;
+    ctx.fillStyle = 'rgba(0,0,0,.55)'; rr(ctx, px, py, pw, ph, ph / 2); ctx.fill(); ctx.fillStyle = '#22c55e'; ctx.beginPath(); ctx.arc(px + f * 0.9, py + ph / 2, f * 0.28, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#fff'; ctx.textBaseline = 'middle'; ctx.fillText(o.live, px + f * 1.5, py + ph / 2 + 1); ctx.textBaseline = 'top';
+  }
   const cta = o.cta || 'primepipfx.site';
   const footer = () => {
     const bf = Math.round(w * 0.034); ctx.font = `800 ${bf}px ${FONT}`; const cw = ctx.measureText(cta).width + bf * 2; const cy = h - pad * 2.1 - bf * 1.3;
