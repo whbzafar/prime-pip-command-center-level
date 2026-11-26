@@ -6,7 +6,7 @@ import { captureTopics, shotStore } from '../../utils/agentCapture';
 import { VIDEO_FORMATS, recordTour, recordTours, streamTours, tourStore, type StreamItem, type TourScript, type VideoFormatId } from "../../utils/tour";
 import { dailyPlan, dayKey } from '../../utils/dailyPlan';
 import { getStoredToken } from '../../utils/authClient';
-import { Platform, Topic, generateTopicPost, getTopics, scoreHook, templateScript } from '../../utils/topicContent';
+import { Platform, Topic, generateAccountPost, generateTopicPost, getTopics, scoreHook, templateScript } from '../../utils/topicContent';
 
 interface AiBundle { hooks: string[]; hooksUrdu?: string[]; scenes: TourScript['scenes']; cta: string; ctaUrdu?: string; caption: string; hashtags: string[]; title: string; source: string }
 
@@ -62,7 +62,8 @@ export const AutoStudio: React.FC = () => {
   const flash = (m: string) => { setMsg(m); setTimeout(() => setMsg(''), 4500); };
   const topic: Topic = topics.find((t) => t.id === tid) || topics[0];
   const shot = shotStore.shots[topic.id];
-  const post = useMemo(() => generateTopicPost(topic, platform, seed), [topic, platform, seed]);
+  const [scope, setScope] = useState<'section' | 'account'>('section');
+  const post = useMemo(() => (scope === 'account' ? generateAccountPost(topics, platform, seed) : generateTopicPost(topic, platform, seed)), [scope, topics, topic, platform, seed]);
   const viewPost = useMemo(() => (ai?.hooks?.length ? { ...post, hooks: ai.hooks } : post), [ai, post]);
   const layouts = shot ? SHOT_LAYOUTS : CARD_LAYOUTS;
   const have = topics.filter((t) => shotStore.shots[t.id]).length;
@@ -210,6 +211,7 @@ export const AutoStudio: React.FC = () => {
             <label className="inline-flex items-center gap-1">language <select value={lang} onChange={(e) => setLang(e.target.value as 'en' | 'roman-urdu')} className="rounded bg-slate-900 px-1 py-0.5"><option value="roman-urdu">Urdu voice + Roman Urdu captions</option><option value="en">English</option></select></label>
           </div>
           <div className="flex flex-wrap items-center gap-1.5">
+            {(['section', 'account'] as const).map((s) => <button key={s} type="button" onClick={() => setScope(s)} className={`rounded-lg border px-2 py-1 text-xs font-semibold ${scope === s ? 'border-amber-300 bg-amber-300/15 text-amber-100' : 'border-slate-700 text-slate-400'}`} data-testid={`post-scope-${s}`}>{s === 'section' ? 'This section' : 'Whole account'}</button>)}
             {PLATFORMS.map((p) => <button key={p.id} type="button" onClick={() => pickPlatform(p)} className={`rounded-lg border px-2.5 py-1 text-xs font-semibold ${platform === p.id ? 'border-amber-300 bg-amber-300/15 text-amber-100' : 'border-slate-700 text-slate-400'}`}>{p.label}</button>)}
             <span className="mx-1 text-slate-600">|</span>
             {(['portrait', 'story', 'square', 'landscape', 'thumb'] as VisualFormat[]).map((k) => <button key={k} type="button" onClick={() => setFormat(k)} className={`rounded-lg border px-2 py-1 text-[11px] font-semibold ${format === k ? 'border-amber-300 text-amber-100' : 'border-slate-700 text-slate-400'}`}>{FORMATS[k].label}</button>)}

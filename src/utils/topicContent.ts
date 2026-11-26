@@ -100,3 +100,42 @@ export function templateScript(topic: Topic, seed: number): TemplateScript {
     cta: pick(CTAS, r),
   };
 }
+
+// ---------- whole-account post: one post that covers several sections of the app ----------
+/** One post for the account as a whole. Picks `count` sections by seed and features one from each. */
+export function generateAccountPost(topics: Topic[], platform: Platform, seed: number, count = 4): TopicPost {
+  if (!topics.length) return { headline: 'PrimePipFX', hooks: [], caption: '', hashtags: [], title: '', onScreen: [], text: '' };
+  const r = rng(seed * 6121 + platform.length * 17);
+  const picked = shuffled(topics, r).slice(0, Math.min(count, topics.length));
+  const lines = picked.map((t) => `✅ ${t.title}: ${cut(shuffled(t.features, r)[0] || t.short, 70)}`);
+  const hooks = [
+    'Your whole trading day in one terminal.',
+    `${picked.length} tools, one app: here's what's inside.`,
+    'Stop switching apps. See what PrimePipFX covers.',
+  ].sort(() => r() - 0.5);
+  const hook = hooks[0]; const cta = pick(CTAS, r);
+  const tagPool = shuffled(Array.from(new Set(picked.flatMap((t) => t.tags))), r);
+  const tags = (n: number) => Array.from(new Set(tagPool.slice(0, n))).map((t) => `#${t}`);
+  const headline = 'PrimePipFX: the whole terminal';
+  let caption = ''; let hashtags: string[] = []; let title = ''; let onScreen: string[] = [];
+  if (platform === 'instagram') {
+    hashtags = tags(10);
+    caption = `${hook}\n\n${lines.join('\n')}\n\n👉 ${cta} (link in bio)\n\n${DISCLAIMER}`;
+  } else if (platform === 'facebook') {
+    hashtags = tags(4);
+    caption = `${hook}\n\n${lines.join('\n')}\n\n${cta}\n\n${DISCLAIMER}`;
+  } else if (platform === 'tiktok') {
+    hashtags = tags(5);
+    caption = `${cut(hook, 90)}\n${cta}`;
+    onScreen = [cut(hook, 60), ...picked.map((t) => cut(t.title, 56)), cta];
+  } else {
+    hashtags = tags(8);
+    title = cut('PrimePipFX: Forex & Gold Trading Terminal, every tool in one app', 70);
+    caption = `${hook}\n\n${lines.join('\n')}\n\n${cta}\n\n${DISCLAIMER}`;
+    onScreen = ['PrimePipFX', ...picked.map((t) => cut(t.title, 56))];
+  }
+  if (BANNED.test(caption)) caption = caption.replace(BANNED, 'powerful');
+  const hooksOut = hooks.map((h) => h);
+  const text = platform === 'youtube' ? `TITLE: ${title}\n\nDESCRIPTION:\n${caption}\n\nTAGS: ${hashtags.map((h) => h.slice(1)).join(', ')}` : `${caption}\n\n${hashtags.join(' ')}`;
+  return { headline, hooks: hooksOut, caption, hashtags, title, onScreen, text };
+}

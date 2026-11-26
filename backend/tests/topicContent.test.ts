@@ -31,3 +31,21 @@ describe('hooks and scripts', () => {
     expect(s.scenes.length).toBeGreaterThanOrEqual(3); expect(s.hooks.length).toBe(5); expect(s.scenes.every((x) => x.say.length > 5 && x.caption.length > 1)).toBe(true);
   });
 });
+
+describe('generateAccountPost', () => {
+  it('covers several sections, keeps the disclaimer and passes the risk gate wording', async () => {
+    const { generateAccountPost, getTopics } = await import('../../src/utils/topicContent');
+    const topics = getTopics();
+    const p = generateAccountPost(topics, 'instagram', 42);
+    expect(p.caption).toContain('Educational content, not financial advice');
+    expect(p.hashtags.length).toBeGreaterThan(0);
+    const named = topics.filter((t) => p.caption.includes(t.title));
+    expect(named.length).toBeGreaterThanOrEqual(2);
+    expect(p.text).toContain(p.caption);
+  });
+  it('gives a TITLE line for YouTube and handles no topics', async () => {
+    const { generateAccountPost, getTopics } = await import('../../src/utils/topicContent');
+    expect(generateAccountPost(getTopics(), 'youtube', 7).text.startsWith('TITLE:')).toBe(true);
+    expect(generateAccountPost([], 'tiktok', 1).caption).toBe('');
+  });
+});
