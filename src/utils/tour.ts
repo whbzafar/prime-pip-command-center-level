@@ -3,6 +3,7 @@ import { go, grab, lockedNotice, openScreen, shotStore, sleep, SLOW, waitCalm } 
 import { getStoredToken } from './authClient';
 import { type Beat, type Box, bringIntoView, discoverBeats, findScroller, fitCrop, fullCrop, panCrop, scrollToTop, toVideo } from './sectionDirector';
 import { startLiveCaptions, toSrt, type LiveCaptions } from './liveCaptions';
+import { OUTRO_LINE, OVERVIEW_LINE, PACKS } from '../data/urduPack';
 import { chunkCaption, pickFeature, planTimeline, titleCase, type Item } from './timeline';
 
 /* Live tour video. The director reads the real section (every heading, card and safe inner tab, top to bottom),
@@ -182,7 +183,17 @@ export async function recordTour(o: TourOpts, shared?: { video: HTMLVideoElement
     } else {
       // what is said about each real part: its name plus the best matching feature of the category
       const used = new Set<number>();
-      const src: { kind: Kind; headline: string; label: string; en: string; urdu?: string; beat?: Beat; feats?: string[] }[] = [];
+      const src: { kind: Kind; headline: string; label: string; en: string; urdu?: string; rm?: string; beat?: Beat; feats?: string[] }[] = [];
+      const pack = useUrdu ? PACKS[o.tab] : undefined;
+      if (pack) {
+        // hand-written Urdu for this category: voice speaks Urdu script, viewers read Roman Urdu captions
+        src.push({ kind: 'intro', headline: o.script.hook, label: o.title, en: pack.hook[0], rm: pack.hook[0], urdu: pack.hook[1] });
+        if (feats.length) src.push({ kind: 'overview', headline: `Inside ${o.title}`, label: o.title, en: OVERVIEW_LINE[0], rm: OVERVIEW_LINE[0], urdu: OVERVIEW_LINE[1], feats: pack.parts.map((p) => p[0]) });
+        // each line is paired with the part of the screen it describes (by name where known), the rest in reading order
+        const free = beats.slice(); const pick: (Beat | undefined)[] = pack.parts.map((pt) => { const k = pt[3] ? free.findIndex((b) => pt[3]!.test(b.label)) : -1; return k >= 0 ? free.splice(k, 1)[0] : undefined; });
+        pack.parts.forEach((pt, i) => src.push({ kind: 'part', headline: pt[0], label: pt[0], en: pt[1], rm: pt[1], urdu: pt[2], beat: pick[i] || free.shift() }));
+        src.push({ kind: 'outro', headline: o.script.cta, label: 'primepipfx.site', en: OUTRO_LINE[0], rm: OUTRO_LINE[0], urdu: OUTRO_LINE[1] });
+      } else {
       src.push({ kind: 'intro', headline: o.script.hook, label: o.title, en: o.script.hook, urdu: o.script.hookUrdu });
       if (feats.length) src.push({ kind: 'overview', headline: `Inside ${o.title}`, label: o.title, en: `Here is everything inside ${o.title}: ${feats.length} tools, all in one place.`, feats });
       (beats.length ? beats : o.script.scenes.map(() => undefined)).forEach((bt, i) => {
@@ -190,6 +201,7 @@ export async function recordTour(o: TourOpts, shared?: { video: HTMLVideoElement
         src.push({ kind: 'part', headline: label, label, en: `${titleCase(label)}.${f ? ' ' + f : ''}`, beat: bt });
       });
       src.push({ kind: 'outro', headline: o.script.cta, label: 'primepipfx.site', en: o.script.cta, urdu: o.script.ctaUrdu });
+      }
       let urdu: string[] = src.map((x) => x.urdu || '');
       if (useUrdu) {
         o.onProgress?.(0, 'Writing the Urdu narration');
@@ -214,7 +226,7 @@ export async function recordTour(o: TourOpts, shared?: { video: HTMLVideoElement
       }
       const items: Item[] = src.map((x, i) => ({ kind: x.kind, voice: voices[i]?.duration ?? null, base: Math.max(x.kind === 'overview' ? 5 : 3, wordsOf(x.en).length / 2.6 + 0.9) }));
       const plan = planTimeline(items, 30, 58); rate = plan.rate;
-      src.forEach((x, i) => { if (!plan.keep[i]) return; const ur = useUrdu && urdu[i] ? urdu[i] : undefined; segs.push({ spoken: browserSpeech ? (browserSpeech.lang === 'ur' ? (urdu[i] && /[\u0600-\u06FF]/.test(urdu[i]) ? urdu[i] : x.en) : x.en) : undefined, spokenLang: browserSpeech ? (browserSpeech.lang === 'ur' && urdu[i] && /[\u0600-\u06FF]/.test(urdu[i]) ? 'ur' : 'en') : undefined, kind: x.kind, beat: x.beat, headline: x.headline, label: x.label, say: x.en, ur, chunks: ur ? chunkCaption(ur, 6) : undefined, feats: x.feats, voice: voices[i], seconds: plan.seconds[i] }); });
+      src.forEach((x, i) => { if (!plan.keep[i]) return; const ur = undefined as string | undefined; segs.push({ spoken: browserSpeech ? (browserSpeech.lang === 'ur' ? (urdu[i] && /[\u0600-\u06FF]/.test(urdu[i]) ? urdu[i] : x.en) : x.en) : undefined, spokenLang: browserSpeech ? (browserSpeech.lang === 'ur' && urdu[i] && /[\u0600-\u06FF]/.test(urdu[i]) ? 'ur' : 'en') : undefined, kind: x.kind, beat: x.beat, headline: x.headline, label: x.label, say: x.rm || x.en, ur, chunks: ur ? chunkCaption(ur, 6) : undefined, feats: x.feats, voice: voices[i], seconds: plan.seconds[i] }); });
     }
     const total = segs.reduce((a, s) => a + s.seconds, 0); const starts: number[] = []; segs.reduce((a, s) => { starts.push(a); return a + s.seconds; }, 0);
     o.onProgress?.(0, `Edit ready: ${segs.length} shots, ${Math.round(total)} seconds`);
@@ -321,7 +333,7 @@ export async function recordTour(o: TourOpts, shared?: { video: HTMLVideoElement
             // callout pill with the part's real label
             const pa = easeBack((since - 0.7) / 0.45);
             if (pa > 0 && s.label) {
-              ctx.font = `800 ${30 * U}px ${FONT}`; const txt = s.label.toUpperCase(); const pw = Math.min(BOX.w - 40 * U, ctx.measureText(txt).width + 70 * U); const ph = 56 * U;
+              ctx.font = `800 ${30 * U}px ${FONT}`; const txt = s.label.toUpperCase(); const pw = Math.min(BOX.w - 40 * U, ctx.measureText(txt).width + 56 * U + 44 * U); const ph = 56 * U;
               let px = Math.min(BOX.x + BOX.w - pw - 20 * U, Math.max(BOX.x + 20 * U, hx)); let py = hy - ph - 22 * U; if (py < BOX.y + 16 * U) py = Math.min(BOX.y + BOX.h - ph - 16 * U, hy + hh + 22 * U);
               ctx.save(); ctx.translate(px + pw / 2, py + ph / 2); ctx.scale(pa, pa); ctx.translate(-(px + pw / 2), -(py + ph / 2));
               ctx.fillStyle = th.a; rr(ctx, px, py, pw, ph, ph / 2); ctx.fill(); ctx.fillStyle = '#0b0b0b'; ctx.beginPath(); ctx.arc(px + ph / 2, py + ph / 2, ph * 0.32, 0, Math.PI * 2); ctx.fill();
@@ -363,7 +375,7 @@ export async function recordTour(o: TourOpts, shared?: { video: HTMLVideoElement
         } else if (s.chunks && s.chunks.length) {
           urduBox(s.chunks[Math.min(s.chunks.length - 1, Math.floor((local / Math.max(0.5, s.seconds - 0.4)) * s.chunks.length))]);
         } else if (s.say) {
-          const ws = wordsOf(s.say); const reveal = Math.min(ws.length, Math.floor((local / (s.seconds * 0.85)) * ws.length) + 1);
+          const ws = wordsOf(s.say); const spanT = s.voice ? s.voice.duration / rate + 0.1 : s.seconds * 0.85; const reveal = Math.min(ws.length, Math.max(1, Math.floor((Math.max(0, local - 0.2) / spanT) * ws.length) + 1));
           ctx.font = `800 ${50 * U}px ${FONT}`; const lines: string[][] = [[]];
           for (const w of ws) { const test = [...lines[lines.length - 1], w].join(' '); if (ctx.measureText(test).width > textW - 50 * U && lines[lines.length - 1].length) lines.push([w]); else lines[lines.length - 1].push(w); }
           const curLine = (() => { let n = 0; for (let li = 0; li < lines.length; li++) { n += lines[li].length; if (reveal <= n) return li; } return lines.length - 1; })();
