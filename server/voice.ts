@@ -1,6 +1,11 @@
+import { readFile, unlink } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { randomUUID } from "node:crypto";
+
 /* Voice-over for the live tour videos.
    Primary: Azure AI Speech neural voices (free tier available). Urdu = ur-PK-UzmaNeural (Pakistani Urdu, female).
-   Fallback: a free keyless service. Its Urdu pronunciation is NOT guaranteed, so Azure is the recommended setup. */
+   Fallbacks (free, no key): Microsoft Edge online voice via node-edge-tts (same Uzma voice), then a keyless service whose Urdu is not guaranteed. */
 
 const timeout = <T>(p: Promise<T>, ms: number) => Promise.race([p, new Promise<T>((_, rej) => setTimeout(() => rej(new Error('timeout')), ms))]);
 export const escapeXml = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&apos;');
@@ -16,7 +21,21 @@ export function buildSsml(text: string, lang: 'ur' | 'en' = 'ur'): string {
 
 export function voiceStatus() {
   const azure = !!process.env.AZURE_SPEECH_KEY;
-  return { azure, region: process.env.AZURE_SPEECH_REGION || 'eastus', voice: VOICES.ur.label, primary: azure ? 'Azure AI Speech (recommended)' : 'Free fallback only — set AZURE_SPEECH_KEY and AZURE_SPEECH_REGION for a reliable Pakistani Urdu voice' };
+  return { azure, region: process.env.AZURE_SPEECH_REGION || 'eastus', voice: VOICES.ur.label, primary: azure ? "Azure AI Speech (recommended)" : "Free Edge online voice (Uzma, no key); set AZURE_SPEECH_KEY for the most reliable Pakistani Urdu" };
+}
+
+/** Free Microsoft Edge online voices (same Uzma voice, no key) through the MIT-licensed node-edge-tts package. */
+export async function edgeSpeech(text: string, lang: "ur" | "en" = "ur"): Promise<Buffer | null> {
+  const path = join(tmpdir(), `pp-tts-${randomUUID()}.mp3`);
+  try {
+    const { EdgeTTS } = await import("node-edge-tts");
+    const v = VOICES[lang];
+    const tts = new EdgeTTS({ voice: v.name, lang: v.lang, outputFormat: "audio-24khz-96kbitrate-mono-mp3" });
+    await timeout(tts.ttsPromise(text, path), 25000);
+    const buf = await readFile(path);
+    return buf.length ? buf : null;
+  } catch { return null; }
+  finally { unlink(path).catch(() => {}); }
 }
 
 export async function urduSpeech(text: string, lang: 'ur' | 'en' = 'ur'): Promise<Buffer | null> {
@@ -31,6 +50,8 @@ export async function urduSpeech(text: string, lang: 'ur' | 'en' = 'ur'): Promis
       if (r.ok) return Buffer.from(await r.arrayBuffer());
     } catch { /* fall through */ }
   }
+  const edge = await edgeSpeech(text, lang);
+  if (edge) return edge;
   try {
     const r = await timeout(fetch(`https://text.pollinations.ai/${encodeURIComponent(text)}?model=openai-audio&voice=nova`), 25000);
     if (r.ok && (r.headers.get('content-type') || '').includes('audio')) return Buffer.from(await r.arrayBuffer());
