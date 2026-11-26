@@ -64,6 +64,7 @@ export async function recordTour(o: TourOpts, shared?: { video: HTMLVideoElement
     await mk({ say: o.script.hook, caption: o.script.hook, focus: 'center', zoom: 1, scroll: 0 }, 'hook', lang === 'ur' ? o.script.hookUrdu : o.script.hook);
     for (const s of o.script.scenes) await mk(s, 'body', lang === 'ur' ? s.urdu : s.say);
     await mk({ say: o.script.cta, caption: 'primepipfx.site', focus: 'center', zoom: 1, scroll: 0 }, 'cta', lang === 'ur' ? o.script.ctaUrdu : o.script.cta);
+    if (o.voice && silent === scenes.length) throw new Error("No Urdu voice-over could be generated, so the video was not made. Check the voice service (Azure key or the free Edge voice) and try again.");
     const total = scenes.reduce((a, s) => a + s.seconds, 0); const starts: number[] = []; scenes.reduce((a, s) => { starts.push(a); return a + s.seconds; }, 0);
 
     const fmt = VIDEO_FORMATS[o.format ?? "9:16"]; const W = fmt.w; const H = fmt.h; const CX = W / 2; const Y = (n: number) => Math.round(n * H / 1920);
