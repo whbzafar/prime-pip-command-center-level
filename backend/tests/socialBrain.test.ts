@@ -88,3 +88,15 @@ describe('poster studio content rules', () => {
     expect(s).toHaveLength(5); expect(s[0].headline).toBe('Backtesting'); expect(s[4].headline).toMatch(/inside the app/);
   });
 });
+
+import { weekDrafts } from '../../server/socialBrain';
+describe('weekly plan to review queue', () => {
+  it('makes one draft per planned day, each passing the gate, with its slot recorded', () => {
+    const topics = [{ id: 'A', title: 'Backtesting', short: 'Replay bars.', features: ['Replay', 'Stats'] }, { id: 'B', title: 'Risk Management', short: 'Size trades.', features: ['Lot size'] }];
+    const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map((day, i) => ({ day, contentType: ['educational-video', 'promotional-poster', 'interesting-facts', 'short-form-video', 'community-engagement', 'brand-advertisement', 'weekly-highlights'][i] }));
+    const drafts = weekDrafts(topics, brand, days);
+    expect(drafts).toHaveLength(7);
+    drafts.forEach((d) => { expect(d.slot.day).toBeTruthy(); expect(buildAsset(d, [], brand).qc.pass).toBe(true); });
+    expect(weekDrafts([], brand, days)).toEqual([]);
+  });
+});

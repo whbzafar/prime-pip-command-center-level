@@ -72,6 +72,7 @@ export const SocialBrainPanel: React.FC = () => {
         <Sec icon={<CalendarDays className="h-4 w-4 text-amber-300" />} title="Weekly calendar and report">
           <div className="flex flex-wrap gap-2">
             <button type="button" className={`${btn} bg-amber-400 text-slate-900`} onClick={async () => { try { setPlan((await call('/plan')).plan); } catch (e) { fail(e); } }}>Build this week's plan</button>
+            <button type="button" className={`${btn} bg-emerald-500/30 text-emerald-100`} data-testid="queue-week" onClick={async () => { try { const topics = getTopics().map((t) => ({ id: t.id, title: t.title, short: t.short, features: t.features })); const r = (await call('/calendar/queue', 'POST', { topics })).result; flash(`${r.added} drafts added to review${r.skipped.length ? `, ${r.skipped.length} days already queued` : ''}. ${r.note}`); await loadLib(); } catch (e) { fail(e); } }}>Send this week to review</button>
             <button type="button" className={`${btn} bg-slate-700 text-slate-100`} onClick={async () => { try { setReport((await call('/report')).report); } catch (e) { fail(e); } }}>Weekly report</button>
           </div>
           {plan && <div className="mt-2 text-[12px] text-slate-300"><div className="mb-1 text-slate-400">{plan.note}</div>{plan.days.map((d: any) => <div key={d.day}>{d.day}: <span className={d.changed ? 'text-amber-200' : ''}>{d.contentType}</span></div>)}</div>}

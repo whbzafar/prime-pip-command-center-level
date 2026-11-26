@@ -166,7 +166,7 @@ export function campaign(sentence: string, topics: { id: string; title: string; 
 
 // ---------- content library + approval queue ----------
 export type AssetStatus = 'draft' | 'blocked' | 'approved' | 'rejected' | 'published';
-export interface Asset { id: string; title: string; platform: string; topic: string; text: string; hooks: string[]; cta: string; hashtags: string[]; status: AssetStatus; qc: ReturnType<typeof qualityCheck>; createdAt: string; updatedAt: string; history: { at: string; from: string; to: string; note?: string }[] }
+export interface Asset { slot?: { day: string; contentType: string }; id: string; title: string; platform: string; topic: string; text: string; hooks: string[]; cta: string; hashtags: string[]; status: AssetStatus; qc: ReturnType<typeof qualityCheck>; createdAt: string; updatedAt: string; history: { at: string; from: string; to: string; note?: string }[] }
 const LIB_FILE = 'social_library.json';
 export function readLibrary(): Asset[] { const v = safeReadJsonFile<Asset[]>(LIB_FILE, []); return Array.isArray(v) ? v : []; }
 function writeLibrary(list: Asset[]) { safeWriteJsonFile(LIB_FILE, list.slice(-1000)); }
@@ -178,7 +178,8 @@ export function buildAsset(input: any, existingTexts: string[], brand: Brand, no
   const hooks = lines(input.hooks, 4, 160); const hashtags = lines(input.hashtags, 15, 40).map((h) => h.replace(/^#/, ''));
   const cta = one(input.cta, 120);
   const qc = qualityCheck({ platform, title: one(input.title, 120), caption: text, hashtags, hooks, cta }, existingTexts, brand);
-  return { id: `as_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`, title: one(input.title, 120) || `${platform} post`, platform, topic: one(input.topic, 120), text, hooks, cta, hashtags, status: qc.pass ? 'draft' : 'blocked', qc, createdAt: now, updatedAt: now, history: [{ at: now, from: 'new', to: qc.pass ? 'draft' : 'blocked' }] };
+  const slot = input.slot && typeof input.slot.day === 'string' ? { day: String(input.slot.day).slice(0, 12), contentType: String(input.slot.contentType).slice(0, 40) } : undefined;
+  return { slot, id: `as_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`, title: one(input.title, 120) || `${platform} post`, platform, topic: one(input.topic, 120), text, hooks, cta, hashtags, status: qc.pass ? 'draft' : 'blocked', qc, createdAt: now, updatedAt: now, history: [{ at: now, from: 'new', to: qc.pass ? 'draft' : 'blocked' }] };
 }
 
 const NEXT: Record<AssetStatus, AssetStatus[]> = { draft: ['approved', 'rejected'], blocked: ['rejected'], approved: ['published', 'rejected', 'draft'], rejected: ['draft'], published: [] };
@@ -200,3 +201,34 @@ export function moveAsset(id: string, to: AssetStatus, note?: string) {
   writeLibrary(list.map((x) => (x.id === id ? r.asset! : x))); return r;
 }
 export function removeAsset(id: string) { writeLibrary(readLibrary().filter((x) => x.id !== id)); }
+
+// ---------- weekly plan -> review queue ----------
+const SLOT_COPY: Record<string, (t: { title: string; short: string; features: string[] }, b: Brand) => string> = {
+  'educational-video': (t) => `Learn: ${t.title}. ${t.short}${t.features[0] ? `\n• ${t.features[0]}` : ''}${t.features[1] ? `\n• ${t.features[1]}` : ''}`,
+  'promotional-poster': (t, b) => `${t.title} is part of ${b.name}. ${t.short}`,
+  'interesting-facts': (t) => t.features[0] ? `Did you know? ${t.features[0]} is part of ${t.title}.` : `Did you know? ${t.title} is one of the tools inside the app.`,
+  'short-form-video': (t) => `Watch how ${t.title} works in a 20-second tour. ${t.short}`,
+  'community-engagement': (t) => `Which feature should we explain next? ${t.title} is one of the options. Tell us below.`,
+  'brand-advertisement': (t, b) => `${b.name}: ${t.short}`,
+  'weekly-highlights': (t) => `This week's feature focus: ${t.title}. ${t.short}`,
+};
+/** Pure: one review-ready draft per planned day. Topics rotate by day; the copy comes only from each topic's own description and features. */
+export function weekDrafts(topics: { id: string; title: string; short: string; features: string[] }[], brand: Brand, days: { day: string; contentType: string }[]) {
+  if (!topics.length) return [];
+  return days.map((d, i) => {
+    const t = topics[i % topics.length]; const plat = PLATFORMS[i % PLATFORMS.length];
+    const body = (SLOT_COPY[d.contentType] || SLOT_COPY['educational-video'])(t, brand);
+    const text = `${body}\n\nExplore it at ${brand.site}\n\nEducational content, not financial advice. Trading carries risk.`;
+    return { slot: { day: d.day, contentType: d.contentType }, title: `${d.day} · ${d.contentType} · ${t.title}`, platform: plat, topic: t.title, text, hooks: [t.title], cta: brand.site.replace(/^https?:\/\//, ''), hashtags: ['forex', 'xauusd'] };
+  });
+}
+export function queueWeek(topics: { id: string; title: string; short: string; features: string[] }[]) {
+  const b = readBrain().brand; const plan = planFrom(readBrain().perf); const list = readLibrary();
+  const added: Asset[] = []; const skipped: string[] = [];
+  for (const d of weekDrafts(topics, b, plan.days)) {
+    const exists = list.some((x) => x.status !== 'rejected' && x.slot?.day === d.slot.day && x.slot?.contentType === d.slot.contentType);
+    if (exists) { skipped.push(d.slot.day); continue; }
+    added.push(addAsset(d));
+  }
+  return { basis: plan.basis, note: plan.note, added: added.length, skipped, items: added };
+}
