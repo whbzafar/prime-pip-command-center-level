@@ -3,7 +3,7 @@ import { Camera, Copy, Download, Film, Package, RefreshCw, Save, Shuffle, Sparkl
 import JSZip from 'jszip';
 import { FORMATS, Layout, THEMES, VisualFormat, download, fileToImage, renderVariant, toBlob } from '../../utils/postVisuals';
 import { captureTopics, shotStore } from '../../utils/agentCapture';
-import { VIDEO_FORMATS, recordTour, recordTours, testServerVoice, browserVoice, streamTours, tourStore, type AudioMode, type StreamItem, type TourScript, type VideoFormatId } from "../../utils/tour";
+import { VIDEO_FORMATS, recordTour, recordTours, testServerVoice, streamTours, tourStore, type AudioMode, type StreamItem, type TourScript, type VideoFormatId } from "../../utils/tour";
 import { dailyPlan, dayKey } from '../../utils/dailyPlan';
 import { getStoredToken } from '../../utils/authClient';
 import { Platform, Topic, generateAccountPost, generateTopicPost, getTopics, scoreHook, templateScript } from '../../utils/topicContent';
@@ -58,9 +58,15 @@ export const AutoStudio: React.FC = () => {
   const [voiceTest, setVoiceTest] = useState('');
   const runVoiceTest = async () => {
     setVoiceTest('Testing the Urdu voice…');
-    const r = await testServerVoice(); const bv = browserVoice('ur');
-    setVoiceTest(`${r.ok ? '✅ Server Urdu voice works' : '❌ Server Urdu voice failed'}${r.ms ? ` (${Math.round(r.ms / 1000)}s)` : ''}${r.error ? ' — ' + r.error : ''}${r.trace?.length ? ' — ' + r.trace.join(', ') : ''}. ${bv ? '✅ This browser has an Urdu voice: ' + bv.name : '⚠️ This browser has no Urdu voice (use Edge).'}`);
-    if (bv) { try { const u = new SpeechSynthesisUtterance('پرائم پپ میں خوش آمدید'); u.voice = bv; u.lang = bv.lang; window.speechSynthesis.speak(u); } catch { /* ignore */ } }
+    const sv = await testServerVoice(); const serverLine = `${sv.ok ? '✅ Server voice works' : '❌ Server voice unreachable'}${sv.trace?.length ? ' (' + sv.trace.join(', ') + ')' : ''}`;
+    try {
+      const { speakUrdu } = await import('../../utils/urduVoice');
+      const t0 = Date.now(); const r = await speakUrdu('پرائم پپ کمانڈ سینٹر میں خوش آمدید۔', (m) => setVoiceTest(`${serverLine}. ${m}`));
+      const AC = (window as any).AudioContext || (window as any).webkitAudioContext; const ac: AudioContext = new AC();
+      const buf = ac.createBuffer(1, r.pcm.length, r.sampleRate); buf.getChannelData(0).set(r.pcm);
+      const src = ac.createBufferSource(); src.buffer = buf; src.connect(ac.destination); src.start();
+      setVoiceTest(`${serverLine}. ✅ Urdu female voice works inside this browser (${((Date.now() - t0) / 1000).toFixed(1)}s) — playing now.`);
+    } catch (e) { setVoiceTest(`${serverLine}. ❌ Browser Urdu voice failed: ${String((e as Error)?.message || e)}`); }
   };
   const [perPart, setPerPart] = useState(6);
   const [lang, setLang] = useState<'en' | 'roman-urdu'>('roman-urdu');

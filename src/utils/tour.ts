@@ -47,12 +47,21 @@ export type VideoFormatId = keyof typeof VIDEO_FORMATS;
 /** English lines to Urdu script through the server (free Google Translate). Unchanged text comes back when it cannot translate. */
 async function urduFor(texts: string[]): Promise<string[]> {
   if (!texts.length) return [];
+  const isUr = (x: string) => /[\u0600-\u06FF]/.test(x || '');
+  let out = texts;
   try {
     const t = getStoredToken();
     const r = await fetch('/api/admin/social-brain/urdu', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json', ...(t ? { Authorization: `Bearer ${t}` } : {}) }, body: JSON.stringify({ texts }) });
-    if (!r.ok) return texts;
-    const j = await r.json(); return Array.isArray(j.texts) ? j.texts : texts;
-  } catch { return texts; }
+    if (r.ok) { const j = await r.json(); if (Array.isArray(j.texts)) out = j.texts; }
+  } catch { /* the browser translates below */ }
+  // anything the server could not translate is translated by the browser itself (free Google endpoint allows browsers)
+  return await Promise.all(out.map(async (x, i) => {
+    if (isUr(x)) return x;
+    try {
+      const r = await fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=ur&dt=t&q=${encodeURIComponent(texts[i].slice(0, 900))}`);
+      const j = await r.json(); const ur = (j?.[0] || []).map((y: any) => y?.[0] || '').join('').trim(); return isUr(ur) ? ur : x;
+    } catch { return x; }
+  }));
 }
 
 /** Final pass on the server with ffmpeg: H.264 + AAC MP4 at short-video loudness. Returns the original recording if the server cannot do it. */
@@ -65,14 +74,21 @@ export async function finishOnServer(blob: Blob): Promise<Blob> {
   } catch { return blob; }
 }
 
-/** Voice-over from the server (Azure Uzma when configured, otherwise the free Edge voice). Returns null if unavailable. */
-async function voiceFor(ac: AudioContext, text: string, lang: 'ur' | 'en'): Promise<AudioBuffer | null> {
-  try {
-    const t = getStoredToken();
-    const r = await fetch('/api/admin/social-brain/tts', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json', ...(t ? { Authorization: `Bearer ${t}` } : {}) }, body: JSON.stringify({ text, lang }) });
-    if (!r.ok) return null;
-    return await ac.decodeAudioData(await r.arrayBuffer());
-  } catch { return null; }
+let serverVoiceDown = false;
+/** Voice-over. Urdu: server voice (Azure/Edge/Google) first; if it is unreachable, the Urdu female voice that runs inside the browser. English: server voice. */
+async function voiceFor(ac: AudioContext, text: string, lang: 'ur' | 'en', note?: (m: string) => void): Promise<AudioBuffer | null> {
+  if (!serverVoiceDown) {
+    try {
+      const t = getStoredToken();
+      const r = await fetch('/api/admin/social-brain/tts', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json', ...(t ? { Authorization: `Bearer ${t}` } : {}) }, body: JSON.stringify({ text, lang }) });
+      if (r.ok) return await ac.decodeAudioData(await r.arrayBuffer());
+      serverVoiceDown = true; // do not wait for the failing server again for every line
+    } catch { serverVoiceDown = true; }
+  }
+  if (lang === 'ur' && /[\u0600-\u06FF]/.test(text)) {
+    try { const uv = await import('./urduVoice'); return uv.toAudioBuffer(ac, await uv.speakUrdu(text, note)); } catch (e) { note?.(`Browser Urdu voice failed: ${String((e as Error)?.message || e).slice(0, 120)}`); }
+  }
+  return null;
 }
 
 /** Voices installed in this browser (Edge ships a free natural Urdu female voice, "Uzma"). */
@@ -184,8 +200,8 @@ export async function recordTour(o: TourOpts, shared?: { video: HTMLVideoElement
       const voices: (AudioBuffer | null)[] = src.map(() => null);
       if (mode === 'ai') {
         let next = 0; let done = 0;
-        const worker = async () => { while (next < src.length) { const i = next++; const line = useUrdu ? urdu[i] : src[i].en; if (!line) continue; wanted++; voices[i] = await voiceFor(ac, line, useUrdu && urdu[i] ? 'ur' : 'en'); if (!voices[i]) silent++; o.onProgress?.(0, `Voice-over ${++done}/${src.length}`); } };
-        await Promise.all([worker(), worker(), worker(), worker()]);
+        const worker = async () => { while (next < src.length) { const i = next++; const line = useUrdu ? urdu[i] : src[i].en; if (!line) continue; wanted++; voices[i] = await voiceFor(ac, line, useUrdu && urdu[i] ? 'ur' : 'en', (m) => o.onProgress?.(0, m)); if (!voices[i]) silent++; o.onProgress?.(0, `Voice-over ${++done}/${src.length}`); } };
+        serverVoiceDown = false; await Promise.all([worker(), worker(), worker()]);
         if (wanted && silent === wanted) {
           // the server voices are unreachable: the browser speaks instead and its sound is captured from the shared tab
           const ts = (v.srcObject as MediaStream | null)?.getAudioTracks?.() || [];

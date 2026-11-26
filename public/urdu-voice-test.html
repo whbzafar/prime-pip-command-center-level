@@ -1,0 +1,20 @@
+<!doctype html><html lang="ur"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>Urdu voice test · PrimePipFX</title>
+<style>body{font-family:system-ui;background:#0b1020;color:#e5e7eb;max-width:640px;margin:40px auto;padding:0 16px}textarea{width:100%;height:110px;font-size:20px;background:#111827;color:#fff;border:1px solid #334155;border-radius:10px;padding:10px}button{background:#facc15;border:0;border-radius:10px;padding:12px 18px;font-weight:700;font-size:16px;cursor:pointer;margin-top:10px}#log{margin-top:14px;white-space:pre-wrap;font-size:14px;color:#a7f3d0}</style></head>
+<body><h2>Urdu female voice test</h2><p>Runs fully inside your browser. The first run downloads the 60 MB voice once; after that it starts instantly.</p>
+<textarea id="t" dir="rtl">پرائم پپ کمانڈ سینٹر میں خوش آمدید۔ یہاں آپ کو لائیو چارٹس، ٹریڈنگ ٹولز اور مکمل تجزیہ ملتا ہے۔</textarea><br><button id="go">Speak</button><div id="log"></div>
+<script src="/piper/ort.wasm.min.js"></script><script src="/piper/piper_phonemize.js"></script>
+<script>
+const log=m=>{document.getElementById('log').textContent+=m+'\n'};
+const M='https://huggingface.co/ArmanMunir/fetchly-urdu-tts-piper/resolve/main/urdu_female.onnx';
+let sess,cfg;
+async function get(u,prog){const c=await caches.open('pp-urdu-voice-v1');const h=await c.match(u);if(h)return h.arrayBuffer();const r=await fetch(u);if(!r.ok)throw new Error('download HTTP '+r.status);const tot=+r.headers.get('content-length')||63516051,rd=r.body.getReader(),parts=[];let g=0;for(;;){const{done,value}=await rd.read();if(done)break;parts.push(value);g+=value.length;prog&&prog(Math.round(g/tot*100))}const b=await new Blob(parts).arrayBuffer();try{await c.put(u,new Response(b.slice(0)))}catch(e){}return b}
+async function ids(text){return new Promise((res,rej)=>{createPiperPhonemize({print:d=>{try{res(JSON.parse(d).phoneme_ids)}catch(e){rej(e)}},printErr:()=>{},locateFile:u=>'/piper/'+u}).then(m=>m.callMain(['-l',cfg.espeak.voice,'--input',JSON.stringify([{text}]),'--espeak_data','/espeak-ng-data'])).catch(rej)})}
+document.getElementById('go').onclick=async()=>{try{
+ if(!sess){log('Loading engine…');ort.env.wasm.numThreads=1;ort.env.wasm.wasmPaths='/piper/ort/';cfg=JSON.parse(new TextDecoder().decode(await get(M+'.json')));const mb=await get(M,p=>{document.title='Downloading '+p+'%'});log('Starting voice…');sess=await ort.InferenceSession.create(mb,{executionProviders:['wasm']});log('Voice ready.')}
+ const t0=performance.now();const text=document.getElementById('t').value.trim();const id=await ids(text);
+ const out=await sess.run({input:new ort.Tensor('int64',BigInt64Array.from(id.map(BigInt)),[1,id.length]),input_lengths:new ort.Tensor('int64',BigInt64Array.from([BigInt(id.length)]),[1]),scales:new ort.Tensor('float32',Float32Array.from([cfg.inference.noise_scale,cfg.inference.length_scale,cfg.inference.noise_w]),[3])});
+ const pcm=out.output.data;let peak=0;for(const v of pcm)peak=Math.max(peak,Math.abs(v));
+ const ac=new AudioContext(),b=ac.createBuffer(1,pcm.length,cfg.audio.sample_rate);b.getChannelData(0).set(pcm);const s=ac.createBufferSource();s.buffer=b;s.connect(ac.destination);s.start();
+ log('OK: '+(pcm.length/cfg.audio.sample_rate).toFixed(1)+' s of audio, peak '+peak.toFixed(2)+', made in '+((performance.now()-t0)/1000).toFixed(1)+' s, '+id.length+' phonemes');
+}catch(e){log('FAILED: '+(e&&e.message||e))}};
+</script></body></html>
