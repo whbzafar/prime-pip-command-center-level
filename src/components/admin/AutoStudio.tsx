@@ -3,7 +3,7 @@ import { Camera, Copy, Download, Film, Package, RefreshCw, Save, Shuffle, Sparkl
 import JSZip from 'jszip';
 import { FORMATS, Layout, THEMES, VisualFormat, download, fileToImage, renderVariant, toBlob } from '../../utils/postVisuals';
 import { captureTopics, shotStore } from '../../utils/agentCapture';
-import { recordTour, recordTours, streamTours, tourStore, type StreamItem, type TourScript } from '../../utils/tour';
+import { VIDEO_FORMATS, recordTour, recordTours, streamTours, tourStore, type StreamItem, type TourScript, type VideoFormatId } from "../../utils/tour";
 import { dailyPlan, dayKey } from '../../utils/dailyPlan';
 import { getStoredToken } from '../../utils/authClient';
 import { Platform, Topic, generateTopicPost, getTopics, scoreHook, templateScript } from '../../utils/topicContent';
@@ -23,6 +23,7 @@ const slug = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(
 export const AutoStudio: React.FC = () => {
   const topics = useMemo(() => getTopics(), []);
   const [tid, setTid] = useState(topics[0]?.id || 'DASHBOARD');
+  const [videoFmt, setVideoFmt] = useState<VideoFormatId>("9:16");
   const [platform, setPlatform] = useState<Platform>('instagram');
   const [format, setFormat] = useState<VisualFormat>('portrait');
   const [seed, setSeed] = useState(1);
@@ -53,7 +54,7 @@ export const AutoStudio: React.FC = () => {
     const plan = dailyPlan<Topic>(topics, today, recent);
     const items: StreamItem[] = plan.map((p) => ({ tab: p.topic.tab, title: p.topic.title, theme: p.theme, script: async () => { const t = p.topic; const b = await askAI(t, 'tiktok', p.seed); if (!b && ur) setStreamStatus(`${t.title}: the AI writer is unavailable, so this video has captions only`); return scriptFor(t, b, p.seed); } }));
     try { localStorage.setItem('pp_recorded_topics', JSON.stringify([...plan.map((p) => p.topic.id), ...recent].slice(0, 200))); } catch { /* storage unavailable */ }
-    try { await streamTours(items, { voice, voiceLang: ur ? 'ur' : 'en', stop: streamStop.current, onVideo: (v) => setVideos((x) => [v, ...x]), onStatus: (m) => setStreamStatus(m) }); setStreamStatus(streamStop.current.stop ? 'Stopped. Every finished video is listed below.' : 'Every feature is done. Download any video below.'); }
+    try { await streamTours(items, { voice, voiceLang: ur ? "ur" : "en", format: videoFmt, stop: streamStop.current, onVideo: (v) => setVideos((x) => [v, ...x]), onStatus: (m) => setStreamStatus(m) }); setStreamStatus(streamStop.current.stop ? 'Stopped. Every finished video is listed below.' : 'Every feature is done. Download any video below.'); }
     catch (e: any) { setStreamStatus(String(e?.message || e)); }
     finally { setStreaming(false); }
   };
@@ -123,7 +124,7 @@ export const AutoStudio: React.FC = () => {
     try {
       const sc = scriptFor(topic, ai, seed, hi);
       setStep('In the pop-up choose “This tab” and click Share. The agent will open this feature and record it live.');
-      const blob = await recordTour({ tab: topic.tab, title: topic.title, script: sc, theme, voice, voiceLang: lang === 'roman-urdu' ? 'ur' : 'en' });
+      const blob = await recordTour({ tab: topic.tab, title: topic.title, script: sc, theme, voice, voiceLang: lang === "roman-urdu" ? "ur" : "en", format: videoFmt });
       download(blob, `${base}.${blob.type.includes('mp4') ? 'mp4' : 'webm'}`); flash('Live tour video downloaded (1080×1920)');
     } catch (e: any) { flash(String(e?.message || e)); } finally { setBusy(false); setStep(''); bump((n) => n + 1); }
   };
@@ -203,6 +204,8 @@ export const AutoStudio: React.FC = () => {
             <button type="button" onClick={() => void writeAI()} disabled={busy} className={`${btn} bg-violet-500 text-white`} data-testid="write-ai"><Sparkles className="h-4 w-4" />Write script + post with AI</button>
             <label className="inline-flex items-center gap-1"><input type="checkbox" className="accent-violet-400" checked={useAI} onChange={(e) => setUseAI(e.target.checked)} />use AI on Regenerate</label>
             <label className="inline-flex items-center gap-1"><input type="checkbox" className="accent-violet-400" checked={voice} onChange={(e) => setVoice(e.target.checked)} />voice-over ({lang === 'roman-urdu' ? 'Uzma · Urdu, female' : 'Jenny · English, female'})</label>
+            <label className="inline-flex items-center gap-1">category <select value={tid} onChange={(e) => setTid(e.target.value)} className="max-w-[14rem] rounded bg-slate-900 px-1 py-0.5" data-testid="video-category">{topics.map((t) => <option key={t.id} value={t.id}>{t.title}</option>)}</select></label>
+            <label className="inline-flex items-center gap-1">aspect ratio <select value={videoFmt} onChange={(e) => setVideoFmt(e.target.value as VideoFormatId)} className="rounded bg-slate-900 px-1 py-0.5" data-testid="video-format">{(Object.keys(VIDEO_FORMATS) as VideoFormatId[]).map((k) => <option key={k} value={k}>{VIDEO_FORMATS[k].label}</option>)}</select></label>
             <label className="inline-flex items-center gap-1">language <select value={lang} onChange={(e) => setLang(e.target.value as 'en' | 'roman-urdu')} className="rounded bg-slate-900 px-1 py-0.5"><option value="roman-urdu">Urdu voice + Roman Urdu captions</option><option value="en">English</option></select></label>
           </div>
           <div className="flex flex-wrap items-center gap-1.5">

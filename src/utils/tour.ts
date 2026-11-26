@@ -8,7 +8,7 @@ import { getStoredToken } from './authClient';
 
 export interface TourScene { say: string; caption: string; focus: 'left' | 'center' | 'right'; zoom: number; scroll: number; urdu?: string }
 export interface TourScript { hook: string; hookUrdu?: string; scenes: TourScene[]; cta: string; ctaUrdu?: string }
-export interface TourOpts { tab: string; title: string; script: TourScript; theme: number; voice: boolean; voiceLang?: 'ur' | 'en'; returnTab?: string; onProgress?: (p: number, label: string) => void }
+export interface TourOpts { tab: string; title: string; script: TourScript; theme: number; voice: boolean; format?: VideoFormatId; voiceLang?: 'ur' | 'en'; returnTab?: string; onProgress?: (p: number, label: string) => void }
 export const tourStore: { videos: Record<string, { blob: Blob; title: string; at: number }>; running: boolean } = { videos: {}, running: false };
 type Kind = 'hook' | 'body' | 'cta';
 
@@ -16,6 +16,13 @@ const wordsOf = (s: string) => s.split(/\s+/).filter(Boolean);
 const ease = (t: number) => (t < 0 ? 0 : t > 1 ? 1 : t * t * (3 - 2 * t));
 const easeOut = (t: number) => 1 - Math.pow(1 - Math.min(1, Math.max(0, t)), 3);
 export const RECORD_BITRATE = 12_000_000;
+/** Output formats the owner can pick. Layout is proportional to the height so every ratio keeps the same structure. */
+export const VIDEO_FORMATS = {
+  "9:16": { label: "Reels, TikTok, YouTube Shorts (9:16)", w: 1080, h: 1920 },
+  "4:5": { label: "Instagram and Facebook feed (4:5)", w: 1080, h: 1350 },
+  "1:1": { label: "Square post (1:1)", w: 1080, h: 1080 },
+} as const;
+export type VideoFormatId = keyof typeof VIDEO_FORMATS;
 
 /** Voice-over from the server (Azure Uzma when configured, otherwise the free fallback). Returns null if unavailable. */
 async function voiceFor(ac: AudioContext, text: string, lang: 'ur' | 'en'): Promise<AudioBuffer | null> {
@@ -59,7 +66,8 @@ export async function recordTour(o: TourOpts, shared?: { video: HTMLVideoElement
     await mk({ say: o.script.cta, caption: 'primepipfx.site', focus: 'center', zoom: 1, scroll: 0 }, 'cta', lang === 'ur' ? o.script.ctaUrdu : o.script.cta);
     const total = scenes.reduce((a, s) => a + s.seconds, 0); const starts: number[] = []; scenes.reduce((a, s) => { starts.push(a); return a + s.seconds; }, 0);
 
-    const out = document.createElement('canvas'); out.width = 1080; out.height = 1920; const ctx = out.getContext('2d')!; const th = THEMES[o.theme % THEMES.length];
+    const fmt = VIDEO_FORMATS[o.format ?? "9:16"]; const W = fmt.w; const H = fmt.h; const CX = W / 2; const Y = (n: number) => Math.round(n * H / 1920);
+    const out = document.createElement('canvas'); out.width = W; out.height = H; const ctx = out.getContext('2d')!; const th = THEMES[o.theme % THEMES.length];
     const small = document.createElement('canvas'); small.width = 54; small.height = 96; const sctx = small.getContext('2d')!;
     const stream = out.captureStream(30); stream.addTrack(adest.stream.getAudioTracks()[0]);
     const mime = ['video/mp4;codecs=avc1.42E01E,mp4a.40.2', 'video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm'].find((m) => MediaRecorder.isTypeSupported(m)) || '';
@@ -67,7 +75,7 @@ export async function recordTour(o: TourOpts, shared?: { video: HTMLVideoElement
     const chunks: Blob[] = []; rec.ondataavailable = (e) => e.data.size && chunks.push(e.data);
     const finished = new Promise<Blob>((res) => { rec.onstop = () => res(new Blob(chunks, { type: rec.mimeType || 'video/webm' })); });
 
-    const BOX = { x: 60, y: 500, w: 960, h: 1000 };
+    const BOX = { x: Math.round(W * 60 / 1080), y: Y(500), w: Math.round(W * 960 / 1080), h: Y(1000) };
     const cropFor = (s: TourScene) => {
       const vw = v.videoWidth; const vh = v.videoHeight; const cw = Math.min(vw, vh * (BOX.w / BOX.h)) / Math.max(1, s.zoom); const ch = cw * (BOX.h / BOX.w);
       const fx = s.focus === 'left' ? 0 : s.focus === 'right' ? 1 : 0.5; const x = (vw - cw) * fx; const y = Math.min(vh - ch, Math.max(0, (vh - ch) * (s.scroll * 0.6)));
@@ -84,16 +92,16 @@ export async function recordTour(o: TourOpts, shared?: { video: HTMLVideoElement
         const tgt = cropFor(sc); const k = ease(local / 0.7); const drift = 1 + 0.04 * (local / sc.seconds);
         cur = { x: prev.x + (tgt.x - prev.x) * k, y: prev.y + (tgt.y - prev.y) * k, w: (prev.w + (tgt.w - prev.w) * k) / drift, h: (prev.h + (tgt.h - prev.h) * k) / drift };
         // backdrop: blurred live screen + brand tint
-        const g = ctx.createLinearGradient(0, 0, 0, 1920); g.addColorStop(0, th.bg0); g.addColorStop(1, th.bg1); ctx.fillStyle = g; ctx.fillRect(0, 0, 1080, 1920);
-        sctx.drawImage(v, 0, 0, 54, 96); ctx.globalAlpha = 0.35; ctx.drawImage(small, 0, 0, 1080, 1920); ctx.globalAlpha = 1; ctx.fillStyle = 'rgba(2,6,23,.62)'; ctx.fillRect(0, 0, 1080, 1920);
+        const g = ctx.createLinearGradient(0, 0, 0, H); g.addColorStop(0, th.bg0); g.addColorStop(1, th.bg1); ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+        sctx.drawImage(v, 0, 0, 54, 96); ctx.globalAlpha = 0.35; ctx.drawImage(small, 0, 0, W, H); ctx.globalAlpha = 1; ctx.fillStyle = 'rgba(2,6,23,.62)'; ctx.fillRect(0, 0, W, H);
         // header
         ctx.textBaseline = 'top'; ctx.font = `800 34px ${FONT}`; ctx.fillStyle = th.a; ctx.fillText('PRIMEPIPFX', 60, 60); ctx.fillStyle = 'rgba(255,255,255,.55)'; ctx.font = `600 22px ${FONT}`; ctx.fillText(o.title.toUpperCase(), 60, 104);
         // kinetic caption (Roman Urdu / English)
         const pop = easeOut(local / 0.35); const big = sc.kind === 'hook';
-        ctx.save(); ctx.translate(540, big ? 330 : 280); ctx.scale(0.9 + 0.1 * pop, 0.9 + 0.1 * pop); ctx.globalAlpha = pop; ctx.translate(-540, big ? -330 : -280);
+        ctx.save(); ctx.translate(CX, big ? Y(330) : Y(280)); ctx.scale(0.9 + 0.1 * pop, 0.9 + 0.1 * pop); ctx.globalAlpha = pop; ctx.translate(-CX, big ? -Y(330) : -Y(280));
         const fit = fitText(ctx, sc.caption.toUpperCase(), 940, big ? 320 : 200, big ? 118 : 92); ctx.font = `900 ${fit.size}px ${FONT}`; ctx.shadowColor = 'rgba(0,0,0,.7)'; ctx.shadowBlur = 24;
-        const blockH = fit.lines.length * fit.size * 1.1; const y0 = (big ? 330 : 280) - blockH / 2;
-        fit.lines.forEach((ln, li) => { ctx.fillStyle = li === fit.lines.length - 1 ? th.a : '#fff'; const w = ctx.measureText(ln).width; ctx.fillText(ln, 540 - w / 2, y0 + li * fit.size * 1.1); }); ctx.restore();
+        const blockH = fit.lines.length * fit.size * 1.1; const y0 = (big ? Y(330) : Y(280)) - blockH / 2;
+        fit.lines.forEach((ln, li) => { ctx.fillStyle = li === fit.lines.length - 1 ? th.a : '#fff'; const w = ctx.measureText(ln).width; ctx.fillText(ln, CX - w / 2, y0 + li * fit.size * 1.1); }); ctx.restore();
         // live screen in a glass frame
         ctx.save(); ctx.shadowColor = th.a + '88'; ctx.shadowBlur = 50; ctx.fillStyle = '#0b1220'; rr(ctx, BOX.x - 8, BOX.y - 8, BOX.w + 16, BOX.h + 16, 34); ctx.fill(); ctx.restore();
         ctx.save(); rr(ctx, BOX.x, BOX.y, BOX.w, BOX.h, 28); ctx.clip(); ctx.drawImage(v, cur.x, cur.y, cur.w, cur.h, BOX.x, BOX.y, BOX.w, BOX.h); ctx.restore();
@@ -101,16 +109,16 @@ export async function recordTour(o: TourOpts, shared?: { video: HTMLVideoElement
         const ws = wordsOf(sc.say); const reveal = Math.min(ws.length, Math.floor((local / (sc.seconds * 0.85)) * ws.length) + 1);
         ctx.font = `800 54px ${FONT}`; const lines: string[][] = [[]];
         for (const w of ws) { const test = [...lines[lines.length - 1], w].join(' '); if (ctx.measureText(test).width > 940 && lines[lines.length - 1].length) lines.push([w]); else lines[lines.length - 1].push(w); }
-        let idx = 0; const ty = 1560; ctx.shadowColor = 'rgba(0,0,0,.8)'; ctx.shadowBlur = 14;
-        lines.slice(0, 3).forEach((ln, li) => { const text = ln.join(' '); let x = 540 - ctx.measureText(text).width / 2; ln.forEach((w) => { const shown = idx < reveal; const active = idx === reveal - 1; ctx.fillStyle = !shown ? 'rgba(255,255,255,.18)' : active ? th.a : '#fff'; ctx.fillText(w, x, ty + li * 66); x += ctx.measureText(w + ' ').width; idx++; }); });
+        let idx = 0; const ty = Y(1560); ctx.shadowColor = 'rgba(0,0,0,.8)'; ctx.shadowBlur = 14;
+        lines.slice(0, 3).forEach((ln, li) => { const text = ln.join(' '); let x = CX - ctx.measureText(text).width / 2; ln.forEach((w) => { const shown = idx < reveal; const active = idx === reveal - 1; ctx.fillStyle = !shown ? 'rgba(255,255,255,.18)' : active ? th.a : '#fff'; ctx.fillText(w, x, ty + li * 66); x += ctx.measureText(w + ' ').width; idx++; }); });
         ctx.shadowBlur = 0;
         // footer: call to action pill, risk line, progress
-        const bw = 520; const gg = ctx.createLinearGradient(280, 0, 280 + bw, 0); gg.addColorStop(0, th.a); gg.addColorStop(1, th.b); ctx.fillStyle = gg; rr(ctx, 280, 1770, bw, 76, 38); ctx.fill();
-        ctx.fillStyle = '#111827'; ctx.font = `800 36px ${FONT}`; ctx.textBaseline = 'middle'; const cta = 'primepipfx.site'; ctx.fillText(cta, 540 - ctx.measureText(cta).width / 2, 1809); ctx.textBaseline = 'top';
-        ctx.fillStyle = 'rgba(255,255,255,.45)'; ctx.font = `500 20px ${FONT}`; const d = 'Educational content, not financial advice. Trading carries risk.'; ctx.fillText(d, 540 - ctx.measureText(d).width / 2, 1868);
-        ctx.fillStyle = 'rgba(255,255,255,.15)'; ctx.fillRect(0, 1906, 1080, 14); ctx.fillStyle = th.a; ctx.fillRect(0, 1906, 1080 * (t / total), 14);
+        const bw = 520; const gg = ctx.createLinearGradient(CX - bw / 2, 0, CX + bw / 2, 0); gg.addColorStop(0, th.a); gg.addColorStop(1, th.b); ctx.fillStyle = gg; rr(ctx, CX - bw / 2, Y(1770), bw, 76, 38); ctx.fill();
+        ctx.fillStyle = '#111827'; ctx.font = `800 36px ${FONT}`; ctx.textBaseline = 'middle'; const cta = 'primepipfx.site'; ctx.fillText(cta, CX - ctx.measureText(cta).width / 2, Y(1809)); ctx.textBaseline = 'top';
+        ctx.fillStyle = 'rgba(255,255,255,.45)'; ctx.font = `500 20px ${FONT}`; const d = 'Educational content, not financial advice. Trading carries risk.'; ctx.fillText(d, CX - ctx.measureText(d).width / 2, Y(1868));
+        ctx.fillStyle = 'rgba(255,255,255,.15)'; ctx.fillRect(0, Y(1906), W, 14); ctx.fillStyle = th.a; ctx.fillRect(0, Y(1906), W * (t / total), 14);
         // scene-change flash (transition)
-        const fa = Math.max(0, 1 - (t - flashAt) / 0.35); if (fa > 0) { ctx.fillStyle = `rgba(255,255,255,${0.22 * fa})`; ctx.fillRect(0, 0, 1080, 1920); }
+        const fa = Math.max(0, 1 - (t - flashAt) / 0.35); if (fa > 0) { ctx.fillStyle = `rgba(255,255,255,${0.22 * fa})`; ctx.fillRect(0, 0, W, H); }
         o.onProgress?.(t / total, `Recording ${o.title}`); requestAnimationFrame(tick);
       };
       tick();
@@ -130,7 +138,7 @@ export async function recordTours(items: Omit<TourOpts, 'returnTab'>[], onEach?:
 }
 
 export interface StreamItem { tab: string; title: string; theme: number; script: () => Promise<TourScript> }
-export interface StreamOpts { voice: boolean; voiceLang: 'ur' | 'en'; stop: { stop: boolean }; pauseMs?: number; onVideo: (v: { title: string; url: string; bytes: number; at: number; ext: string }) => void; onStatus: (s: string) => void }
+export interface StreamOpts { voice: boolean; voiceLang: 'ur' | 'en'; format?: VideoFormatId; stop: { stop: boolean }; pauseMs?: number; onVideo: (v: { title: string; url: string; bytes: number; at: number; ext: string }) => void; onStatus: (s: string) => void }
 /** Non-stop production: one permission click, then each feature is scripted, recorded and handed over as soon as it is ready. Stops when opts.stop.stop is set. */
 export async function streamTours(items: StreamItem[], opts: StreamOpts): Promise<void> {
   const scr = await openScreen();
@@ -141,7 +149,7 @@ export async function streamTours(items: StreamItem[], opts: StreamOpts): Promis
       try { script = await it.script(); } catch (e: any) { opts.onStatus(`Skipped ${it.title}: ${String(e?.message || e)}`); continue; }
       if (opts.stop.stop) break;
       try {
-        const blob = await recordTour({ tab: it.tab, title: it.title, script, theme: it.theme, voice: opts.voice, voiceLang: opts.voiceLang, onProgress: (p, label) => opts.onStatus(`(${i + 1}/${items.length}) ${it.title}: ${label || Math.round(p * 100) + '%'}`) }, scr);
+        const blob = await recordTour({ tab: it.tab, title: it.title, script, theme: it.theme, voice: opts.voice, voiceLang: opts.voiceLang, format: opts.format, onProgress: (p, label) => opts.onStatus(`(${i + 1}/${items.length}) ${it.title}: ${label || Math.round(p * 100) + '%'}`) }, scr);
         opts.onVideo({ title: it.title, url: URL.createObjectURL(blob), bytes: blob.size, at: Date.now(), ext: blob.type.includes('mp4') ? 'mp4' : 'webm' });
       } catch (e: any) { opts.onStatus(`Skipped ${it.title}: ${String(e?.message || e)}`); }
       await sleep(opts.pauseMs ?? 1500);
