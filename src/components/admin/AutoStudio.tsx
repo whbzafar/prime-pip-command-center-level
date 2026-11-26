@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Camera, Copy, Download, Film, Package, RefreshCw, Shuffle, Sparkles, Upload, Wand2 } from 'lucide-react';
+import { Camera, Copy, Download, Film, Package, RefreshCw, Save, Shuffle, Sparkles, Upload, Wand2 } from 'lucide-react';
 import JSZip from 'jszip';
 import { FORMATS, Layout, THEMES, VisualFormat, download, fileToImage, renderVariant, toBlob } from '../../utils/postVisuals';
 import { captureTopics, shotStore } from '../../utils/agentCapture';
@@ -194,6 +194,9 @@ export const AutoStudio: React.FC = () => {
             <button type="button" onClick={async () => { const z = new JSZip(); z.file(`${base}.png`, await png()); z.file(`${base}.txt`, text); download(await z.generateAsync({ type: 'blob' }), `${base}.zip`); flash('Downloaded image and text'); }} className={`${btn} bg-emerald-500/25 text-emerald-100`}><Download className="h-4 w-4" />Image + text</button>
             <button type="button" onClick={async () => download(await png(), `${base}.png`)} className={`${btn} bg-slate-700/70 text-slate-100`}><Download className="h-4 w-4" />Image (PNG)</button>
             <button type="button" onClick={() => download(new Blob([text], { type: 'text/plain' }), `${base}.txt`)} className={`${btn} bg-slate-700/70 text-slate-100`}><Download className="h-4 w-4" />Text</button>
+            <button type="button" className={`${btn} bg-violet-500/30 text-violet-100`} data-testid="save-library" onClick={async () => {
+              try { const tk = getStoredToken(); const r = await fetch('/api/admin/social-brain/library', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json', ...(tk ? { Authorization: `Bearer ${tk}` } : {}) }, body: JSON.stringify({ title: topic.title, platform, topic: topic.title, text, hooks: [activeHook], cta: 'primepipfx.site', hashtags: post.hashtags }) }); const j = await r.json(); if (!r.ok) throw new Error(j.error || 'Could not save'); flash(j.asset.status === 'draft' ? 'Saved to library as draft. Approve it in Social Brain.' : `Blocked by the quality gate: ${j.asset.qc.blockers[0] || 'see Social Brain'}`); }
+              catch (e: any) { flash(String(e?.message || e)); } }}><Save className="h-4 w-4" />Save to library</button>
             <button type="button" onClick={copyTxt} className={`${btn} bg-slate-700/70 text-slate-100`}><Copy className="h-4 w-4" />Copy text</button>
             <button type="button" onClick={copyImg} className={`${btn} bg-slate-700/70 text-slate-100`}><Copy className="h-4 w-4" />Copy image</button>
           </div>

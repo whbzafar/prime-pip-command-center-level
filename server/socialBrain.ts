@@ -163,3 +163,40 @@ export function campaign(sentence: string, topics: { id: string; title: string; 
     performanceTargets: 'Set your own targets. The agent reports actual numbers and does not invent targets.',
   };
 }
+
+// ---------- content library + approval queue ----------
+export type AssetStatus = 'draft' | 'blocked' | 'approved' | 'rejected' | 'published';
+export interface Asset { id: string; title: string; platform: string; topic: string; text: string; hooks: string[]; cta: string; hashtags: string[]; status: AssetStatus; qc: ReturnType<typeof qualityCheck>; createdAt: string; updatedAt: string; history: { at: string; from: string; to: string; note?: string }[] }
+const LIB_FILE = 'social_library.json';
+export function readLibrary(): Asset[] { const v = safeReadJsonFile<Asset[]>(LIB_FILE, []); return Array.isArray(v) ? v : []; }
+function writeLibrary(list: Asset[]) { safeWriteJsonFile(LIB_FILE, list.slice(-1000)); }
+
+/** Pure: builds a library item and its gate result. A blocked item is kept so the owner can see why, but it cannot be approved. */
+export function buildAsset(input: any, existingTexts: string[], brand: Brand, now = new Date().toISOString()): Asset {
+  const platform = PLATFORMS.includes(input.platform) ? input.platform : 'instagram';
+  const text = String(input.text || input.caption || '').slice(0, 2500);
+  const hooks = lines(input.hooks, 4, 160); const hashtags = lines(input.hashtags, 15, 40).map((h) => h.replace(/^#/, ''));
+  const cta = one(input.cta, 120);
+  const qc = qualityCheck({ platform, title: one(input.title, 120), caption: text, hashtags, hooks, cta }, existingTexts, brand);
+  return { id: `as_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`, title: one(input.title, 120) || `${platform} post`, platform, topic: one(input.topic, 120), text, hooks, cta, hashtags, status: qc.pass ? 'draft' : 'blocked', qc, createdAt: now, updatedAt: now, history: [{ at: now, from: 'new', to: qc.pass ? 'draft' : 'blocked' }] };
+}
+
+const NEXT: Record<AssetStatus, AssetStatus[]> = { draft: ['approved', 'rejected'], blocked: ['rejected'], approved: ['published', 'rejected', 'draft'], rejected: ['draft'], published: [] };
+/** Pure: the only allowed moves. Approval needs a passing gate; publishing needs prior approval. */
+export function transition(a: Asset, to: AssetStatus, note?: string, now = new Date().toISOString()): { ok: boolean; error?: string; asset?: Asset } {
+  if (!NEXT[a.status].includes(to)) return { ok: false, error: `Cannot move from ${a.status} to ${to}.` };
+  if (to === 'approved' && !a.qc.pass) return { ok: false, error: 'This asset is blocked by the quality gate. Fix the blockers, then save it again as a new asset.' };
+  return { ok: true, asset: { ...a, status: to, updatedAt: now, history: [...a.history, { at: now, from: a.status, to, note }] } };
+}
+
+export function addAsset(input: any) {
+  const b = readBrain().brand; const list = readLibrary();
+  const dup = list.filter((x) => x.status !== 'rejected').map((x) => x.text);
+  const asset = buildAsset(input, dup, b); writeLibrary([asset, ...list]); return asset;
+}
+export function moveAsset(id: string, to: AssetStatus, note?: string) {
+  const list = readLibrary(); const a = list.find((x) => x.id === id); if (!a) return { ok: false, error: 'Not found' };
+  const r = transition(a, to, note); if (!r.ok || !r.asset) return r;
+  writeLibrary(list.map((x) => (x.id === id ? r.asset! : x))); return r;
+}
+export function removeAsset(id: string) { writeLibrary(readLibrary().filter((x) => x.id !== id)); }

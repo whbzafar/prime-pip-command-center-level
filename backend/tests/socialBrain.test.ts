@@ -53,3 +53,22 @@ describe('campaign planner', () => {
     expect(c.audience).toMatch(/Not set yet/); expect(c.calendar).toHaveLength(7); expect(c.calendar.every((d) => d.qc.pass)).toBe(true);
   });
 });
+
+import { buildAsset, transition } from '../../server/socialBrain';
+describe('content library and approval queue', () => {
+  const ok = { platform: 'instagram', title: 'Backtesting', text: good, hooks: ['Most traders skip replay'], cta: 'Open primepipfx.site', hashtags: ['forex'] };
+  it('marks a clean asset as draft and a flawed one as blocked', () => {
+    expect(buildAsset(ok, [], brand).status).toBe('draft');
+    expect(buildAsset({ ...ok, text: 'Guaranteed profit' }, [], brand).status).toBe('blocked');
+  });
+  it('blocks duplicate text against existing assets', () => { expect(buildAsset(ok, [good], brand).qc.pass).toBe(false); });
+  it('cannot approve a blocked asset and must approve before publishing', () => {
+    const blocked = buildAsset({ ...ok, text: 'Guaranteed profit' }, [], brand);
+    expect(transition(blocked, 'approved').ok).toBe(false);
+    const d = buildAsset(ok, [], brand);
+    expect(transition(d, 'published').ok).toBe(false);
+    const a = transition(d, 'approved'); expect(a.ok).toBe(true);
+    const p = transition(a.asset!, 'published'); expect(p.ok).toBe(true); expect(p.asset!.history.length).toBe(3);
+    expect(transition(p.asset!, 'draft').ok).toBe(false);
+  });
+});

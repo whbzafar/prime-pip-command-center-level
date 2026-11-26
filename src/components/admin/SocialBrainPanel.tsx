@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { BrainCircuit, CalendarDays, ClipboardCheck, Inbox, LineChart, Megaphone, Save } from 'lucide-react';
+import { BrainCircuit, CalendarDays, ClipboardCheck, Inbox, LibraryBig, LineChart, Megaphone, Save } from 'lucide-react';
 import { getStoredToken } from '../../utils/authClient';
 import { getTopics } from '../../utils/topicContent';
 
@@ -22,6 +22,10 @@ export const SocialBrainPanel: React.FC = () => {
   const [qc, setQc] = useState<any>(null); const [qcIn, setQcIn] = useState({ platform: 'instagram', title: '', caption: '', hashtags: '', cta: '' });
   const [comments, setComments] = useState(''); const [triage, setTriage] = useState<any[] | null>(null);
   const [sentence, setSentence] = useState(''); const [camp, setCamp] = useState<any>(null);
+  const [lib, setLib] = useState<any[]>([]);
+  const loadLib = async () => { try { setLib((await call('/library')).items); } catch (e) { /* shown elsewhere */ } };
+  useEffect(() => { void loadLib(); }, []);
+  const setStatus = async (id: string, status: string) => { try { await call(`/library/${id}/status`, 'POST', { status }); await loadLib(); } catch (e) { fail(e); } };
   const flash = (m: string) => { setMsg(m); setTimeout(() => setMsg(''), 5000); };
   const fail = (e: any) => flash(String(e?.message || e));
   const load = async () => { try { const j = await call(''); const b = j.brand; setBrand({ ...b, colors: b.colors.join('\n'), slogans: b.slogans.join('\n'), products: b.products.join('\n'), allowedFigures: b.allowedFigures.join('\n'), guidelines: b.guidelines.join('\n') }); } catch (e) { fail(e); } };
@@ -89,6 +93,25 @@ export const SocialBrainPanel: React.FC = () => {
             {camp.calendar.map((d: any) => <div key={d.day} className="text-slate-300">{d.day} · {d.contentType} · {d.platform} · {d.qc.pass ? 'passes gate' : 'blocked: ' + d.qc.blockers[0]}</div>)}
             <div className="text-slate-400">{camp.performanceTargets}</div>
           </div>}
+        </Sec>
+        <Sec icon={<LibraryBig className="h-4 w-4 text-violet-300" />} title={`Content library and approval queue (${lib.length})`}>
+          {lib.length === 0 && <p className="text-[12px] text-slate-400">Nothing saved yet. Use “Save to library” in the Content Studio.</p>}
+          <div className="max-h-96 space-y-2 overflow-auto text-[12px]">
+            {lib.map((a) => (
+              <div key={a.id} className="rounded-lg border border-slate-700 p-2" data-testid={`asset-${a.status}`}>
+                <div className="flex flex-wrap items-center gap-2"><b className="text-slate-100">{a.title}</b><span className="text-[11px] text-slate-400">{a.platform}</span><span className={`rounded px-1.5 text-[11px] ${a.status === 'approved' ? 'bg-emerald-500/20 text-emerald-200' : a.status === 'blocked' ? 'bg-rose-500/20 text-rose-200' : 'bg-slate-700 text-slate-200'}`}>{a.status}</span></div>
+                <div className="mt-1 line-clamp-2 text-slate-300">{a.text}</div>
+                {a.qc.blockers.map((b: string, i: number) => <div key={i} className="text-rose-200">✗ {b}</div>)}
+                <div className="mt-1 flex flex-wrap gap-1.5">
+                  {(a.status === 'draft') && <button type="button" className="rounded bg-emerald-500 px-2 py-1 text-[11px] font-bold text-slate-950" onClick={() => setStatus(a.id, 'approved')}>Approve</button>}
+                  {(a.status === 'approved') && <button type="button" className="rounded bg-sky-500 px-2 py-1 text-[11px] font-bold text-slate-950" onClick={() => setStatus(a.id, 'published')} title="Mark only after you have posted it yourself">Mark as posted</button>}
+                  {(a.status === 'draft' || a.status === 'approved' || a.status === 'blocked') && <button type="button" className="rounded bg-slate-700 px-2 py-1 text-[11px] text-slate-100" onClick={() => setStatus(a.id, 'rejected')}>Reject</button>}
+                  {a.status === 'rejected' && <button type="button" className="rounded bg-slate-700 px-2 py-1 text-[11px] text-slate-100" onClick={() => setStatus(a.id, 'draft')}>Restore</button>}
+                </div>
+              </div>
+            ))}
+          </div>
+          <p className="mt-2 text-[11px] text-slate-500">Approval never posts anything. “Mark as posted” only records what you posted yourself.</p>
         </Sec>
       </div>
       <p className="text-[11px] text-slate-500"><BrainCircuit className="mr-1 inline h-3 w-3" />Trend discovery is not included: TikTok and Instagram do not offer free public trend data, so the agent does not guess trends. You can add trends you observe to the calendar yourself.</p>

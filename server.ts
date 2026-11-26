@@ -264,7 +264,7 @@ const currentAppDir = process.cwd();
 
 import { readState as saState, getConfig as saConfig, setConfig as saSetConfig, credentialStatus as saCreds, generatePosts as saGenerate, publishPost as saPublish, updatePost as saUpdate, deletePost as saDelete, schedulerTick as saTick, previewPost as saPreview, BEST_TIMES_PKT } from './server/socialAgent.js';
 import { writeScript } from './server/scriptWriter.js';
-import { readBrain, saveBrand, logPerf, weeklyReport, weeklyPlan, qualityCheck, classifyComments, campaign as socialCampaign } from './server/socialBrain.js';
+import { readBrain, saveBrand, logPerf, weeklyReport, weeklyPlan, qualityCheck, classifyComments, campaign as socialCampaign, readLibrary, addAsset, moveAsset, removeAsset, type AssetStatus } from './server/socialBrain.js';
 import { trackLogin, listEvents, listWarnings, summariseUsers, placeOf, FLAG_TEXT, type SecurityWarning } from './server/loginSecurity.js';
 import { clientIp } from './server/geoip.js';
 import { resolvePin } from './server/pinResolve.js';
@@ -4009,6 +4009,13 @@ app.post('/api/admin/social-brain/campaign', requireDeveloper, (req, res) => {
   const topics = (Array.isArray(req.body?.topics) ? req.body.topics : []).slice(0, 40).map((t: any) => ({ id: String(t.id || ''), title: String(t.title || '').slice(0, 120), short: String(t.short || '').slice(0, 300), features: (Array.isArray(t.features) ? t.features : []).map(String).slice(0, 8) }));
   res.json({ ok: true, campaign: socialCampaign(String(req.body?.sentence || ''), topics) });
 });
+app.get('/api/admin/social-brain/library', requireDeveloper, (_req, res) => res.json({ ok: true, items: readLibrary() }));
+app.post('/api/admin/social-brain/library', requireDeveloper, (req, res) => { const a = addAsset(req.body || {}); res.json({ ok: true, asset: a }); });
+app.post('/api/admin/social-brain/library/:id/status', requireDeveloper, (req, res) => {
+  const to = String(req.body?.status || '') as AssetStatus; if (!['draft', 'approved', 'rejected', 'published'].includes(to)) return res.status(400).json({ ok: false, error: 'Unknown status' });
+  const r = moveAsset(req.params.id, to, req.body?.note ? String(req.body.note).slice(0, 200) : undefined); res.status(r.ok ? 200 : 400).json(r);
+});
+app.delete('/api/admin/social-brain/library/:id', requireDeveloper, (req, res) => { removeAsset(req.params.id); res.json({ ok: true }); });
 app.delete('/api/admin/social-agent/post/:id', requireDeveloper, (req, res) => { saDelete(req.params.id); res.json({ ok: true }); });
 setTimeout(() => { setInterval(() => void saTick(getGeminiClient()), 60_000); }, 30_000);
 
