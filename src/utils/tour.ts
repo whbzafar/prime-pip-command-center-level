@@ -4,7 +4,10 @@ import { getStoredToken } from './authClient';
 import { type Beat, type Box, bringIntoView, discoverBeats, findByText, findScroller, fitCrop, fullCrop, panCrop, scrollToTop, toVideo } from './sectionDirector';
 import { startLiveCaptions, toSrt, type LiveCaptions } from './liveCaptions';
 import { loadClipBuffer } from './voiceClips';
-import { OUTRO_LINE, OVERVIEW_LINE, PACKS } from '../data/urduPack';
+import { HOOK_OPENERS, MUSIC_BPM, OUTRO_VARIANTS, OVERVIEW_VARIANTS, PACKS } from '../data/urduPack';
+
+/** How many videos have been made for this category (kept in this browser): drives a different hook, order, outro, look and music each time. */
+function nextTake(tab: string): number { try { const k = `pp_take_${tab}`; const n = Number(localStorage.getItem(k) || '0'); localStorage.setItem(k, String(n + 1)); return n; } catch { return Math.floor(Math.random() * 50); } }
 import { chunkCaption, pickFeature, planTimeline, titleCase, type Item } from './timeline';
 
 /* Live tour video. The director reads the real section (every heading, card and safe inner tab, top to bottom),
@@ -190,7 +193,7 @@ export async function recordTour(o: TourOpts, shared?: { video: HTMLVideoElement
     const mix = ac.createDynamicsCompressor(); mix.threshold.value = -6; mix.knee.value = 4; mix.ratio.value = 20; mix.attack.value = 0.002; mix.release.value = 0.15; mix.connect(adest);
     const feats = (o.features || []).filter(Boolean);
     const segs: Seg[] = [];
-    let silent = 0; let wanted = 0; let rate = 1; let browserSpeech: { lang: 'ur' | 'en'; tab: MediaStreamTrack[] } | null = null;
+    const take = nextTake(o.tab); let silent = 0; let wanted = 0; let rate = 1; let browserSpeech: { lang: 'ur' | 'en'; tab: MediaStreamTrack[] } | null = null;
     const per = Math.max(3, Math.min(15, o.secondsPerPart || 6));
     const useUrdu = mode === 'ai' && lang === 'ur';
     if (mode === 'mic') {
@@ -204,13 +207,14 @@ export async function recordTour(o: TourOpts, shared?: { video: HTMLVideoElement
       const src: { kind: Kind; headline: string; label: string; en: string; urdu?: string; rm?: string; beat?: Beat; feats?: string[] }[] = [];
       const pack = useUrdu ? PACKS[o.tab] : undefined;
       if (pack) {
+        const opener = HOOK_OPENERS[take % HOOK_OPENERS.length]; const ov = OVERVIEW_VARIANTS[take % OVERVIEW_VARIANTS.length]; const ou = OUTRO_VARIANTS[take % OUTRO_VARIANTS.length];
         // hand-written Urdu for this category: voice speaks Urdu script, viewers read Roman Urdu captions
-        src.push({ kind: 'intro', headline: pack.hook[0], label: o.title, en: pack.hook[0], rm: pack.hook[0], urdu: pack.hook[1] });
-        if (feats.length) src.push({ kind: 'overview', headline: `Inside ${o.title}`, label: o.title, en: OVERVIEW_LINE[0], rm: OVERVIEW_LINE[0], urdu: OVERVIEW_LINE[1], feats: pack.parts.map((p) => p[0]) });
+        src.push({ kind: 'intro', headline: opener[0] || pack.hook[0], label: o.title, en: `${opener[0]} ${pack.hook[0]}`.trim(), rm: `${opener[0]} ${pack.hook[0]}`.trim(), urdu: `${opener[1]} ${pack.hook[1]}`.trim() });
+        if (feats.length) src.push({ kind: 'overview', headline: `Inside ${o.title}`, label: o.title, en: ov[0], rm: ov[0], urdu: ov[1], feats: pack.parts.map((p) => p[0]) });
         // each line is paired with the part of the screen it describes (by name where known), the rest in reading order
         const free = beats.slice(); const taken: HTMLElement[] = []; const pick: (Beat | undefined)[] = pack.parts.map((pt) => { const k = pt[3] ? free.findIndex((b) => pt[3]!.test(b.label)) : -1; if (k >= 0) { const b = free.splice(k, 1)[0]; taken.push(b.el); return b; } const f = pt[3] ? findByText(pt[3], taken) : null; if (f) taken.push(f.el); return f || undefined; });
-        pack.parts.forEach((pt, i) => src.push({ kind: 'part', headline: pt[0], label: pt[0], en: pt[1], rm: pt[1], urdu: pt[2], beat: pick[i] || free.shift() }));
-        src.push({ kind: 'outro', headline: o.script.cta, label: 'primepipfx.site', en: OUTRO_LINE[0], rm: OUTRO_LINE[0], urdu: OUTRO_LINE[1] });
+        const order = pack.parts.map((_, i) => i); const rot = take % Math.max(1, order.length); const seq = [...order.slice(rot), ...order.slice(0, rot)]; seq.forEach((i) => { const pt = pack.parts[i]; src.push({ kind: 'part', headline: pt[0], label: pt[0], en: pt[1], rm: pt[1], urdu: pt[2], beat: pick[i] || free.shift() }); });
+        src.push({ kind: 'outro', headline: o.script.cta, label: 'primepipfx.site', en: ou[0], rm: ou[0], urdu: ou[1] });
       } else {
       src.push({ kind: 'intro', headline: o.script.hook, label: o.title, en: o.script.hook, urdu: o.script.hookUrdu });
       if (feats.length) src.push({ kind: 'overview', headline: `Inside ${o.title}`, label: o.title, en: `Here is everything inside ${o.title}: ${feats.length} tools, all in one place.`, feats });
@@ -252,7 +256,7 @@ export async function recordTour(o: TourOpts, shared?: { video: HTMLVideoElement
     // 3. canvas, recorder and audio graph
     const fmt = VIDEO_FORMATS[o.format ?? '9:16']; const W = fmt.w; const H = fmt.h; const land = W > H;
     const U = Math.min(W, H) / 1080; // type scale
-    const out = document.createElement('canvas'); out.width = W; out.height = H; const ctx = out.getContext('2d')!; const th = THEMES[o.theme % THEMES.length];
+    const out = document.createElement('canvas'); out.width = W; out.height = H; const ctx = out.getContext('2d')!; const th = THEMES[(o.theme + take) % THEMES.length];
     const small = document.createElement('canvas'); small.width = 64; small.height = 36; const sctx = small.getContext('2d')!;
     const stream = out.captureStream(30); stream.addTrack(adest.stream.getAudioTracks()[0]);
     const mime = ['video/mp4;codecs=avc1.640028,mp4a.40.2', 'video/mp4;codecs=avc1.42E01E,mp4a.40.2', 'video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm'].find((m) => MediaRecorder.isTypeSupported(m)) || '';
@@ -269,7 +273,7 @@ export async function recordTour(o: TourOpts, shared?: { video: HTMLVideoElement
     const capY = land ? Math.round(H * 0.62) : Math.round(BOX.y + BOX.h + (H - BOX.y - BOX.h) * 0.28);
     const textX = land ? BOX.x + BOX.w + M : M; const textW = land ? W - textX - M : W - M * 2; const textCX = textX + textW / 2;
 
-    const music = beatTrack(ac, mix, total + 0.3);
+    const music = beatTrack(ac, mix, total + 0.3, MUSIC_BPM[take % MUSIC_BPM.length]);
     const t0 = ac.currentTime + 0.05;
     if (mode === 'ai') segs.forEach((s, i) => {
       if (!s.voice) return; const at = t0 + starts[i] + 0.2;

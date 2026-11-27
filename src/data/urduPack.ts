@@ -199,3 +199,26 @@ export const PACKS: Record<string, CategoryPack> = {
     P('Subscriptions', 'Subscription ki qeemat aur expiry ka intezam.', 'سبسکرپشن کی قیمت اور ایکسپائری کا انتظام۔'),
     P('Live Roster', 'Live student roster aur session monitoring.', 'لائیو اسٹوڈنٹ روسٹر اور سیشن مانیٹرنگ۔')] },
 };
+
+
+/** Variety for repeat videos in the same category: each "take" opens, introduces and closes differently. */
+export const HOOK_OPENERS: [string, string][] = [
+  ['', ''],
+  ['Kya aap ab bhi aise trading kar rahe hain? Ye dekhiye.', 'کیا آپ اب بھی ایسے ٹریڈنگ کر رہے ہیں؟ یہ دیکھیے۔'],
+  ['Sirf paintalees second mein poora section dekhiye.', 'صرف پینتالیس سیکنڈ میں پورا سیکشن دیکھیے۔'],
+  ['Zara rukiye! Ye cheez aap ki trading badal sakti hai.', 'ذرا رکیے! یہ چیز آپ کی ٹریڈنگ بدل سکتی ہے۔'],
+  ['Aksar traders yahin ghalti karte hain. Iska hal yahan hai.', 'اکثر ٹریڈرز یہیں غلطی کرتے ہیں۔ اس کا حل یہاں ہے۔'],
+  ['Agar aap serious trader hain, to ye aap ke liye hai.', 'اگر آپ سنجیدہ ٹریڈر ہیں، تو یہ آپ کے لیے ہے۔'],
+];
+export const OVERVIEW_VARIANTS: [string, string][] = [
+  OVERVIEW_LINE,
+  ['Chaliye, ek ek karke saari khoobiyan dekhte hain.', 'چلیے، ایک ایک کر کے ساری خوبیاں دیکھتے ہیں۔'],
+  ['Ab dekhte hain, andar kya kya taqat chhupi hai.', 'اب دیکھتے ہیں، اندر کیا کیا طاقت چھپی ہے۔'],
+];
+export const OUTRO_VARIANTS: [string, string][] = [
+  OUTRO_LINE,
+  ['Ye sab bilkul free hai. primepipfx.site kholiye, link bio mein hai. Follow zaroor karein.', 'یہ سب بالکل مفت ہے۔ پرائم پپ ایف ایکس ڈاٹ سائٹ کھولیے، لنک بائیو میں ہے۔ فالو ضرور کریں۔'],
+  ['Pasand aaye to comment mein batayein, aur primepipfx.site abhi try karein.', 'پسند آئے تو کمنٹ میں بتائیں، اور پرائم پپ ایف ایکس ڈاٹ سائٹ ابھی آزمائیں۔'],
+  ['Apne trader dost ko ye zaroor bhejein. Link bio mein hai, bilkul free.', 'اپنے ٹریڈر دوست کو یہ ضرور بھیجیں۔ لنک بائیو میں ہے، بالکل مفت۔'],
+];
+export const MUSIC_BPM = [102, 96, 108, 100, 112, 98];

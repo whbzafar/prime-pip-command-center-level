@@ -57,3 +57,12 @@ describe('screen finder', () => {
     expect(altsOf(/RECORD (NEW )?TRADE/).length).toBe(1);
   });
 });
+
+import { HOOK_OPENERS, OUTRO_VARIANTS, OVERVIEW_VARIANTS, MUSIC_BPM } from '../../src/data/urduPack';
+describe('variety for repeat takes', () => {
+  it('every opener, overview and outro has Roman and Urdu text', () => {
+    HOOK_OPENERS.slice(1).forEach(([r, u]) => { expect(r.length).toBeGreaterThan(10); expect(/[؀-ۿ]/.test(u)).toBe(true); });
+    [...OVERVIEW_VARIANTS, ...OUTRO_VARIANTS].forEach(([r, u]) => { expect(r.length).toBeGreaterThan(10); expect(/[؀-ۿ]/.test(u)).toBe(true); });
+    expect(new Set(MUSIC_BPM).size).toBeGreaterThan(3);
+  });
+});
