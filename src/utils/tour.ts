@@ -33,9 +33,11 @@ export interface TourOpts {
   features?: string[];
   /** One video about one sub-category (inner tab) of the section, e.g. “CFTC COT Report” inside Fundamentals. */
   sub?: { path: string[]; label: string; index: number; total: number; part?: number };
+  /** Which video of a category with many screens (each video shows at most 22 screens). */
+  grandPart?: number;
   format?: VideoFormatId; voiceLang?: 'ur' | 'en'; returnTab?: string; onProgress?: (p: number, label: string) => void;
 }
-export const tourStore: { videos: Record<string, { blob: Blob; title: string; at: number }>; running: boolean; lastSrt: string; finished: { blob: Blob; category: string; title: string; headline: string; at: number } | null; handled: Set<number>; uploading?: boolean; lastParts?: number } = { videos: {}, running: false, lastSrt: '', finished: null, handled: new Set() };
+export const tourStore: { videos: Record<string, { blob: Blob; title: string; at: number }>; running: boolean; lastSrt: string; finished: { blob: Blob; category: string; title: string; headline: string; at: number } | null; handled: Set<number>; uploading?: boolean; lastParts?: number; viewsCache?: Record<string, { at: number; views: any[] }> } = { videos: {}, running: false, lastSrt: '', finished: null, handled: new Set() };
 /** After the tour returns to the admin page, reopen the Social Agent tab so the studio (and the publish panel) is on screen again. */
 export function reopenStudio() { let n = 0; const t = window.setInterval(() => { const el = document.querySelector('[data-testid="admin-tab-social-agent"]') as HTMLElement | null; if (el) { el.click(); window.clearInterval(t); } else if (++n > 40) window.clearInterval(t); }, 250); }
 
@@ -178,9 +180,9 @@ const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 async function openPath(path: string[]) {
   for (const step of path) {
     let hit: SubTabLike | undefined;
-    for (let tries = 0; tries < 6 && !hit; tries++) { for (const c of tablists()) { const f = c.tabs.find((x) => x.label === step); if (f) { hit = f; break; } } if (!hit) await sleep(500); }
+    for (let tries = 0; tries < 8 && !hit; tries++) { for (const c of tablists()) { const f = c.tabs.find((x) => x.label === step); if (f) { hit = f; break; } } if (!hit) await sleep(400); }
     if (!hit) return false;
-    if (hit.el.getAttribute('aria-selected') !== 'true') { try { hit.el.click(); } catch { /* ignore */ } await sleep(900); }
+    if (hit.el.getAttribute('aria-selected') !== 'true') { try { hit.el.click(); } catch { /* ignore */ } await sleep(450); }
   }
   return true;
 }
@@ -190,7 +192,7 @@ async function walkViews(v: HTMLVideoElement | null, title: string, onP: (m: str
   const out: View[] = []; const prim0 = primaryTabs(); if (!prim0 || prim0.tabs.length < 2) return out;
   const sections = prim0.tabs.map((t) => ({ label: t.label, hint: t.hint })); const tabNames = new Set<string>(sections.map((s) => s.label.toLowerCase()));
   const read = async (path: string[], section: string, label: string, hint: string, first: boolean) => {
-    await sleep(1100); if (v) await waitCalm(v, 4500); else await sleep(1200); const scroller = findScroller();
+    await sleep(850); const scroller = findScroller();
     const heads = discoverBeats(scroller, label, 18).filter((b) => !b.click);
     const root = (tablists().slice(-1)[0]?.list.parentElement) || (document.querySelector('main') as HTMLElement) || document.body;
     const items: string[] = []; const seen = new Set<string>(tabNames); seen.add(label.toLowerCase()); seen.add(title.toLowerCase());
@@ -199,7 +201,7 @@ async function walkViews(v: HTMLVideoElement | null, title: string, onP: (m: str
     out.push({ path, section, label, hint, prose: proseOf(root), items, details, first });
   };
   for (const s of sections) {
-    onP(`Reading ${s.label}`); if (!(await openPath([s.label]))) continue; await sleep(900);
+    onP(`Reading ${s.label}`); if (!(await openPath([s.label]))) continue; await sleep(500);
     const cur = primaryTabs(); const nested = tablists(cur ? [cur.list] : []).filter((l) => !cur || (!l.list.contains(cur.list) && !cur.list.contains(l.list)));
     const names: string[] = []; for (const l of nested) for (const nt of l.tabs) if (!DANGEROUS.test(nt.label) && !names.includes(nt.label)) names.push(nt.label);
     if (!names.length) { await read([s.label], s.label, s.label, s.hint, true); continue; }
@@ -209,6 +211,17 @@ async function walkViews(v: HTMLVideoElement | null, title: string, onP: (m: str
   return out;
 }
 
+export interface OutlineView { section: string; label: string; hint: string; items: string[] }
+const saveOutline = (tab: string, vs: View[]) => { try { localStorage.setItem(`ppfx_outline_${tab}`, JSON.stringify({ at: Date.now(), views: vs.map((x) => ({ section: x.section, label: x.label, hint: x.hint, items: x.items.slice(0, 8) })) })); } catch { /* storage unavailable */ } };
+/** The last outline read from a category (every screen and the options on it), kept in this browser. */
+export function readOutline(tab: string): OutlineView[] | null { try { const j = JSON.parse(localStorage.getItem(`ppfx_outline_${tab}`) || 'null'); return j?.views?.length ? j.views : null; } catch { return null; } }
+/** Opens a category, reads every screen and option on it (no recording) and goes back. */
+export async function scanOutline(tab: string, title: string, back: string, onP: (m: string) => void, alive: () => boolean = () => true): Promise<OutlineView[] | null> {
+  go(tab); await sleep(1300); for (let i = 0; i < 8 && !primaryTabs() && alive(); i++) await sleep(400);
+  if (lockedNotice() || !primaryTabs()) { go(back); return null; }
+  const vs = await walkViews(null, title, onP); go(back); if (back === 'ADMIN') reopenStudio(); if (!alive() || vs.length < 2) return null;
+  (tourStore.viewsCache ||= {})[tab] = { at: Date.now(), views: vs }; saveOutline(tab, vs); return readOutline(tab);
+}
 /** Records one real tour of a section. With a shared screen (from openScreen), many tours can run after one permission click. */
 export async function recordTour(o: TourOpts, shared?: { video: HTMLVideoElement }): Promise<Blob> {
   if (typeof MediaRecorder === 'undefined') throw new Error('Video recording is not supported in this browser. Use desktop Chrome or Edge.');
@@ -244,7 +257,13 @@ export async function recordTour(o: TourOpts, shared?: { video: HTMLVideoElement
 
     // 0. a category with tabs gets a grand tour: every tab and nested tab is opened and its real options are read first
     let views: View[] = [];
-    if (!o.sub) { try { views = await walkViews(v, o.title, (m) => o.onProgress?.(0, m)); } catch { views = []; } if (views.length) { await sleep(600); } }
+    let allViews: View[] = [];
+    if (!o.sub) {
+      const hit = tourStore.viewsCache?.[o.tab]; if (hit && Date.now() - hit.at < 10 * 60_000) { allViews = hit.views as View[]; await openPath([allViews[0].path[0]]); }
+      else { try { allViews = await walkViews(v, o.title, (m) => o.onProgress?.(0, m)); } catch { allViews = []; } if (allViews.length) { (tourStore.viewsCache ||= {})[o.tab] = { at: Date.now(), views: allViews }; saveOutline(o.tab, allViews); } }
+    }
+    const VPV = 22; const gParts = Math.max(1, Math.ceil(allViews.length / VPV)); if (!o.sub) tourStore.lastParts = gParts;
+    views = allViews.slice((o.grandPart || 0) * VPV, (o.grandPart || 0) * VPV + VPV);
     const grand = views.length >= 2;
     // 1. read the section: what is actually on this screen, top to bottom
     const scroller = findScroller();
@@ -341,7 +360,7 @@ export async function recordTour(o: TourOpts, shared?: { video: HTMLVideoElement
       if (mode === 'ai') {
         let next = 0; let done = 0;
         const worker = async () => { while (next < src.length) { const i = next++; const line = useUrdu ? urdu[i] : src[i].en; if (!line) continue; wanted++; voices[i] = await voiceFor(ac, line, useUrdu && urdu[i] ? 'ur' : 'en', (m) => o.onProgress?.(0, m)); if (!voices[i]) silent++; o.onProgress?.(0, `Voice-over ${++done}/${src.length}`); } };
-        serverVoiceDown = false; await Promise.all([worker(), worker(), worker()]);
+        serverVoiceDown = false; await Promise.all([worker(), worker(), worker(), worker(), worker(), worker()]);
         if (wanted && silent === wanted) {
           // the server voices are unreachable: the browser speaks instead and its sound is captured from the shared tab
           const ts = (v.srcObject as MediaStream | null)?.getAudioTracks?.() || [];
@@ -629,25 +648,18 @@ export async function listSubTabs(tab: string): Promise<Leaf[]> {
   }
   return leaves;
 }
-/** One permission click, then finished videos for every sub-category of the category (long ones in parts). Each is handed over as soon as it is ready. */
+/** One permission click, then ONE finished video that opens every sub-category and shows every option (a second video only when the category has more than 22 screens). */
 export async function recordSeries(o: SeriesOpts): Promise<number> {
-  o.onStatus(`Reading every sub-category of ${o.title}…`); const subs = await listSubTabs(o.tab);
-  if (!subs.length) { o.onStatus(`${o.title} has no sub-categories: recording it as one video`); const blob = await recordTour({ tab: o.tab, title: o.title, script: await o.script(), theme: o.theme, voice: o.voice, audio: o.audio, secondsPerPart: o.secondsPerPart, features: o.features, voiceLang: o.voiceLang, format: o.format, onProgress: (_p, l) => l && o.onStatus(l) }); await o.onVideo(blob, { label: o.title, index: 1, total: 1 }); return 1; }
-  o.onStatus(`Found ${subs.length} sub-categories in ${o.title}: ${subs.map((x) => x.label).join(', ')}`); await sleep(1500);
   const scr = await openScreen(); let made = 0;
   try {
-    for (let i = 0; i < subs.length && !o.stop.stop; i++) {
-      const leaf = subs[i];
-      for (let part = 0, parts = 1; part < parts && !o.stop.stop; part++) {
-        o.onStatus(`(${i + 1}/${subs.length}) Recording ${leaf.label}${parts > 1 ? ` · part ${part + 1}/${parts}` : ''}…`);
-        try {
-          const blob = await recordTour({ tab: o.tab, title: o.title, script: await o.script(), theme: (o.theme + i + part) % THEMES.length, voice: o.voice, audio: o.audio, secondsPerPart: o.secondsPerPart, features: o.features, voiceLang: o.voiceLang, format: o.format, sub: { path: leaf.path, label: leaf.label, index: i + 1, total: subs.length, part }, onProgress: (_p, l) => l && o.onStatus(`(${i + 1}/${subs.length}) ${leaf.label}: ${l}`) }, scr);
-          parts = Math.max(1, tourStore.lastParts || 1);
-          await o.onVideo(blob, { label: parts > 1 ? `${leaf.label} (part ${part + 1}/${parts})` : leaf.label, index: i + 1, total: subs.length }); made++;
-          // the next recording waits until this one has been uploaded, so recording and uploading never compete for the computer
-          await sleep(2500); for (let k = 0; k < 200 && tourStore.uploading; k++) await sleep(3000);
-        } catch (e: any) { o.onStatus(`Skipped ${leaf.label}: ${String(e?.message || e)}`); break; }
-      }
+    for (let part = 0, parts = 1; part < parts && !o.stop.stop; part++) {
+      o.onStatus(parts > 1 ? `Recording ${o.title} · part ${part + 1}/${parts}…` : `Recording ${o.title}: opening every sub-category and option…`);
+      try {
+        const blob = await recordTour({ tab: o.tab, title: o.title, script: await o.script(), theme: (o.theme + part) % THEMES.length, voice: o.voice, audio: o.audio, secondsPerPart: o.secondsPerPart, features: o.features, voiceLang: o.voiceLang, format: o.format, grandPart: part, onProgress: (_p, m) => o.onStatus(m) }, scr);
+        parts = Math.max(1, tourStore.lastParts || 1);
+        await o.onVideo(blob, { label: parts > 1 ? `Part ${part + 1} of ${parts}` : 'Complete tour', index: part + 1, total: parts }); made++;
+        await sleep(1500); for (let k = 0; k < 200 && tourStore.uploading; k++) await sleep(3000);
+      } catch (e: any) { if (!made) throw e; o.onStatus(`Skipped part ${part + 1}: ${String(e?.message || e)}`); break; }
     }
   } finally { scr.stream.getTracks().forEach((t) => t.stop()); go(o.returnTab || 'ADMIN'); if (!o.returnTab || o.returnTab === 'ADMIN') reopenStudio(); }
   return made;

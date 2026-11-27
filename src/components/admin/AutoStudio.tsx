@@ -5,6 +5,7 @@ import { Camera, Copy, Download, Film, Package, RefreshCw, Save, Shuffle, Sparkl
 import JSZip from 'jszip';
 import { FORMATS, Layout, THEMES, VisualFormat, download, fileToImage, renderVariant, toBlob } from '../../utils/postVisuals';
 import { captureTopics, shotStore } from '../../utils/agentCapture';
+import { CategoryPicker } from "../CategoryPicker";
 import { VIDEO_FORMATS, recordTour, recordSeries, recordTours, testServerVoice, streamTours, tourStore, type AudioMode, type StreamItem, type TourScript, type VideoFormatId } from "../../utils/tour";
 import { PACKS } from '../../data/urduPack';
 import { dailyPlan, dayKey } from '../../utils/dailyPlan';
@@ -276,6 +277,7 @@ export const AutoStudio: React.FC = () => {
             {voiceTest && <span className="basis-full text-xs text-slate-200" data-testid="voice-test-result">{voiceTest}</span>}
             {audio === 'mic' && <label className="inline-flex items-center gap-1">seconds per part <input type="number" min={3} max={15} value={perPart} onChange={(e) => setPerPart(Math.max(3, Math.min(15, Number(e.target.value) || 6)))} className="w-14 rounded bg-slate-900 px-1 py-0.5" data-testid="video-per-part" /></label>}
             <label className="inline-flex items-center gap-1">category <select value={tid} onChange={(e) => setTid(e.target.value)} className="max-w-[14rem] rounded bg-slate-900 px-1 py-0.5" data-testid="video-category">{topics.map((t) => <option key={t.id} value={t.id}>{t.title}</option>)}</select></label>
+            <details className="w-full rounded-lg border border-slate-700 bg-slate-950/50 p-2"><summary className="cursor-pointer text-xs font-semibold text-slate-200">What this category will show: every sub-category, option and function</summary><div className="mt-2"><CategoryPicker topics={topics} value={tid} onChange={setTid} back="ADMIN" auto={false} /></div></details>
             <label className="inline-flex items-center gap-1">aspect ratio <select value={videoFmt} onChange={(e) => setVideoFmt(e.target.value as VideoFormatId)} className="rounded bg-slate-900 px-1 py-0.5" data-testid="video-format">{(Object.keys(VIDEO_FORMATS) as VideoFormatId[]).map((k) => <option key={k} value={k}>{VIDEO_FORMATS[k].label}</option>)}</select></label>
             <label className="inline-flex items-center gap-1">language <select value={lang} onChange={(e) => setLang(e.target.value as 'en' | 'roman-urdu')} className="rounded bg-slate-900 px-1 py-0.5"><option value="roman-urdu">Urdu voice + Roman Urdu captions</option><option value="en">English</option></select></label>
           </div>
