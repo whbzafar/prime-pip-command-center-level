@@ -36,14 +36,14 @@ export async function uploadYouTube(clientId: string, video: Blob, meta: Platfor
   return `https://youtube.com/shorts/${j.id}`;
 }
 
-export async function verifyMeta(pageId: string, pageToken: string): Promise<{ ok: boolean; name?: string; igUserId?: string | null; error?: string }> {
+export async function verifyMeta(pageId: string, pageToken: string): Promise<{ ok: boolean; name?: string; igUserId?: string | null; pageToken?: string; upgraded?: boolean; expires?: string; error?: string }> {
   const r = await fetch('/api/admin/social/meta/verify', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json', ...auth() }, body: JSON.stringify({ pageId, pageToken }) }); return await r.json().catch(() => ({ ok: false, error: `HTTP ${r.status}` }));
 }
-export async function stageVideo(video: Blob): Promise<string> {
-  const r = await fetch('/api/admin/social/stage', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'video/mp4', ...auth() }, body: video }); const j = await r.json().catch(() => ({}));
+export async function stageVideo(video: Blob, ext: 'mp4' | 'jpg' = 'mp4'): Promise<string> {
+  const r = await fetch(`/api/admin/social/stage?ext=${ext}`, { method: 'POST', credentials: 'include', headers: { 'Content-Type': ext === 'jpg' ? 'image/jpeg' : 'video/mp4', ...auth() }, body: video }); const j = await r.json().catch(() => ({}));
   if (!r.ok || !j.id) throw new Error(j?.error || `Could not prepare the video (HTTP ${r.status})`); return j.id;
 }
-export async function publishMeta(id: string, cfg: PubConfig, fb: PlatformMeta, ig: PlatformMeta, targets: string[]): Promise<Record<string, { ok: boolean; id?: string; error?: string }>> {
-  const r = await fetch('/api/admin/social/meta/publish', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json', ...auth() }, body: JSON.stringify({ id, pageId: cfg.metaPageId, pageToken: cfg.metaPageToken, igUserId: cfg.igUserId, title: fb.title, description: fb.description, caption: ig.description, targets }) });
+export async function publishMeta(id: string, cfg: PubConfig, fb: PlatformMeta, ig: PlatformMeta, targets: string[], coverId?: string): Promise<Record<string, { ok: boolean; id?: string; error?: string }>> {
+  const r = await fetch('/api/admin/social/meta/publish', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json', ...auth() }, body: JSON.stringify({ id, coverId, pageId: cfg.metaPageId, pageToken: cfg.metaPageToken, igUserId: cfg.igUserId, title: fb.title, description: fb.description, caption: ig.description, targets }) });
   const j = await r.json().catch(() => ({})); if (!j.results) throw new Error(j?.error || `HTTP ${r.status}`); return j.results;
 }
