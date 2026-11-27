@@ -210,6 +210,15 @@ export function registerChannelRoutes(app: Express, requireDeveloper: RequestHan
       res.send(page(true, user ? `TikTok account “${user}” is connected. Recordings will now post to TikTok automatically.` : "TikTok is connected. Recordings will now post to TikTok automatically."));
     } catch (e: any) { res.status(400).send(page(false, String(e?.message || e))); }
   });
+  app.get("/api/admin/social/pin/diag", requireDeveloper, async (_req, res) => {
+    const c = await readCh(); const out: any = { connected: !!c.pinAccess, board: c.pinBoard || "", sandboxFlag: !!c.pinSandbox };
+    if (!c.pinAccess) return res.json(out);
+    for (const [name, host] of [["live", "https://api.pinterest.com"], ["sandbox", "https://api-sandbox.pinterest.com"]] as const) {
+      const hit = async (method: string, path: string, body?: any) => { try { const r = await fetch(`${host}/v5${path}`, { method, headers: { Authorization: `Bearer ${c.pinAccess}`, ...(body ? { "Content-Type": "application/json" } : {}) }, body: body ? JSON.stringify(body) : undefined, signal: AbortSignal.timeout(30_000) }); const j: any = await r.json().catch(() => ({})); return { status: r.status, code: j.code, message: String(j.message || "").slice(0, 160), id: j.id }; } catch (e: any) { return { error: String(e?.message || e) }; } };
+      out[name] = { user: await hit("GET", "/user_account"), boards: await hit("GET", "/boards?page_size=1"), imagePin: c.pinBoard ? await hit("POST", "/pins", { board_id: c.pinBoard, title: "Prime Pip FX", description: "Prime Pip FX", link: "https://primepipfx.site", media_source: { source_type: "image_url", url: "https://primepipfx.site/favicon.png" } }) : null };
+    }
+    res.json(out);
+  });
   app.get("/api/admin/social/pin/auth-url", requireDeveloper, async (req, res) => {
     const c = await readCh(); if (!c.pinAppId || !c.pinAppSecret) return res.status(400).json({ ok: false, error: "Save the Pinterest app ID and secret first." });
     const q = new URLSearchParams({ client_id: c.pinAppId, redirect_uri: `${baseOf(req)}/api/public/oauth/pinterest`, response_type: "code", scope: "boards:read,boards:write,pins:read,pins:write,user_accounts:read", state: newState() });
