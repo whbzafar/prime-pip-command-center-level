@@ -1,7 +1,7 @@
 /* Pure helpers for the tour edit: what to say about each part, how long each shot lasts, and how the whole video is kept
    between a minimum and a maximum length (30 to 60 seconds for Reels, TikTok and Shorts). */
 
-export interface Item { kind: 'intro' | 'overview' | 'part' | 'outro'; voice: number | null; base: number }
+export interface Item { kind: 'intro' | 'overview' | 'part' | 'outro'; voice: number | null; base: number; must?: boolean }
 export interface Planned { seconds: number[]; keep: boolean[]; rate: number; total: number }
 
 const tokens = (s: string) => (s.toLowerCase().match(/[a-z0-9]{3,}/g) || []);
@@ -33,8 +33,8 @@ export function planTimeline(items: Item[], min = 30, max = 58, maxRate = 1.12, 
   let rate = 1; let secs = calc(rate); let total = secs.reduce((a, b) => a + b, 0);
   if (total > max) { rate = Math.min(maxRate, total / max); secs = calc(rate); total = secs.reduce((a, b) => a + b, 0); }
   while (total > max) {
-    const parts = items.map((it, i) => ({ it, i })).filter((x) => x.it.kind === 'part' && keep[x.i]);
-    if (parts.length <= minParts) break;
+    const parts = items.map((it, i) => ({ it, i })).filter((x) => x.it.kind === 'part' && keep[x.i] && !x.it.must);
+    if (parts.length === 0 || items.filter((it, i) => it.kind === 'part' && keep[i]).length <= minParts) break;
     const drop = parts.reduce((a, b) => (secs[b.i] > secs[a.i] ? b : a));
     keep[drop.i] = false; secs = calc(rate); total = secs.reduce((a, b) => a + b, 0);
   }

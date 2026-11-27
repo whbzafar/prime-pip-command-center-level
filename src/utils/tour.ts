@@ -168,6 +168,45 @@ function beatTrack(ac: AudioContext, dest: AudioNode, seconds: number, bpm = 102
 type Kind = 'intro' | 'overview' | 'part' | 'outro';
 interface Seg { spoken?: string; spokenLang?: 'ur' | 'en'; kind: Kind; beat?: Beat; headline: string; label: string; say: string; ur?: string; chunks?: string[]; feats?: string[]; voice: AudioBuffer | null; seconds: number }
 
+/** One screen of a category: a tab (or a tab inside a tab) with the real options read from it. */
+interface View { path: string[]; section: string; label: string; hint: string; prose: string; items: string[]; details: { label: string; say: string }[]; first: boolean }
+const sentence = (t: string, max: number) => { const s = (t || '').replace(/\s+/g, ' ').trim(); if (!s) return ''; const m = s.match(/^.{20,}?[.!?](\s|$)/); const f = (m ? m[0] : s).trim(); return f.length > max ? f.slice(0, max).replace(/[\s,;:]+\S*$/, '') + '.' : f; };
+const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+/** Opens a path of tabs by name (every level), skipping tabs that are already open. */
+async function openPath(path: string[]) {
+  for (const step of path) {
+    let hit: SubTabLike | undefined;
+    for (let tries = 0; tries < 6 && !hit; tries++) { for (const c of tablists()) { const f = c.tabs.find((x) => x.label === step); if (f) { hit = f; break; } } if (!hit) await sleep(500); }
+    if (!hit) return false;
+    if (hit.el.getAttribute('aria-selected') !== 'true') { try { hit.el.click(); } catch { /* ignore */ } await sleep(900); }
+  }
+  return true;
+}
+type SubTabLike = { el: HTMLElement; label: string; hint: string };
+/** Walks every tab and nested tab of the open category and reads what is really on each screen. */
+async function walkViews(v: HTMLVideoElement | null, tab: string, onP: (m: string) => void): Promise<View[]> {
+  const out: View[] = []; const prim0 = primaryTabs(); if (!prim0 || prim0.tabs.length < 2) return out;
+  const sections = prim0.tabs.map((t) => ({ label: t.label, hint: t.hint })); const tabNames = new Set<string>(sections.map((s) => s.label.toLowerCase()));
+  const read = async (path: string[], section: string, label: string, hint: string, first: boolean) => {
+    await sleep(1100); if (v) await waitCalm(v, 4500); else await sleep(1200); const scroller = findScroller();
+    const heads = discoverBeats(scroller, label, 18).filter((b) => !b.click);
+    const root = (tablists().slice(-1)[0]?.list.parentElement) || (document.querySelector('main') as HTMLElement) || document.body;
+    const items: string[] = []; const seen = new Set<string>(tabNames); seen.add(label.toLowerCase());
+    heads.forEach((b) => { const l = b.label.replace(/\s+/g, ' ').trim(); const k = l.toLowerCase(); if (l.length < 3 || l.length > 40 || seen.has(k) || DANGEROUS.test(l) || /^[\d\s.,%+\-$]+$/.test(l)) return; seen.add(k); items.push(l); });
+    const details = heads.slice(0, 6).map((b) => ({ label: b.label, say: sentence(describePart(b.el, b.label, 1), 120) })).filter((d) => d.label.length >= 3 && !tabNames.has(d.label.toLowerCase()));
+    out.push({ path, section, label, hint, prose: sentence(describePart(root, label, 0), 150), items, details, first });
+  };
+  for (const s of sections) {
+    onP(`Reading ${s.label}`); if (!(await openPath([s.label]))) continue; await sleep(900);
+    const cur = primaryTabs(); const nested = tablists(cur ? [cur.list] : []).filter((l) => !cur || (!l.list.contains(cur.list) && !cur.list.contains(l.list)));
+    const names: string[] = []; for (const l of nested) for (const nt of l.tabs) if (!DANGEROUS.test(nt.label) && !names.includes(nt.label)) names.push(nt.label);
+    if (!names.length) { await read([s.label], s.label, s.label, s.hint, true); continue; }
+    let k = 0; for (const n of names) { onP(`Reading ${s.label} › ${n}`); if (!(await openPath([s.label, n]))) continue; await read([s.label, n], s.label, n, k === 0 ? s.hint : '', k === 0); k++; }
+  }
+  await openPath([sections[0].label]); try { scrollToTop(findScroller()); } catch { /* ignore */ } void tab;
+  return out;
+}
+
 /** Records one real tour of a section. With a shared screen (from openScreen), many tours can run after one permission click. */
 export async function recordTour(o: TourOpts, shared?: { video: HTMLVideoElement }): Promise<Blob> {
   if (typeof MediaRecorder === 'undefined') throw new Error('Video recording is not supported in this browser. Use desktop Chrome or Edge.');
@@ -201,6 +240,10 @@ export async function recordTour(o: TourOpts, shared?: { video: HTMLVideoElement
     try { if (v.videoWidth) shotStore.shots[o.tab] = { img: await grab(v), label: o.title, tab: o.tab, at: Date.now() }; } catch { /* optional */ }
     try { await (document as any).fonts?.load?.(`700 40px "Noto Nastaliq Urdu"`); } catch { /* font optional */ }
 
+    // 0. a category with tabs gets a grand tour: every tab and nested tab is opened and its real options are read first
+    let views: View[] = [];
+    if (!o.sub) { try { views = await walkViews(v, o.tab, (m) => o.onProgress?.(0, m)); } catch { views = []; } if (views.length) { await sleep(600); } }
+    const grand = views.length >= 2;
     // 1. read the section: what is actually on this screen, top to bottom
     const scroller = findScroller();
     const allBeats = discoverBeats(scroller, o.sub?.path[o.sub.path.length - 1] || o.title, o.sub ? 40 : 9);
@@ -222,13 +265,13 @@ export async function recordTour(o: TourOpts, shared?: { video: HTMLVideoElement
     if (mode === 'mic') {
       // the owner narrates: one shot per real part, no generated speech
       segs.push({ kind: 'intro', headline: o.script.hook, label: o.title, say: '', voice: null, seconds: 3.4 });
-      (beats.length ? beats : [undefined]).forEach((bt, i) => segs.push({ kind: 'part', beat: bt, headline: bt?.label || o.script.scenes[i]?.caption || o.title, label: bt?.label || o.title, say: '', voice: null, seconds: per }));
+      (grand ? views.map((vw): Beat => ({ el: (document.querySelector('main') as HTMLElement) || document.body, label: vw.label, path: vw.path })) : beats.length ? beats : [undefined]).forEach((bt, i) => segs.push({ kind: 'part', beat: bt, headline: bt?.label || o.script.scenes[i]?.caption || o.title, label: bt?.label || o.title, say: '', voice: null, seconds: per }));
       segs.push({ kind: 'outro', headline: o.script.cta, label: 'primepipfx.site', say: '', voice: null, seconds: 3.4 });
     } else {
       // what is said about each real part: its name plus the best matching feature of the category
       const used = new Set<number>();
       const src: { kind: Kind; headline: string; label: string; en: string; urdu?: string; rm?: string; beat?: Beat; feats?: string[] }[] = [];
-      const pack = !o.sub && useUrdu ? PACKS[o.tab] : undefined;
+      const pack = !o.sub && !grand && useUrdu ? PACKS[o.tab] : undefined;
       if (pack) {
         const opener = HOOK_OPENERS[take % HOOK_OPENERS.length]; const ov = OVERVIEW_VARIANTS[take % OVERVIEW_VARIANTS.length]; const ou = OUTRO_VARIANTS[take % OUTRO_VARIANTS.length];
         // hand-written Urdu for this category: voice speaks Urdu script, viewers read Roman Urdu captions
@@ -244,6 +287,25 @@ export async function recordTour(o: TourOpts, shared?: { video: HTMLVideoElement
         // every sub-category (inner tab) of this section gets its own shot, so nothing inside the category is left out
         const shownTabs = new Set(src.filter((x) => x.beat?.click).map((x) => x.label.toLowerCase())); const TAB_LINES: [string, string][] = [['Now the next sub-section: ', 'اب اگلا سب سیکشن دیکھیں۔'], ['Also inside: ', 'اس کے اندر یہ بھی موجود ہے۔'], ['Next up: ', 'اور یہ بھی دیکھیے۔']];
         discoverTabBeats(8).forEach((tb, i) => { if (shownTabs.has(tb.label.toLowerCase())) return; const tl = TAB_LINES[(i + take) % TAB_LINES.length]; src.push({ kind: 'part', headline: tb.label, label: tb.label, en: `${tl[0]}${tb.label}.`, rm: `${tl[0]}${tb.label}.`, urdu: tl[1], beat: tb }); });
+        src.push({ kind: 'outro', headline: o.script.cta, label: 'primepipfx.site', en: ou[0], rm: ou[0], urdu: ou[1] });
+      } else if (grand) {
+        // grand tour: every tab and nested tab is opened on screen and its real options are named, in the order a student meets them
+        const nV = views.length; const B = Math.max(6.5, (158 - 15) / nV); const maxW = Math.max(13, Math.round(B * 2.3)); const extra = Math.max(0, Math.floor((148 - 15 - nV * 8.5) / 7));
+        const pk = PACKS[o.tab]; const opener = HOOK_OPENERS[take % HOOK_OPENERS.length]; const ou = OUTRO_VARIANTS[take % OUTRO_VARIANTS.length];
+        const secNames = [...new Set(views.map((x) => x.section))]; const mainEl = () => (document.querySelector('main') as HTMLElement) || document.body;
+        const wc = (t: string) => t.trim().split(/\s+/).filter(Boolean).length;
+        const join = (a: string[]) => (a.length <= 1 ? a.join('') : `${a.slice(0, -1).join(', ')} and ${a[a.length - 1]}`);
+        src.push({ kind: 'intro', headline: o.title, label: o.title, en: `${opener[0]} ${pk ? pk.hook[0] : o.script.hook}`.trim(), urdu: pk ? `${opener[1]} ${pk.hook[1]}`.trim() : undefined });
+        src.push({ kind: 'overview', headline: `Inside ${o.title}`, label: o.title, en: `${o.title} has ${secNames.length} sections: ${join(secNames)}. We open every one of them and show the options inside.`, feats: secNames });
+        const LEADS = ['Next, ', 'Then ', 'Also ', 'And ']; const VERBS = ['You get', 'It shows', 'Inside are', 'Options include'];
+        const chosen = new Set(views.map((x, i) => ({ i, n: x.details.filter((d) => d.say.length >= 25).length })).filter((x) => x.n > 0).sort((a, b) => b.n - a.n).slice(0, extra).map((x) => x.i));
+        views.forEach((vw, i) => {
+          const head = vw.first ? (vw.section === vw.label ? `${vw.label}. ${sentence(vw.hint, 100)} ` : `${vw.section}. ${sentence(vw.hint, 100)} First, ${vw.label}. `) : `${LEADS[(i + take) % LEADS.length]}${vw.label}. `;
+          const mk = (prose: boolean, n: number) => `${head}${prose ? vw.prose + ' ' : ''}${n > 0 ? `${VERBS[(i + take) % VERBS.length]} ${join(vw.items.slice(0, n))}.` : ''}`.replace(/\s+/g, ' ').trim();
+          const tries = [mk(true, 6), mk(false, 6), mk(true, 4), mk(false, 4), mk(false, 3), mk(false, 2), mk(false, 0)]; const en = tries.find((t) => wc(t) <= maxW) || tries[tries.length - 1];
+          src.push({ kind: 'part', headline: vw.label, label: vw.section === vw.label ? vw.label : `${vw.section} › ${vw.label}`, en, beat: { el: mainEl(), label: vw.label, path: vw.path } });
+          if (chosen.has(i)) { const d = vw.details.find((x) => x.say.length >= 25); if (d) src.push({ kind: 'part', headline: d.label, label: `${vw.label} › ${d.label}`, en: `${d.label}. ${d.say}`, beat: { el: mainEl(), label: d.label, path: vw.path, focus: d.label } }); }
+        });
         src.push({ kind: 'outro', headline: o.script.cta, label: 'primepipfx.site', en: ou[0], rm: ou[0], urdu: ou[1] });
       } else if (o.sub) {
         // one video per sub-category (or part of one): each real part and each function in it is shown and described from the screen
@@ -288,8 +350,8 @@ export async function recordTour(o: TourOpts, shared?: { video: HTMLVideoElement
           o.onProgress?.(0, bu && useUrdu ? 'Using this browser’s Urdu voice' : 'Using this browser’s English voice (no Urdu voice installed)');
         }
       }
-      const items: Item[] = src.map((x, i) => ({ kind: x.kind, voice: voices[i]?.duration ?? null, base: Math.max(x.kind === 'overview' ? 5 : 3, wordsOf(x.en).length / 2.6 + 0.9) }));
-      const plan = planTimeline(items, 30, 60, 1.15); rate = plan.rate;
+      const items: Item[] = src.map((x, i) => ({ must: !!x.beat?.path && !x.beat.focus, kind: x.kind, voice: voices[i]?.duration ?? null, base: Math.max(x.kind === 'overview' ? 5 : 3, wordsOf(x.en).length / 2.6 + 0.9) }));
+      const plan = grand ? planTimeline(items, 150, 178, 1.12, views.length) : planTimeline(items, 40, 120, 1.12); rate = plan.rate;
       src.forEach((x, i) => { if (!plan.keep[i]) return; const ur = undefined as string | undefined; segs.push({ spoken: browserSpeech ? (browserSpeech.lang === 'ur' ? (urdu[i] && /[\u0600-\u06FF]/.test(urdu[i]) ? urdu[i] : x.en) : x.en) : undefined, spokenLang: browserSpeech ? (browserSpeech.lang === 'ur' && urdu[i] && /[\u0600-\u06FF]/.test(urdu[i]) ? 'ur' : 'en') : undefined, kind: x.kind, beat: x.beat, headline: x.headline, label: x.label, say: x.rm || x.en, ur, chunks: ur ? chunkCaption(ur, 6) : undefined, feats: x.feats, voice: voices[i], seconds: plan.seconds[i] }); });
     }
     const total = segs.reduce((a, s) => a + s.seconds, 0); const starts: number[] = []; segs.reduce((a, s) => { starts.push(a); return a + s.seconds; }, 0);
@@ -340,8 +402,19 @@ export async function recordTour(o: TourOpts, shared?: { video: HTMLVideoElement
       try { sfx(ac, mix, i === 0 ? 'hit' : 'whoosh'); if (s.kind === 'part') window.setTimeout(() => { try { sfx(ac, mix, 'pop'); } catch { /* ignore */ } }, 380); } catch { /* ignore */ }
       if (s.spoken) { try { window.speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(s.spoken); const bv = browserVoice(s.spokenLang || 'en'); if (bv) u.voice = bv; u.lang = bv?.lang || (s.spokenLang === 'ur' ? 'ur-PK' : 'en-US'); u.rate = Math.min(1.35, Math.max(0.85, (s.spoken.split(/\s+/).length / 2.6) / Math.max(1, s.seconds - 0.4))); window.speechSynthesis.speak(u); } catch { /* speech unavailable */ } }
       if (s.kind === 'part' && s.beat) {
-        if (s.beat.click) { try { s.beat.click.click(); } catch { /* ignore */ } }
-        bringIntoView(scroller, s.beat.el);
+        if (s.beat.path) {
+          const bt = s.beat; const mine = i;
+          void (async () => {
+            const ok = await openPath(bt.path!); if (!ok || segIdx !== mine) return; const sc = findScroller();
+            if (bt.focus) { const f = findByText(new RegExp(esc(bt.focus), 'i')); if (f) { bt.el = (f.el.closest('section, article, [class*="rounded"]') as HTMLElement | null) || f.el; bringIntoView(sc, bt.el); } return; }
+            scrollToTop(sc);
+            // a tall screen is scrolled once, so the options further down are shown too
+            window.setTimeout(() => { try { if (segIdx === mine && sc.scrollHeight > sc.clientHeight * 1.25) sc.scrollBy({ top: sc.clientHeight * 0.75, behavior: 'smooth' }); } catch { /* ignore */ } }, Math.max(2600, s.seconds * 520));
+          })();
+        } else {
+          if (s.beat.click) { try { s.beat.click.click(); } catch { /* ignore */ } }
+          bringIntoView(scroller, s.beat.el);
+        }
       } else if (s.kind === 'part') {
         const max = Math.max(0, scroller.scrollHeight - scroller.clientHeight); const frac = (i - 1) / Math.max(1, segs.length - 3);
         if (scroller === document.scrollingElement || scroller === document.documentElement) window.scrollTo({ top: max * frac, behavior: 'smooth' }); else scroller.scrollTo({ top: max * frac, behavior: 'smooth' });
@@ -357,7 +430,7 @@ export async function recordTour(o: TourOpts, shared?: { video: HTMLVideoElement
         const s = segs[i]; const local = t - starts[i]; const since = t - segAt; const prog = local / s.seconds;
 
         // camera target: the part's live box on screen, else the whole screen
-        const box = s.kind === 'part' && s.beat ? toVideo(s.beat.el, vw(), vh()) : null;
+        const box = s.kind === 'part' && s.beat && !(s.beat.path && !s.beat.focus) ? toVideo(s.beat.el, vw(), vh()) : null;
         const fit0 = box ? fitCrop(box, aspect, vw(), vh()) : fullCrop(aspect, vw(), vh());
         const tgt = box ? panCrop(box, fit0, vw(), vh(), ease((since - 0.8) / Math.max(0.5, s.seconds - 1.2))) : fit0;
         const k = 1 - Math.exp(-dt * (since < 1 ? 4.2 : 2.6));
@@ -584,3 +657,6 @@ if (typeof window !== 'undefined') (window as any).__ppParts = (title: string) =
 
 (window as any).__ppSubs = () => { const p = primaryTabs(); return p ? p.tabs.map((t) => ({ label: t.label, hint: t.hint })) : []; };
 (window as any).__ppDescribe = () => { try { return discoverBeats(findScroller(), 'x', 11).map((b) => ({ label: b.label, click: !!b.click, say: describePart(b.el, b.label) })); } catch (e) { return String(e); } };
+
+/** Dry run of the grand tour for the screen that is open: lists every screen and the options read from it (no recording). */
+(window as any).__ppWalk = async () => { try { return (await walkViews(null, 'x', () => {})).map((x) => ({ path: x.path.join(' > '), hint: x.hint, prose: x.prose, items: x.items, details: x.details.length })); } catch (e) { return String(e); } };

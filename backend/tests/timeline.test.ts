@@ -34,6 +34,19 @@ describe('pickFeature', () => {
   });
 });
 
+describe('planTimeline grand tour', () => {
+  const mk = (n: number, v: number): Item[] => [{ kind: 'intro', voice: 4, base: 3 }, { kind: 'overview', voice: 5, base: 5 }, ...Array.from({ length: n }, () => ({ kind: 'part' as const, voice: v, base: 6, must: true })), { kind: 'outro', voice: 4, base: 3 }];
+  it('never drops must-have shots and reaches three minutes', () => {
+    const p = planTimeline(mk(18, 9), 150, 178, 1.12, 18); expect(p.keep.every(Boolean)).toBe(true); expect(p.total).toBeGreaterThanOrEqual(149.9);
+  });
+  it('holds a short category up to the minimum', () => {
+    const p = planTimeline(mk(5, 6), 150, 178, 1.12, 5); expect(p.total).toBeGreaterThanOrEqual(149.9); expect(p.total).toBeLessThanOrEqual(178.1);
+  });
+  it('drops only optional shots when too long', () => {
+    const it = mk(10, 17); it.push({ kind: 'part', voice: 14, base: 6 }); const p = planTimeline(it, 150, 178, 1.12, 10); expect(p.keep[it.length - 1]).toBe(false);
+  });
+});
+
 describe('text helpers', () => {
   it('chunks captions and title-cases labels', () => {
     expect(chunkCaption('a b c d e f g h i', 4)).toEqual(['a b c d', 'e f g h', 'i']);

@@ -4,7 +4,7 @@
    Nothing is guessed from a fixed "left/centre/right": every shot points at a real element. */
 
 export interface Box { x: number; y: number; w: number; h: number }
-export interface Beat { el: HTMLElement; label: string; click?: HTMLElement }
+export interface Beat { el: HTMLElement; label: string; click?: HTMLElement; /** tabs to open, in order, before this shot (resolved live by name) */ path?: string[]; /** a heading inside the opened view to frame */ focus?: string }
 
 /** Inner tabs the agent may click to show more of a section. Anything that could trade, pay or delete is never clicked. */
 export const DANGEROUS = /\b(buy|sell|close|delete|remove|log ?out|sign ?out|place|order|execute|pay|subscribe|purchase|reset|clear|cancel|confirm|submit|send|withdraw|deposit)\b/i;
