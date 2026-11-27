@@ -4,24 +4,24 @@ import { Share2, Check, Link2 } from 'lucide-react';
 /** "Share layout" — publishes a snapshot of the chart and gives back a link anyone can open read-only. */
 export const ShareChartButton: React.FC<{
   symbol: string; interval: string; engine: 'pro' | 'tv';
-  getDrawings?: () => unknown; className?: string; compact?: boolean;
-}> = ({ symbol, interval, engine, getDrawings, className = '', compact }) => {
+  capture?: () => Promise<{ state?: unknown; image?: string | null }>; className?: string; compact?: boolean;
+}> = ({ symbol, interval, engine, capture, className = '', compact }) => {
   const [state, setState] = useState<'idle' | 'busy' | 'done' | 'error'>('idle');
   const [link, setLink] = useState('');
-  const [msg, setMsg] = useState('');
+  const [msg, setMsg] = useState(''); const [hasImage, setHasImage] = useState(false);
   const share = async () => {
     setState('busy'); setMsg('');
     try {
-      let drawings: unknown = null;
-      try { drawings = getDrawings ? getDrawings() : null; } catch { drawings = null; }
+      let state: unknown = null; let image: string | null = null;
+      try { const c = capture ? await capture() : null; state = c?.state ?? null; image = c?.image ?? null; } catch { /* link still works without the picture */ }
       const r = await fetch('/api/charts/share', {
         method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ symbol, interval, engine, drawings }),
+        body: JSON.stringify({ symbol, interval, engine, state, image }),
       });
       const j = await r.json().catch(() => ({}));
       if (!r.ok || !j.id) throw new Error(j.error || 'Could not create the link');
       const url = `${location.origin}/?chart=${j.id}`;
-      setLink(url); setState('done');
+      setLink(url); setState('done'); setHasImage(!!image);
       try { await navigator.clipboard.writeText(url); setMsg('Link copied'); } catch { setMsg('Copy the link below'); }
     } catch (e: any) { setState('error'); setMsg(String(e?.message || 'Could not create the link')); }
   };
@@ -39,7 +39,7 @@ export const ShareChartButton: React.FC<{
             <>
               <div className="mb-1 flex items-center gap-1 font-bold text-emerald-300"><Link2 className="w-3.5 h-3.5" /> {msg}</div>
               <input readOnly value={link} onFocus={(e) => e.currentTarget.select()} className="w-full rounded border border-slate-700 bg-slate-950 px-2 py-1 text-[11px] text-white" />
-              <div className="mt-1 text-slate-400">{engine === 'pro' ? 'Anyone with this link sees your chart with all drawings, read-only.' : 'This feed shares the pair and timeframe (its drawings live inside TradingView).'}</div>
+              <div className="mt-1 text-slate-400">{hasImage ? 'Anyone with this link sees your chart exactly as it is now, with every indicator and drawing (read-only).' : 'The picture could not be taken (screen capture was declined or is not supported here), so the link only reopens this pair and timeframe. Click Share again and allow “this tab” to include your markings.'}</div>
             </>
           )}
           <button type="button" onClick={() => setState('idle')} className="mt-1.5 text-slate-400 hover:text-white cursor-pointer">Close</button>

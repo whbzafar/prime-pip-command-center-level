@@ -15,6 +15,7 @@ export const SharedChartViewer: React.FC<{ id: string }> = ({ id }) => {
     }).catch(() => { if (!off) setErr('Could not load the chart'); });
     return () => { off = true; };
   }, [id]);
+  const [live, setLive] = useState(false);
   const tvSrc = doc && doc.engine === 'tv'
     ? `https://s.tradingview.com/widgetembed/?symbol=${encodeURIComponent(doc.symbol)}&interval=${encodeURIComponent(doc.interval || '60')}&theme=dark&style=1&hide_side_toolbar=0&allow_symbol_change=1&withdateranges=1&save_image=1`
     : '';
@@ -28,10 +29,13 @@ export const SharedChartViewer: React.FC<{ id: string }> = ({ id }) => {
       <div style={{ flex: 1, minHeight: 0, position: 'relative' }}>
         {err && <div style={{ padding: 24, color: '#fca5a5' }}>{err}</div>}
         {!err && !doc && <div style={{ padding: 24, color: '#94a3b8' }}>Loading chart…</div>}
-        {doc && doc.engine === 'tv' && <iframe title="Shared chart" src={tvSrc} style={{ width: '100%', height: '100%', border: 0 }} />}
-        {doc && doc.engine !== 'tv' && (
+        {doc && doc.image && !live && <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#0b1220', overflow: 'auto' }}><img src={doc.image} alt={`${doc.symbol} chart`} style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} /></div>}
+        {doc && doc.image && doc.engine !== 'tv' && <button type="button" onClick={() => setLive((v) => !v)} style={{ position: 'absolute', top: 10, right: 12, zIndex: 5, background: '#0e7490', color: '#fff', border: 0, borderRadius: 8, padding: '6px 12px', fontWeight: 700, cursor: 'pointer' }}>{live ? 'Show shared picture' : 'Open interactive chart'}</button>}
+        {doc && doc.image && doc.engine === 'tv' && <button type="button" onClick={() => setLive((v) => !v)} style={{ position: 'absolute', top: 10, right: 12, zIndex: 5, background: '#0e7490', color: '#fff', border: 0, borderRadius: 8, padding: '6px 12px', fontWeight: 700, cursor: 'pointer' }}>{live ? 'Show shared picture' : 'Open live TradingView chart'}</button>}
+        {doc && (live || !doc.image) && doc.engine === 'tv' && <iframe title="Shared chart" src={tvSrc} style={{ width: '100%', height: '100%', border: 0 }} />}
+        {doc && (live || !doc.image) && doc.engine !== 'tv' && (
           <React.Suspense fallback={<div style={{ padding: 24, color: '#94a3b8' }}>Loading chart…</div>}>
-            <PineMainChart symbol={doc.symbol} interval={doc.interval} sharedDoc={doc.drawings ?? { drawings: [] }} viewOnly />
+            <PineMainChart symbol={doc.symbol} interval={doc.interval} sharedState={doc.state} sharedDoc={doc.state?.charts?.[0]?.drawings ?? doc.drawings ?? { drawings: [] }} viewOnly />
           </React.Suspense>
         )}
       </div>

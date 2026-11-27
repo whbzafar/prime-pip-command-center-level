@@ -14,6 +14,7 @@
  * Students' indicators run on the server (RemotePineEngine) — their browser never receives the
  * code. The administrator's scripts and drafts run locally in a worker.
  */
+import { proChartImage } from '../../utils/chartSnapshot';
 import { ShareChartButton } from '../ShareChartButton';
 import { IND_CATS, indCategory } from '../../utils/indicatorCategories';
 import { pineCompat } from '../../utils/pineCompat';
@@ -167,9 +168,10 @@ export const PineMainChart: React.FC<{
   symbol: string; interval: string; height?: number | string;
   onSymbolChange?: (sym: string) => void; onIntervalChange?: (iv: string) => void; onToggleFullscreen?: () => void;
   /** Shared-link viewing: show this drawings document instead of the viewer's own and never write anything back. */
-  sharedDoc?: any; viewOnly?: boolean;
-}> = ({ symbol, interval, height = '100%', onSymbolChange, onIntervalChange, onToggleFullscreen, sharedDoc, viewOnly }) => {
+  sharedDoc?: any; sharedState?: any; viewOnly?: boolean;
+}> = ({ symbol, interval, height = '100%', onSymbolChange, onIntervalChange, onToggleFullscreen, sharedDoc, sharedState, viewOnly }) => {
   const sharedRef = useRef<any>(sharedDoc); sharedRef.current = sharedDoc;
+  const sharedStateRef = useRef<any>(sharedState); sharedStateRef.current = sharedState;
   const viewOnlyRef = useRef(!!viewOnly); viewOnlyRef.current = !!viewOnly;
   const wrap = useRef<HTMLDivElement>(null);
   const host = useRef<HTMLDivElement>(null);
@@ -312,6 +314,8 @@ export const PineMainChart: React.FC<{
       try { const m = (w as any).topbar?.tfMenu; if (m && !m.__ppfxGuard) { m.__ppfxGuard = true; const orig = m.setItems.bind(m); let pend: any = null; m.setItems = (it: any) => { if (m.api?.open) { pend = it; return; } orig(it); }; const t = window.setInterval(() => { if (pend && !m.api?.open) { const x = pend; pend = null; orig(x); } }, 400); offGuard = () => window.clearInterval(t); } } catch { /* ignore */ }
       // TradingView's quick timeframe chips (1m 15m 30m 1h 4h D W) as favourites, unless the user already starred their own.
       try { const st: any = (w as any).getState?.(); if (st && !(st.timeframeFavorites || []).length ) { (w as any).applyState?.({ ...st, timeframeFavorites: TV_TIMEFRAMES }); } } catch { /* ignore */ }
+      // Shared link: bring in the sender's indicators, chart look and drawings (symbol / timeframe / data feed stay the viewer's own).
+      try { const ss = sharedStateRef.current; if (ss?.charts?.[0]) { const cur: any = (w as any).getState?.(); const c0 = cur?.charts?.[0]; if (c0) { const { symbol: _s, provider: _p, timeframe: _t, bars: _b, id: _i, ...rest } = ss.charts[0]; (w as any).applyState?.({ ...cur, charts: [{ ...c0, ...rest, id: c0.id, symbol: c0.symbol, provider: c0.provider, timeframe: c0.timeframe, bars: c0.bars }, ...cur.charts.slice(1)] }); } } } catch { /* the snapshot still shows everything */ }
       try { const tools = JSON.parse(localStorage.getItem(TOOLS_KEY) || 'null'); if (tools) chart.drawings?.setToolDefaults?.(tools); } catch { /* ignore */ }
       // Chart look (background colour, grid, candle colours, …) from Settings → Canvas, kept across pairs and visits.
       try { const cfg = JSON.parse(localStorage.getItem(LOOK_KEY) || 'null'); if (cfg) chart.renderer?.applyConfig?.(cfg); } catch { /* ignore */ }
@@ -540,7 +544,7 @@ export const PineMainChart: React.FC<{
         </>
       )}
       {ready && !viewOnly && (
-        <div className="absolute right-2 top-2 z-30"><ShareChartButton symbol={symbol} interval={interval} engine="pro" compact getDrawings={() => ws.current?.chart?.drawings?.toJSON?.()} /></div>
+        <div className="absolute right-2 top-2 z-30"><ShareChartButton symbol={symbol} interval={interval} engine="pro" compact capture={async () => { const w: any = ws.current; const st = w?.getState?.(); const c0 = st?.charts?.[0]; return { state: c0 ? { version: 1, layout: st.layout, charts: [c0] } : null, image: await proChartImage(w?.chart) }; }} /></div>
       )}
       {ready && viewOnly && <div className="pointer-events-none absolute bottom-1.5 right-20 z-20 rounded px-1.5 py-0.5 text-[10px] font-semibold text-cyan-300">Shared chart · view only</div>}
       {ready && !viewOnly && (

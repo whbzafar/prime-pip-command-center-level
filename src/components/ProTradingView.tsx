@@ -1,3 +1,4 @@
+import { screenCropImage } from '../utils/chartSnapshot';
 import { ShareChartButton } from './ShareChartButton';
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { PRICE_STANDARD } from '../config/pricing';
@@ -4303,7 +4304,7 @@ export const ProTradingView: React.FC<ProTradingViewProps> = ({
                 </button>
               )}
 
-              {chartEngine === 'tv' && <ShareChartButton symbol={tradingViewSymbol} interval={selectedInterval} engine="tv" />}
+              {chartEngine === 'tv' && <ShareChartButton symbol={tradingViewSymbol} interval={selectedInterval} engine="tv" capture={async () => ({ image: await screenCropImage(document.getElementById(containerId)) })} />}
               {/* CHART FEED — Pro chart (indicators, alerts, auto-save) or the raw TradingView feed */}
               <div className="flex items-center rounded-xl border border-slate-700 bg-slate-950 p-0.5 text-[11px] font-bold" role="group" aria-label="Chart feed">
                 <button type="button" onClick={() => setChartEngine('pro')} title="Pro chart: indicators & strategies on the chart, price alerts, countdown under the price, auto-saved drawings"

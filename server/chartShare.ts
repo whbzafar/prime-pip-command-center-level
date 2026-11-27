@@ -7,7 +7,7 @@ import { privateGet, privateSet, durableEnabled } from "./durableStore.js";
  * (symbol, timeframe, drawings/indicators document) and gets a short link anyone can open read-only.
  * Stored one key per chart in the durable private store (in-memory fallback when Redis is not connected).
  */
-const MAX_BYTES = 900_000;
+const MAX_BYTES = 2_500_000;
 const mem = new Map<string, string>();
 const ID = /^[A-Za-z0-9_-]{6,24}$/;
 
@@ -19,7 +19,8 @@ export function registerChartShareRoutes(app: Express, requireMember: RequestHan
       const interval = String(b.interval || "").slice(0, 12);
       const engine = b.engine === "tv" ? "tv" : "pro";
       if (!symbol) return res.status(400).json({ error: "Missing symbol" });
-      const doc = { v: 1, engine, symbol, interval, drawings: engine === "pro" ? (b.drawings ?? null) : null, title: String(b.title || "").slice(0, 80), at: Date.now() };
+      const image = typeof b.image === "string" && /^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/.test(b.image) && b.image.length < 1_800_000 ? b.image : null;
+      const doc = { v: 2, engine, symbol, interval, state: engine === "pro" ? (b.state ?? null) : null, image, title: String(b.title || "").slice(0, 80), at: Date.now() };
       const json = JSON.stringify(doc);
       if (json.length > MAX_BYTES) return res.status(413).json({ error: "This chart is too large to share" });
       const id = randomBytes(6).toString("base64url");
