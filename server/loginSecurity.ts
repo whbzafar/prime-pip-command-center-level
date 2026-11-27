@@ -12,7 +12,7 @@ import { lookupIp, maskIp, type Geo } from './geoip.js';
 export interface LoginEvent {
   id: string; at: string; userId: string; username: string; name: string; kind: 'login' | 'signup';
   ip: string; device: string; country: string; countryCode: string; region: string; city: string; lat: number | null; lon: number | null; isp: string; hosting: boolean;
-  flags: string[]; risk: number;
+  flags: string[]; risk: number; precise?: boolean;
 }
 export interface SecurityWarning { id: string; userId: string; username: string; at: string; reason: string; message: string; location: string; ack: boolean; ackAt?: string; forcedPasswordChange?: boolean }
 
@@ -79,10 +79,22 @@ export function summariseUsers(events: LoginEvent[], warnings: SecurityWarning[]
     for (const e of recent) { const k = placeOf(e); const p = places.get(k); places.set(k, { place: k, lat: e.lat, lon: e.lon, n: (p?.n || 0) + 1, last: p && p.last > e.at ? p.last : e.at }); }
     const countries = new Set(recent.map((e) => e.countryCode).filter((c) => c && c !== 'ZZ'));
     const ids = new Set(evs.map((e) => e.userId)); const w = warnings.filter((x) => ids.has(x.userId));
-    return { userId: evs[0].userId, username: evs[0].username, name: evs[0].name, lastAt: evs[0].at, lastPlace: placeOf(evs[0]), lastIp: evs[0].ip, lastLat: evs[0].lat, lastLon: evs[0].lon, lastIsp: evs[0].isp, lastCountry: evs[0].countryCode, lastHosting: evs[0].hosting, logins7d: recent.length, countries7d: countries.size, networks7d: new Set(recent.map((e) => e.ip)).size,
+    return { userId: evs[0].userId, username: evs[0].username, name: evs[0].name, lastAt: evs[0].at, lastPlace: placeOf(evs[0]), lastIp: evs[0].ip, lastLat: evs[0].lat, lastLon: evs[0].lon, lastIsp: evs[0].isp, lastCountry: evs[0].countryCode, lastHosting: evs[0].hosting, lastPrecise: !!evs[0].precise, logins7d: recent.length, countries7d: countries.size, networks7d: new Set(recent.map((e) => e.ip)).size,
       places: [...places.values()].sort((a, b) => b.n - a.n).slice(0, 8), flags, risk: Math.max(0, ...recent.map((e) => e.risk)), warnings: w.length, lastWarnedAt: w[0]?.at || null };
   }).sort((a, b) => b.lastAt.localeCompare(a.lastAt)); // newest sign-in first
 }
 
 export const listWarnings = async (): Promise<SecurityWarning[]> => ((await privateListGet('security_warnings')) as SecurityWarning[] | null) || [];
 export const publicIp = maskIp;
+
+/** Replaces the approximate IP place of this person's newest sign-in with the place their device reported (GPS / Wi-Fi). */
+export async function applyPreciseLocation(userId: string, p: { city: string; region: string; country: string; countryCode: string; lat: number; lon: number }): Promise<boolean> {
+  let done = false;
+  await privateListUpdate('login_geo', (list) => {
+    const arr = list as LoginEvent[]; const i = arr.findIndex((e) => e.userId === userId);
+    if (i < 0 || Date.now() - Date.parse(arr[i].at) > 12 * 3_600_000) return arr;
+    done = true; const e = arr[i]; const next = [...arr]; next[i] = { ...e, ...p, precise: true, hosting: false, flags: e.flags.filter((f) => f !== 'datacenter_vpn') };
+    return next;
+  });
+  return done;
+}

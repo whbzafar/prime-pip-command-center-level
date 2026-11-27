@@ -270,7 +270,7 @@ import { translateUrdu, urduSpeech, voiceStatus } from './server/voice.js';
 import { finishVideo } from './server/finish.js';
 import { registerPublishRoutes } from './server/publish.js';
 import { readBrain, saveBrand, logPerf, weeklyReport, weeklyPlan, qualityCheck, classifyComments, campaign as socialCampaign, readLibrary, addAsset, moveAsset, removeAsset, queueWeek, type AssetStatus } from './server/socialBrain.js';
-import { trackLogin, listEvents, listWarnings, summariseUsers, placeOf, FLAG_TEXT, type SecurityWarning } from './server/loginSecurity.js';
+import { trackLogin, applyPreciseLocation, listEvents, listWarnings, summariseUsers, placeOf, FLAG_TEXT, type SecurityWarning } from './server/loginSecurity.js';
 import { clientIp } from './server/geoip.js';
 import { resolvePin } from './server/pinResolve.js';
 import { stream as motivationStream, similar as motivationSimilar, trending as motivationTrending, prewarm as motivationPrewarm, classifyQuery, SUPPORT as MOTIVATION_SUPPORT } from './server/motivation.js';
@@ -4064,6 +4064,29 @@ app.post('/api/admin/social-brain/urdu', requireActiveMember, async (req, res) =
 });
 app.delete('/api/admin/social-agent/post/:id', requireDeveloper, (req, res) => { saDelete(req.params.id); res.json({ ok: true }); });
 setTimeout(() => { setInterval(() => void saTick(getGeminiClient()), 60_000); }, 30_000);
+
+// ---- Device-reported location (the browser asked the person first) ----
+const geoSeen = new Map<string, number>(); const revCache = new Map<string, { city: string; region: string; country: string; countryCode: string }>();
+app.post('/api/auth/precise-location', async (req, res) => {
+  try {
+    if (!getAuthToken(req)) return res.status(401).json({ ok: false });
+    const user = resolveRequestUser(req) || (await getCommunityUser(req)); if (!user) return res.status(401).json({ ok: false });
+    const lat = Number(req.body?.lat), lon = Number(req.body?.lon), acc = Number(req.body?.accuracy);
+    if (!Number.isFinite(lat) || !Number.isFinite(lon) || Math.abs(lat) > 90 || Math.abs(lon) > 180) return res.status(400).json({ ok: false, error: 'bad position' });
+    if (Number.isFinite(acc) && acc > 25_000) return res.json({ ok: false, error: 'position too rough' });
+    if (Date.now() - (geoSeen.get(user.id) || 0) < 60_000) return res.json({ ok: true, skipped: true }); geoSeen.set(user.id, Date.now());
+    const key = `${lat.toFixed(2)},${lon.toFixed(2)}`; let place = revCache.get(key);
+    if (!place) {
+      const r = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=12&accept-language=en&lat=${lat}&lon=${lon}`, { headers: { 'User-Agent': 'PrimePipFX-CommandCenter/1.0 (primepipfx.site)', Accept: 'application/json' }, signal: AbortSignal.timeout(6000) });
+      const j: any = await r.json(); const a = j?.address || {};
+      place = { city: a.city || a.town || a.village || a.municipality || a.suburb || a.county || a.state_district || '', region: a.state || a.region || '', country: a.country || '', countryCode: String(a.country_code || 'ZZ').toUpperCase() };
+      if (place.country) { revCache.set(key, place); if (revCache.size > 2000) revCache.delete(revCache.keys().next().value as string); }
+    }
+    if (!place.country) return res.json({ ok: false, error: 'place unavailable' });
+    const ok = await applyPreciseLocation(user.id, { ...place, lat, lon });
+    res.json({ ok, place: [place.city, place.region, place.country].filter(Boolean).join(', ') });
+  } catch { res.json({ ok: false }); }
+});
 
 // ---- Login security (admin) ----
 app.get('/api/admin/login-security', requireDeveloper, async (_req, res) => {

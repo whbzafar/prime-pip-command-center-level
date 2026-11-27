@@ -8,6 +8,7 @@ import { setOpenTrades } from './services/openPositions';
 import { DisciplineGuard, DisciplineToast, TraderDnaPanel } from './components/dna/TraderDnaPanel';
 import { startInsights, trackSection } from './utils/insights';
 import { trackState, type AnalyticsState } from './services/analyticsClient';
+import { sendPreciseLocation } from './utils/preciseLocation';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { Header } from './components/Header';
@@ -268,6 +269,7 @@ export default function App() {
 
   // Authentication State
   const [currentUser, setCurrentUser] = useState<UserAccount | null>(() => getCurrentUser());
+  useEffect(() => { if (!currentUser) return; const t = setTimeout(sendPreciseLocation, 5000); return () => clearTimeout(t); }, [currentUser]);
   useEffect(() => { if (activeTab === 'DASHBOARD' && shouldShowNewEra(currentUser)) { const t = setTimeout(() => setNewEraOpen(true), 700); return () => clearTimeout(t); } }, [activeTab, currentUser]);
 
   // Owner analytics: which screen is open, and what kind of visitor (guest / demo / subscriber). Declared before any early return.

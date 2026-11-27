@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { AlertTriangle, MapPin, RefreshCw, ShieldAlert, ShieldCheck, Send } from 'lucide-react';
 import { getStoredToken } from '../../utils/authClient';
 
-interface UserRow { userId: string; username: string; name: string; lastAt: string; lastPlace: string; lastIp: string; logins7d: number; countries7d: number; networks7d: number; places: { place: string; lat: number | null; lon: number | null; n: number; last: string }[]; flags: string[]; risk: number; warnings: number; lastWarnedAt: string | null; lastLat: number | null; lastLon: number | null; lastIsp: string; lastCountry: string; lastHosting: boolean; presence: 'active' | 'idle' | 'offline'; seenAt: number | null }
+interface UserRow { userId: string; username: string; name: string; lastAt: string; lastPlace: string; lastIp: string; logins7d: number; countries7d: number; networks7d: number; places: { place: string; lat: number | null; lon: number | null; n: number; last: string }[]; flags: string[]; risk: number; warnings: number; lastWarnedAt: string | null; lastLat: number | null; lastLon: number | null; lastIsp: string; lastCountry: string; lastHosting: boolean; lastPrecise?: boolean; presence: 'active' | 'idle' | 'offline'; seenAt: number | null }
 interface Ev { id: string; at: string; username: string; place: string; ip: string; device: string; isp: string; lat: number | null; lon: number | null; flags: string[]; risk: number; countryCode: string }
 interface Data { users: UserRow[]; events: Ev[]; flagText: Record<string, string>; stored: boolean }
 
@@ -81,7 +81,7 @@ export const LoginSecurityPanel: React.FC = () => {
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div><h3 className="flex items-center gap-2 text-lg font-bold text-white"><ShieldAlert className="h-5 w-5 text-cyan-400" />Login Security</h3>
-          <p className="text-xs text-slate-400">Where each account signs in from. Location comes from the IP address, so it shows where the ISP/mobile network is registered, often a hub city rather than the person's exact town. Mobile data, VPNs, proxies and browsers with a built-in VPN (e.g. Opera) can show a different city or country. Green = active now (using the app), grey = signed in but idle, dim = offline. Newest login first. Red = likely shared password.</p></div>
+          <p className="text-xs text-slate-400">Where each account signs in from. By default the place comes from the IP address, so it shows where the ISP/mobile network is registered, often a hub city rather than the person's exact town. When the person allows their browser's location, the exact town is used instead (marked 📍). Mobile data, VPNs, proxies and browsers with a built-in VPN (e.g. Opera) can show a different city or country. Green = active now (using the app), grey = signed in but idle, dim = offline. Newest login first. Red = likely shared password.</p></div>
         <button onClick={load} className="flex items-center gap-1.5 rounded-lg bg-slate-800 px-3 py-1.5 text-xs text-slate-200 hover:bg-slate-700"><RefreshCw className="h-3.5 w-3.5" />Refresh</button>
       </div>
       {err && <div className="rounded-lg border border-red-500/40 bg-red-500/10 p-3 text-xs text-red-300">{err}</div>}
@@ -96,7 +96,7 @@ export const LoginSecurityPanel: React.FC = () => {
               <button onClick={() => setSel(u.userId === sel ? null : u.userId)} className="text-left">
                 <div className="flex items-center gap-2"><span className="font-bold text-white">{u.name || u.username}</span><span className="text-xs text-slate-500">@{u.username}</span>
                   <span className={`rounded-full border px-2 py-0.5 text-[10px] font-bold ${presCls(u.presence)}`}>{u.presence === 'active' ? '● ' : ''}{presLabel(u.presence)}</span><span className={`rounded-full border px-2 py-0.5 text-[10px] font-bold ${riskCls(u.risk)}`}>{u.risk >= 50 ? 'HIGH RISK' : u.risk >= 15 ? 'CHECK' : 'NORMAL'} · {u.risk}</span></div>
-                <div className="mt-0.5 flex items-center gap-1 text-xs text-slate-300"><MapPin className="h-3 w-3 text-cyan-400" />Last: {u.lastPlace} · {when(u.lastAt)}</div>
+                <div className="mt-0.5 flex items-center gap-1 text-xs text-slate-300"><MapPin className="h-3 w-3 text-cyan-400" />Last: {u.lastPrecise ? '📍 ' : ''}{u.lastPlace} · {when(u.lastAt)}</div>
               </button>
               <button disabled={busy} onClick={() => warn(u)} className="flex items-center gap-1.5 rounded-lg bg-red-600/90 px-3 py-1.5 text-xs font-bold text-white hover:bg-red-500 disabled:opacity-50"><Send className="h-3.5 w-3.5" />Send warning{u.warnings ? ` (${u.warnings})` : ''}</button>
             </div>
