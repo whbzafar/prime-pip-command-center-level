@@ -4044,7 +4044,7 @@ app.post('/api/admin/social-brain/tts/test', requireDeveloper, async (_req, res)
   return res.json({ ok: !!audio, bytes: audio?.length || 0, ms: Date.now() - t0, trace, ...voiceStatus() });
 });
 registerPublishRoutes(app, requireDeveloper);
-app.post('/api/admin/social-brain/finish', requireDeveloper, express.raw({ type: () => true, limit: '150mb' }), async (req, res) => {
+app.post('/api/admin/social-brain/finish', requireDeveloper, express.raw({ type: () => true, limit: '25mb' }), async (req, res) => {
   const body = req.body as Buffer;
   if (!Buffer.isBuffer(body) || body.length < 1000) return res.status(400).json({ ok: false, error: 'No video received' });
   try {

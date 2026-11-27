@@ -13,7 +13,7 @@ export function metaFor(category: string, title: string): PlatformMeta[] {
   const bullets = (pack?.parts || []).map((p) => `• ${p[0]}: ${p[1]}`).join('\n');
   const tag = (extra: string[]) => [...new Set([...extra, ...BASE_TAGS])];
   const catTag = title.replace(/[^A-Za-z0-9]+/g, '');
-  const cta = `Bilkul free try karein: ${SITE}`;
+  const cta = `Link bio mein hai: ${SITE}`;
   const yt: PlatformMeta = { platform: 'youtube', title: `${hook} | ${title} (Urdu) #Shorts`.slice(0, 98),
     description: `${hook}\n\n${title} — PrimePipFX Command Center mein ye sab kuch milta hai:\n${bullets}\n\n${cta}\n\n${tag([catTag, 'Shorts']).map((t) => '#' + t).join(' ')}`, hashtags: tag([catTag, 'Shorts']) };
   const tt: PlatformMeta = { platform: 'tiktok', title: hook.slice(0, 90), description: `${hook} ${feats.slice(0, 3).join(' • ')} 👉 ${SITE} ${tag([catTag, 'fyp', 'foryou']).slice(0, 7).map((t) => '#' + t).join(' ')}`.slice(0, 2150), hashtags: tag([catTag, 'fyp', 'foryou']) };
@@ -34,7 +34,7 @@ export async function makeThumbnail(video: Blob, headline: string, atFraction = 
   const words = headline.toUpperCase().split(/\s+/); const lines: string[] = []; let cur = '';
   for (const w of words) { const t = (cur + ' ' + w).trim(); if (g.measureText(t).width > W * 0.88 && cur) { lines.push(cur); cur = w; } else cur = t; } if (cur) lines.push(cur);
   lines.slice(0, 4).forEach((ln, i) => { g.lineWidth = fs * 0.14; g.strokeStyle = '#000'; g.strokeText(ln, W / 2, H * 0.06 + i * fs * 1.08); g.fillStyle = i === lines.length - 1 || i === 3 ? '#FACC15' : '#fff'; g.fillText(ln, W / 2, H * 0.06 + i * fs * 1.08); });
-  g.font = `800 ${Math.round(fs * 0.5)}px Inter, Arial, sans-serif`; g.fillStyle = '#FACC15'; g.fillText('PRIMEPIPFX.SITE  •  FREE', W / 2, H * 0.92);
+  g.font = `800 ${Math.round(fs * 0.5)}px Inter, Arial, sans-serif`; g.fillStyle = '#FACC15'; g.fillText('PRIMEPIPFX.SITE  •  LINK IN BIO', W / 2, H * 0.92);
   URL.revokeObjectURL(url);
   return await new Promise<Blob>((res, rej) => c.toBlob((b) => (b ? res(b) : rej(new Error('thumbnail failed'))), 'image/jpeg', 0.92));
 }

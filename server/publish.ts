@@ -70,7 +70,7 @@ export function registerPublishRoutes(app: Express, requireDeveloper: RequestHan
     try { await privateListUpdate("social_publish_cfg", () => [clean]); res.json({ ok: true }); }
     catch { res.status(503).json({ ok: false, error: "Private storage is not available on the server yet" }); }
   });
-  app.post("/api/admin/social/stage", requireDeveloper, express.raw({ type: () => true, limit: "150mb" }), async (req, res) => {
+  app.post("/api/admin/social/stage", requireDeveloper, express.raw({ type: () => true, limit: "25mb" }), async (req, res) => {
     const body = req.body as Buffer; if (!Buffer.isBuffer(body) || body.length < 1000) return res.status(400).json({ ok: false, error: "No video received" });
     await sweep(); await mkdir(DIR, { recursive: true }); const ext = String(req.query.ext || "mp4") === "jpg" ? "jpg" : "mp4"; const id = randomUUID().replace(/-/g, ""); const path = join(DIR, `${id}.${ext}`); await writeFile(path, body); staged.set(id, { path, at: Date.now(), ext });
     const base = (process.env.PUBLIC_BASE_URL || `${req.headers["x-forwarded-proto"] || req.protocol}://${req.get("host")}`).replace(/\/$/, "");

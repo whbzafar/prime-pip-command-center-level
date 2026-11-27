@@ -33,7 +33,7 @@ const HOOKS = [
   'Inside the terminal: {T}.', 'What does {T} actually do? Let\'s look.', 'Tired of switching apps? {T} is right here.', 'Real tools for real traders: {T}.',
 ];
 const HEADS = ['{T}', 'Meet {T}', '{T} built in', 'Inside: {T}', 'Use {T} daily', 'Learn {T}', '{T}: see it live', 'Your {T}'];
-const CTAS = ['Try it at primepipfx.site', 'Open it free at primepipfx.site', 'See it live: primepipfx.site', 'Start at primepipfx.site'];
+const CTAS = ['Try it at primepipfx.site', 'Link in bio: primepipfx.site', 'See it live: primepipfx.site', 'Start at primepipfx.site'];
 const QUESTIONS = ['Which tool do you use the most?', 'What would you add next?', 'Which feature should we show next?', 'Are you using this yet?'];
 export const DISCLAIMER = 'Educational content, not financial advice. Trading carries risk.';
 const BANNED = /\b(guaranteed|guarantee|get rich|risk[- ]free|100% win|sure profit|double your)\b/i;

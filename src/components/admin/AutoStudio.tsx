@@ -5,7 +5,7 @@ import { Camera, Copy, Download, Film, Package, RefreshCw, Save, Shuffle, Sparkl
 import JSZip from 'jszip';
 import { FORMATS, Layout, THEMES, VisualFormat, download, fileToImage, renderVariant, toBlob } from '../../utils/postVisuals';
 import { captureTopics, shotStore } from '../../utils/agentCapture';
-import { VIDEO_FORMATS, recordTour, recordTours, testServerVoice, streamTours, tourStore, type AudioMode, type StreamItem, type TourScript, type VideoFormatId } from "../../utils/tour";
+import { VIDEO_FORMATS, recordTour, recordSeries, recordTours, testServerVoice, streamTours, tourStore, type AudioMode, type StreamItem, type TourScript, type VideoFormatId } from "../../utils/tour";
 import { PACKS } from '../../data/urduPack';
 import { dailyPlan, dayKey } from '../../utils/dailyPlan';
 import { getStoredToken } from '../../utils/authClient';
@@ -186,6 +186,16 @@ export const AutoStudio: React.FC = () => {
     } catch (e: any) { flash(String(e?.message || e)); } finally { setBusy(false); setStep(''); bump((n) => n + 1); }
   };
 
+  const makeSeries = async () => {
+    setBusy(true); streamStop.current.stop = false;
+    try {
+      setStep('In the pop-up choose “This tab” and click Share once. The agent then records every sub-category of this section as its own video, and each is posted as soon as it is ready.');
+      const n = await recordSeries({ tab: topic.tab, title: topic.title, theme, features: topic.features, script: async () => scriptFor(topic, ai, seed, hi), voice, audio, secondsPerPart: perPart, voiceLang: lang === 'roman-urdu' ? 'ur' : 'en', format: videoFmt, stop: streamStop.current, onStatus: (m) => setStep(m),
+        onVideo: (blob, meta) => { const fv = { blob, category: topic.id, title: `${topic.title} — ${meta.label}`, headline: `${topic.title}: ${meta.label}`, at: Date.now() }; tourStore.finished = fv; setFinished(fv); } });
+      flash(`Series finished: ${n} video${n === 1 ? '' : 's'} recorded.`);
+    } catch (e: any) { flash(String(e?.message || e)); } finally { setBusy(false); setStep(''); bump((x) => x + 1); }
+  };
+
   /** Everything for every topic, in one zip: per topic and platform, N image variations + ready text (+ a video per topic if ticked). */
   const buildPack = async () => {
     setBusy(true);
@@ -256,6 +266,7 @@ export const AutoStudio: React.FC = () => {
             <button type="button" onClick={() => regenerate(false)} className={`${btn} bg-slate-700/70 text-slate-100`}><Shuffle className="h-4 w-4" />Surprise me (random topic)</button>
             <label className={`${btn} cursor-pointer bg-slate-700/70 text-slate-100`}><Upload className="h-4 w-4" />Upload screenshot for this topic<input type="file" accept="image/*" className="hidden" onChange={(e) => { void upload(e.target.files?.[0]); e.target.value = ''; }} /></label>
             <button type="button" onClick={() => void makeVideo()} disabled={busy} className={`${btn} bg-rose-500/30 text-rose-100`} data-testid="make-video"><Film className="h-4 w-4" />Record live tour video</button>
+            <button type="button" onClick={() => void makeSeries()} disabled={busy} className={`${btn} bg-amber-500/30 text-amber-100`} data-testid="make-series" title="One video for every sub-category of this section, each posted automatically"><Film className="h-4 w-4" />Record the full series (every sub-category)</button>
           </div>
           <div className="flex flex-wrap items-center gap-3 rounded-xl border border-violet-400/30 bg-violet-500/10 p-2 text-[12px] text-slate-200">
             <button type="button" onClick={() => void writeAI()} disabled={busy} className={`${btn} bg-violet-500 text-white`} data-testid="write-ai"><Sparkles className="h-4 w-4" />Write script + post with AI</button>

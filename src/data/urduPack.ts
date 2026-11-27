@@ -4,7 +4,7 @@ export type PackLine = [title: string, roman: string, urdu: string, match?: RegE
 export interface CategoryPack { hook: [roman: string, urdu: string]; parts: PackLine[] }
 
 export const OVERVIEW_LINE: [string, string] = ['Aaiye dekhte hain, is section mein aap ko kya kya milta hai.', 'آئیے دیکھتے ہیں، اس سیکشن میں آپ کو کیا کیا ملتا ہے۔'];
-export const OUTRO_LINE: [string, string] = ['Bilkul free try karein. primepipfx.site, link bio mein hai.', 'بالکل مفت آزمائیں۔ پرائم پپ ایف ایکس ڈاٹ سائٹ، لنک بائیو میں ہے۔'];
+export const OUTRO_LINE: [string, string] = ['Poora platform dekhne ke liye, link bio mein hai.', 'پورا پلیٹ فارم دیکھنے کے لیے، لنک بائیو میں ہے۔'];
 
 const P = (t: string, r: string, u: string, m?: RegExp): PackLine => [t, r, u, m];
 
@@ -74,7 +74,7 @@ export const PACKS: Record<string, CategoryPack> = {
     P('Real Time Feed', 'Signal jari hote hi students ko foran mil jata hai.', 'سگنل جاری ہوتے ہی اسٹوڈنٹس کو فوراً مل جاتا ہے۔', /Real-Time Student Feed|NO ACTIVE SIGNALS/),
     P('Reports and Outcomes', 'Har signal ka nateeja, reports mein mehfooz.', 'ہر سگنل کا نتیجہ، رپورٹس میں محفوظ۔', /REPORTS & OUTCOMES/),
     P('Announcements', 'Zaroori elaanat bhi isi hub mein.', 'ضروری اعلانات بھی اسی ہب میں۔', /ANNOUNCEMENTS/)] },
-  PRO_TRADING: { hook: ['Professional charts, bilkul free app ke andar.', 'پروفیشنل چارٹس، بالکل فری ایپ کے اندر۔'], parts: [
+  PRO_TRADING: { hook: ['Professional charts, seedha app ke andar.', 'پروفیشنل چارٹس، سیدھا ایپ کے اندر۔'], parts: [
     P('Live Fundamental Bias', 'Pair par click karein, uska chart khul jata hai.', 'پیئر پر کلک کریں، اس کا چارٹ کھل جاتا ہے۔', /FUNDAMENTAL BIAS/),
     P('All Markets', 'Athaais forex pairs, indices, metals, stocks aur crypto.', 'اٹھائیس فاریکس پیئرز، انڈیسز، میٹلز، اسٹاکس اور کرپٹو۔', /CATEGORIES|Forex \(28/),
     P('Choose Your Broker Feed', 'Apne broker ka feed chunein, FXCM se OANDA tak.', 'اپنے بروکر کا فیڈ چنیں، ایف ایکس سی ایم سے اوانڈا تک۔', /Broker|FXCM|OANDA/),
@@ -217,8 +217,8 @@ export const OVERVIEW_VARIANTS: [string, string][] = [
 ];
 export const OUTRO_VARIANTS: [string, string][] = [
   OUTRO_LINE,
-  ['Ye sab bilkul free hai. primepipfx.site kholiye, link bio mein hai. Follow zaroor karein.', 'یہ سب بالکل مفت ہے۔ پرائم پپ ایف ایکس ڈاٹ سائٹ کھولیے، لنک بائیو میں ہے۔ فالو ضرور کریں۔'],
+  ['Ye sab ek hi jagah milta hai. Link bio mein hai. Follow zaroor karein.', 'یہ سب ایک ہی جگہ ملتا ہے۔ لنک بائیو میں ہے۔ فالو ضرور کریں۔'],
   ['Pasand aaye to comment mein batayein, aur primepipfx.site abhi try karein.', 'پسند آئے تو کمنٹ میں بتائیں، اور پرائم پپ ایف ایکس ڈاٹ سائٹ ابھی آزمائیں۔'],
-  ['Apne trader dost ko ye zaroor bhejein. Link bio mein hai, bilkul free.', 'اپنے ٹریڈر دوست کو یہ ضرور بھیجیں۔ لنک بائیو میں ہے، بالکل مفت۔'],
+  ['Apne trader dost ko ye zaroor bhejein. Link bio mein hai.', 'اپنے ٹریڈر دوست کو یہ ضرور بھیجیں۔ لنک بائیو میں ہے۔'],
 ];
 export const MUSIC_BPM = [102, 96, 108, 100, 112, 98];

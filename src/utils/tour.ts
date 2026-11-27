@@ -1,7 +1,7 @@
 import { FONT, fitText, rr, THEMES } from './postVisuals';
 import { go, grab, lockedNotice, openScreen, shotStore, sleep, SLOW, waitCalm } from './agentCapture';
 import { getStoredToken } from './authClient';
-import { type Beat, type Box, bringIntoView, discoverBeats, discoverTabBeats, findByText, findScroller, fitCrop, fullCrop, panCrop, scrollToTop, toVideo } from './sectionDirector';
+import { type Beat, type Box, bringIntoView, describePart, discoverBeats, discoverTabBeats, findByText, primaryTabs, setSkipTablist, findScroller, fitCrop, fullCrop, panCrop, scrollToTop, toVideo } from './sectionDirector';
 import { startLiveCaptions, toSrt, type LiveCaptions } from './liveCaptions';
 import { loadClipBuffer } from './voiceClips';
 import { HOOK_OPENERS, MUSIC_BPM, OUTRO_VARIANTS, OVERVIEW_VARIANTS, PACKS } from '../data/urduPack';
@@ -9,6 +9,7 @@ import { HOOK_OPENERS, MUSIC_BPM, OUTRO_VARIANTS, OVERVIEW_VARIANTS, PACKS } fro
 /** How many videos have been made for this category (kept in this browser): drives a different hook, order, outro, look and music each time. */
 function nextTake(tab: string): number { try { const k = `pp_take_${tab}`; const n = Number(localStorage.getItem(k) || '0'); localStorage.setItem(k, String(n + 1)); return n; } catch { return Math.floor(Math.random() * 50); } }
 import { stageVideo } from './publishClient';
+import { noFree } from './noFree';
 import { chunkCaption, pickFeature, planTimeline, titleCase, type Item } from './timeline';
 
 /* Live tour video. The director reads the real section (every heading, card and safe inner tab, top to bottom),
@@ -29,9 +30,11 @@ export interface TourOpts {
   finish?: boolean;
   /** Every feature of the category; shown as an overview card and used for the narration. */
   features?: string[];
+  /** One video about one sub-category (inner tab) of the section, e.g. “CFTC COT Report” inside Fundamentals. */
+  sub?: { label: string; index: number; total: number };
   format?: VideoFormatId; voiceLang?: 'ur' | 'en'; returnTab?: string; onProgress?: (p: number, label: string) => void;
 }
-export const tourStore: { videos: Record<string, { blob: Blob; title: string; at: number }>; running: boolean; lastSrt: string; finished: { blob: Blob; category: string; title: string; headline: string; at: number } | null; handled: Set<number> } = { videos: {}, running: false, lastSrt: '', finished: null, handled: new Set() };
+export const tourStore: { videos: Record<string, { blob: Blob; title: string; at: number }>; running: boolean; lastSrt: string; finished: { blob: Blob; category: string; title: string; headline: string; at: number } | null; handled: Set<number>; uploading?: boolean } = { videos: {}, running: false, lastSrt: '', finished: null, handled: new Set() };
 /** After the tour returns to the admin page, reopen the Social Agent tab so the studio (and the publish panel) is on screen again. */
 export function reopenStudio() { let n = 0; const t = window.setInterval(() => { const el = document.querySelector('[data-testid="admin-tab-social-agent"]') as HTMLElement | null; if (el) { el.click(); window.clearInterval(t); } else if (++n > 40) window.clearInterval(t); }, 250); }
 
@@ -182,13 +185,17 @@ export async function recordTour(o: TourOpts, shared?: { video: HTMLVideoElement
     go(o.tab); await sleep(1500); window.scrollTo(0, 0); const calm = await waitCalm(v, SLOW[o.tab] || 6500);
     if (lockedNotice()) throw new Error(`“${o.title}” is locked for this account, so it cannot be recorded.`);
     if (!calm) await sleep(1500);
+    if (o.sub) {
+      const pt = primaryTabs(); const tb = pt?.tabs.find((x) => x.label === o.sub!.label); if (!pt || !tb) throw new Error(`Could not find “${o.sub.label}” inside ${o.title}.`);
+      setSkipTablist(pt.list); try { tb.el.click(); } catch { /* handled below */ } await sleep(1600); await waitCalm(v, SLOW[o.tab] || 6500); await sleep(800); window.scrollTo(0, 0);
+    }
     // every recording also leaves a real screenshot of this section for the image posts
     try { if (v.videoWidth) shotStore.shots[o.tab] = { img: await grab(v), label: o.title, tab: o.tab, at: Date.now() }; } catch { /* optional */ }
     try { await (document as any).fonts?.load?.(`700 40px "Noto Nastaliq Urdu"`); } catch { /* font optional */ }
 
     // 1. read the section: what is actually on this screen, top to bottom
     const scroller = findScroller();
-    const beats = discoverBeats(scroller, o.title, 9);
+    const beats = discoverBeats(scroller, o.sub?.label || o.title, o.sub ? 11 : 9);
     o.onProgress?.(0, `Found ${beats.length} parts in ${o.title}`);
 
     // 2. build the edit: intro, one shot per real part, outro
@@ -210,7 +217,7 @@ export async function recordTour(o: TourOpts, shared?: { video: HTMLVideoElement
       // what is said about each real part: its name plus the best matching feature of the category
       const used = new Set<number>();
       const src: { kind: Kind; headline: string; label: string; en: string; urdu?: string; rm?: string; beat?: Beat; feats?: string[] }[] = [];
-      const pack = useUrdu ? PACKS[o.tab] : undefined;
+      const pack = !o.sub && useUrdu ? PACKS[o.tab] : undefined;
       if (pack) {
         const opener = HOOK_OPENERS[take % HOOK_OPENERS.length]; const ov = OVERVIEW_VARIANTS[take % OVERVIEW_VARIANTS.length]; const ou = OUTRO_VARIANTS[take % OUTRO_VARIANTS.length];
         // hand-written Urdu for this category: voice speaks Urdu script, viewers read Roman Urdu captions
@@ -223,6 +230,13 @@ export async function recordTour(o: TourOpts, shared?: { video: HTMLVideoElement
         const shownTabs = new Set(src.filter((x) => x.beat?.click).map((x) => x.label.toLowerCase())); const TAB_LINES: [string, string][] = [['Now the next sub-section: ', 'اب اگلا سب سیکشن دیکھیں۔'], ['Also inside: ', 'اس کے اندر یہ بھی موجود ہے۔'], ['Next up: ', 'اور یہ بھی دیکھیے۔']];
         discoverTabBeats(8).forEach((tb, i) => { if (shownTabs.has(tb.label.toLowerCase())) return; const tl = TAB_LINES[(i + take) % TAB_LINES.length]; src.push({ kind: 'part', headline: tb.label, label: tb.label, en: `${tl[0]}${tb.label}.`, rm: `${tl[0]}${tb.label}.`, urdu: tl[1], beat: tb }); });
         src.push({ kind: 'outro', headline: o.script.cta, label: 'primepipfx.site', en: ou[0], rm: ou[0], urdu: ou[1] });
+      } else if (o.sub) {
+        // one video per sub-category: each real part and each inner view of it is shown and described from what is on the screen
+        const S = o.sub; const HK = [`Part ${S.index} of ${S.total}: everything inside ${S.label}.`, `${S.label}, explained from top to bottom. Part ${S.index} of ${S.total}.`, `Let us go through ${S.label}, one function at a time. Part ${S.index} of ${S.total}.`];
+        const HU = [`اس ویڈیو میں ہم ${o.title} کے حصے ${S.label} کو شروع سے آخر تک دیکھیں گے۔`, `${S.label}، ایک ایک فنکشن کے ساتھ، مکمل تفصیل سے۔`, `آئیے ${o.title} کے اندر ${S.label} کو قدم بہ قدم سمجھتے ہیں۔`];
+        src.push({ kind: 'intro', headline: `${o.title} · ${S.label}`, label: o.title, en: HK[take % HK.length], rm: HK[take % HK.length], urdu: HU[take % HU.length] });
+        const NOW = ['Next, ', 'Now ', 'Then ']; beats.forEach((bt, i) => { const d = describePart(bt.el, bt.label); const lead = bt.click ? `${NOW[(i + take) % NOW.length]}the ${bt.label} view. ` : `${titleCase(bt.label)}. `; src.push({ kind: 'part', headline: bt.label, label: bt.label, en: `${lead}${d}`.trim(), beat: bt }); });
+        const ou = OUTRO_VARIANTS[take % OUTRO_VARIANTS.length]; src.push({ kind: 'outro', headline: o.script.cta, label: 'primepipfx.site', en: ou[0], rm: ou[0], urdu: ou[1] });
       } else {
       src.push({ kind: 'intro', headline: o.script.hook, label: o.title, en: o.script.hook, urdu: o.script.hookUrdu });
       if (feats.length) src.push({ kind: 'overview', headline: `Inside ${o.title}`, label: o.title, en: `Here is everything inside ${o.title}: ${feats.length} tools, all in one place.`, feats });
@@ -232,6 +246,9 @@ export async function recordTour(o: TourOpts, shared?: { video: HTMLVideoElement
       });
       src.push({ kind: 'outro', headline: o.script.cta, label: 'primepipfx.site', en: o.script.cta, urdu: o.script.ctaUrdu });
       }
+      // the offer is never described as free or at no cost; viewers are sent to the link in the bio instead
+      const nofree = noFree;
+      src.forEach((x) => { x.en = nofree(x.en); if (x.rm) x.rm = nofree(x.rm); if (x.urdu) x.urdu = nofree(x.urdu); if (x.feats) x.feats = x.feats.map((f) => nofree(f)); });
       let urdu: string[] = src.map((x) => x.urdu || '');
       if (useUrdu) {
         o.onProgress?.(0, 'Writing the Urdu narration');
@@ -448,7 +465,7 @@ export async function recordTour(o: TourOpts, shared?: { video: HTMLVideoElement
           const pa = easeBack((since - 0.25) / 0.5); if (pa > 0) {
             const cx = BOX.x + BOX.w / 2; const cy = BOX.y + BOX.h / 2; ctx.save(); ctx.translate(cx, cy); ctx.scale(pa, pa);
             ctx.font = `900 ${84 * U}px ${FONT}`; const site = 'primepipfx.site'; const sw = ctx.measureText(site).width; const gg = ctx.createLinearGradient(-sw / 2, 0, sw / 2, 0); gg.addColorStop(0, th.a); gg.addColorStop(1, th.b); ctx.fillStyle = gg; ctx.textBaseline = 'middle'; ctx.fillText(site, -sw / 2, 0);
-            ctx.font = `700 ${34 * U}px ${FONT}`; ctx.fillStyle = '#fff'; const sub = 'Link in bio · Free to try'; ctx.fillText(sub, -ctx.measureText(sub).width / 2, 80 * U); ctx.font = `800 ${36 * U}px ${FONT}`; ctx.fillStyle = th.a; const ask = mode === 'ai' && lang === 'ur' ? 'Comment mein likhein: kaun sa feature pasand aaya?' : 'Comment: which feature do you want next?'; ctx.fillText(ask, -ctx.measureText(ask).width / 2, 150 * U); ctx.font = `700 ${30 * U}px ${FONT}`; ctx.fillStyle = '#fff'; const fol = mode === 'ai' && lang === 'ur' ? 'Follow karein, roz naya feature' : 'Follow for a new feature every day'; ctx.fillText(fol, -ctx.measureText(fol).width / 2, 205 * U); ctx.restore(); ctx.textBaseline = 'top';
+            ctx.font = `700 ${34 * U}px ${FONT}`; ctx.fillStyle = '#fff'; const sub = 'Link in bio'; ctx.fillText(sub, -ctx.measureText(sub).width / 2, 80 * U); ctx.font = `800 ${36 * U}px ${FONT}`; ctx.fillStyle = th.a; const ask = mode === 'ai' && lang === 'ur' ? 'Comment mein likhein: kaun sa feature pasand aaya?' : 'Comment: which feature do you want next?'; ctx.fillText(ask, -ctx.measureText(ask).width / 2, 150 * U); ctx.font = `700 ${30 * U}px ${FONT}`; ctx.fillStyle = '#fff'; const fol = mode === 'ai' && lang === 'ur' ? 'Follow karein, roz naya feature' : 'Follow for a new feature every day'; ctx.fillText(fol, -ctx.measureText(fol).width / 2, 205 * U); ctx.restore(); ctx.textBaseline = 'top';
           }
         }
 
@@ -471,7 +488,7 @@ export async function recordTour(o: TourOpts, shared?: { video: HTMLVideoElement
     if (mode === 'ai' && silent) o.onProgress?.(1, `${silent} line(s) had no Urdu voice: those use captions only`);
     return blob;
   } finally {
-    captions?.stop(); mic?.getTracks().forEach((t) => t.stop());
+    captions?.stop(); mic?.getTracks().forEach((t) => t.stop()); setSkipTablist(null);
     tourStore.running = false; window.scrollTo(0, 0);
     if (own) { own.stream.getTracks().forEach((t) => t.stop()); go(o.returnTab || 'ADMIN'); if ((o.returnTab || 'ADMIN') === 'ADMIN') reopenStudio(); }
   }
@@ -504,6 +521,34 @@ export async function streamTours(items: StreamItem[], opts: StreamOpts): Promis
   } finally { scr.stream.getTracks().forEach((t) => t.stop()); go('ADMIN'); }
 }
 
+export interface SeriesOpts { tab: string; title: string; theme: number; features?: string[]; script: () => Promise<TourScript>; voice: boolean; audio?: AudioMode; secondsPerPart?: number; voiceLang: 'ur' | 'en'; format?: VideoFormatId; stop: { stop: boolean }; onVideo: (blob: Blob, meta: { label: string; index: number; total: number }) => void | Promise<void>; onStatus: (s: string) => void }
+/** The sub-categories (main tab row) of a category, read from the live screen. Empty when the category has none. */
+export async function listSubTabs(tab: string): Promise<{ label: string; hint: string }[]> {
+  go(tab); await sleep(2500); for (let i = 0; i < 8 && !primaryTabs(); i++) await sleep(700);
+  const pt = primaryTabs(); return pt ? pt.tabs.map((t) => ({ label: t.label, hint: t.hint })) : [];
+}
+/** One permission click, then one finished video for every sub-category of the category. Each is handed over as soon as it is ready. */
+export async function recordSeries(o: SeriesOpts): Promise<number> {
+  o.onStatus(`Reading the sub-categories of ${o.title}…`); const subs = await listSubTabs(o.tab);
+  if (!subs.length) { o.onStatus(`${o.title} has no sub-categories: recording it as one video`); const blob = await recordTour({ tab: o.tab, title: o.title, script: await o.script(), theme: o.theme, voice: o.voice, audio: o.audio, secondsPerPart: o.secondsPerPart, features: o.features, voiceLang: o.voiceLang, format: o.format, onProgress: (_p, l) => l && o.onStatus(l) }); await o.onVideo(blob, { label: o.title, index: 1, total: 1 }); return 1; }
+  const scr = await openScreen(); let made = 0;
+  try {
+    for (let i = 0; i < subs.length && !o.stop.stop; i++) {
+      const label = subs[i].label; o.onStatus(`(${i + 1}/${subs.length}) Recording ${label}…`);
+      try {
+        const blob = await recordTour({ tab: o.tab, title: o.title, script: await o.script(), theme: (o.theme + i) % THEMES.length, voice: o.voice, audio: o.audio, secondsPerPart: o.secondsPerPart, features: o.features, voiceLang: o.voiceLang, format: o.format, sub: { label, index: i + 1, total: subs.length }, onProgress: (_p, l) => l && o.onStatus(`(${i + 1}/${subs.length}) ${label}: ${l}`) }, scr);
+        await o.onVideo(blob, { label, index: i + 1, total: subs.length }); made++;
+        // the next recording waits until this one has been uploaded, so recording and uploading never compete for the computer
+        await sleep(2500); for (let k = 0; k < 200 && tourStore.uploading; k++) await sleep(3000);
+      } catch (e: any) { o.onStatus(`Skipped ${label}: ${String(e?.message || e)}`); }
+    }
+  } finally { scr.stream.getTracks().forEach((t) => t.stop()); go('ADMIN'); reopenStudio(); }
+  return made;
+}
+
 /** Read-only helper: names of the parts the director finds on the screen that is open now (used to check narration coverage). */
 if (typeof window !== 'undefined') (window as any).__ppParts = (title: string) => { try { return discoverBeats(findScroller(), title, 9).map((b) => b.label); } catch { return []; } };
 (window as any).__ppFind = (src: string) => { try { const b = findByText(new RegExp(src, 'i')); if (!b) return null; const r = b.el.getBoundingClientRect(); return { label: b.label, tag: b.el.tagName, x: Math.round(r.x), y: Math.round(r.y), w: Math.round(r.width), h: Math.round(r.height), cls: String(b.el.className).slice(0, 70) }; } catch (e) { return String(e); } };
+
+(window as any).__ppSubs = () => { const p = primaryTabs(); return p ? p.tabs.map((t) => ({ label: t.label, hint: t.hint })) : []; };
+(window as any).__ppDescribe = () => { try { return discoverBeats(findScroller(), 'x', 11).map((b) => ({ label: b.label, click: !!b.click, say: describePart(b.el, b.label) })); } catch (e) { return String(e); } };
