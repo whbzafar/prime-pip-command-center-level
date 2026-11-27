@@ -1,3 +1,4 @@
+import { PartnersAdmin, HelpInboxAdmin } from './PartnersHelpAdmin';
 import React, { useState, useEffect } from 'react';
 import { HubInsightsPanel } from './admin/HubInsightsPanel';
 import {
@@ -53,7 +54,7 @@ interface DeveloperAdminPanelProps {
 export const DeveloperAdminPanel: React.FC<DeveloperAdminPanelProps> = ({ currentUser, onClose, onUserUpdated }) => {
   const isAuthorized = isUserAdmin(currentUser);
 
-  const [activeTab, setActiveTab] = useState<'MEMBERS' | 'HUB' | 'CUSTOMERS' | 'CREATE' | 'APPOINTMENTS' | 'MODERATION' | 'REFERRALS' | 'ANALYTICS' | 'LOGIN_SECURITY' | 'SOCIAL_AGENT' | 'POPUP_PREVIEW' | 'DEVELOPER_SECURITY' | 'EVOLUTION'>('MEMBERS');
+  const [activeTab, setActiveTab] = useState<'MEMBERS' | 'HUB' | 'CUSTOMERS' | 'CREATE' | 'APPOINTMENTS' | 'MODERATION' | 'REFERRALS' | 'ANALYTICS' | 'LOGIN_SECURITY' | 'SOCIAL_AGENT' | 'POPUP_PREVIEW' | 'DEVELOPER_SECURITY' | 'EVOLUTION' | 'PARTNERS' | 'HELP_INBOX'>('MEMBERS');
   const [customers, setCustomers] = useState<UserAccount[]>([]);
   const [referrals, setReferrals] = useState<ReferralRecord[]>([]);
   const [appointments, setAppointments] = useState<AppointmentRecord[]>([]);
@@ -726,6 +727,8 @@ export const DeveloperAdminPanel: React.FC<DeveloperAdminPanelProps> = ({ curren
           MODERATION LOGS ({moderationWarnings.length})
         </button>
 
+        <button onClick={() => setActiveTab('PARTNERS')} data-testid="admin-tab-partners" className={`pb-3 px-3 font-bold uppercase tracking-wider transition-colors border-b-2 flex items-center gap-1.5 shrink-0 ${activeTab === 'PARTNERS' ? 'border-emerald-300 text-emerald-200' : 'border-transparent text-slate-400 hover:text-slate-200'}`}>PARTNERS</button>
+        <button onClick={() => setActiveTab('HELP_INBOX')} data-testid="admin-tab-help" className={`pb-3 px-3 font-bold uppercase tracking-wider transition-colors border-b-2 flex items-center gap-1.5 shrink-0 ${activeTab === 'HELP_INBOX' ? 'border-cyan-300 text-cyan-200' : 'border-transparent text-slate-400 hover:text-slate-200'}`}>HELP INBOX</button>
         <button
           onClick={() => setActiveTab('SOCIAL_AGENT')}
           data-testid="admin-tab-social-agent"
@@ -813,6 +816,8 @@ export const DeveloperAdminPanel: React.FC<DeveloperAdminPanelProps> = ({ curren
       {/* TAB 1: CUSTOMERS TABLE */}
       {activeTab === 'MEMBERS' && <MembersPanel />}
       {activeTab === 'HUB' && <HubInsightsPanel />}
+      {activeTab === 'PARTNERS' && <PartnersAdmin />}
+      {activeTab === 'HELP_INBOX' && <HelpInboxAdmin />}
 
       {activeTab === 'CUSTOMERS' && (
         <div className="bg-slate-950/80 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-4">

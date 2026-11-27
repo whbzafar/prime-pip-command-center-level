@@ -188,6 +188,7 @@ export async function apiRegister(username: string, password: string): Promise<{
     if (res.ok && data?.ok && data.user) {
       setStoredUser(data.user);
       if (data.token) setStoredToken(data.token);
+      try { const pc = localStorage.getItem('ppfx_partner_ref'); if (pc) { fetch('/api/public/partner/lead', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code: pc, buyer: username.trim(), contact: String((data.user as any)?.email || '') }) }).catch(() => {}); localStorage.removeItem('ppfx_partner_ref'); } } catch { /* optional */ }
       return { ok: true, user: data.user, token: data.token };
     }
     return { ok: false, error: data?.error || 'Could not create the account. Please try again.' };

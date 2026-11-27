@@ -31,6 +31,7 @@ if (typeof window !== 'undefined') {
   );
 }
 
+try { const pc = new URLSearchParams(location.search).get('partner'); if (pc && /^P[A-Z0-9]{7}$/i.test(pc) && !localStorage.getItem('ppfx_partner_ref')) localStorage.setItem('ppfx_partner_ref', pc.toUpperCase()); } catch { /* storage blocked */ }
 startGovernor();
 import('./utils/cursorLight').then((m) => m.applyCursorLight()).catch(() => undefined);
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', startNetBar); else startNetBar();

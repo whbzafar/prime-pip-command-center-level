@@ -1,5 +1,6 @@
 // Vercel deployment sync marker: keep Git-connected production on the latest main commit.
 import { registerChartShareRoutes } from "./server/chartShare.js";
+import { registerPartnerRoutes } from "./server/partners.js";
 import { clearArchiveCache } from './server/history/archive.js';
 import { clearHistoryCache } from './server/history/historyService.js';
 import { clearPineCaches } from './server/pine/pineRunner.js';
@@ -4046,6 +4047,7 @@ app.post('/api/admin/social-brain/tts/test', requireDeveloper, async (_req, res)
 });
 registerPublishRoutes(app, requireDeveloper, requireActiveMember);
 registerChartShareRoutes(app, requireActiveMember);
+registerPartnerRoutes(app, requireDeveloper);
 app.post('/api/admin/social-brain/finish', requireDeveloper, express.raw({ type: () => true, limit: '25mb' }), async (req, res) => {
   const body = req.body as Buffer;
   if (!Buffer.isBuffer(body) || body.length < 1000) return res.status(400).json({ ok: false, error: 'No video received' });

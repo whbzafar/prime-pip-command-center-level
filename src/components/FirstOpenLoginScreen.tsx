@@ -1,3 +1,4 @@
+import { LoginHelpLinks } from './LoginHelpLinks';
 import React, { useState, useEffect, useRef } from 'react';
 import { PRICE_STANDARD, PRICE_WITH_CODE } from '../config/pricing';
 import { motion, AnimatePresence } from 'motion/react';
@@ -811,6 +812,7 @@ export const FirstOpenLoginScreen: React.FC<FirstOpenLoginScreenProps> = ({
 
             {/* Step 1: Sign In Form Matching Image 2 */}
             {step === 'LOGIN' ? (
+              <>
               <form onSubmit={handleLoginSubmit} className="space-y-4 relative z-10">
                 <div className="grid grid-cols-2 gap-1 p-1 rounded-xl bg-slate-900/90 border border-slate-700/80" role="tablist">
                   {([['signin', 'Sign in'], ['signup', 'Create account']] as const).map(([m, l]) => (
@@ -930,6 +932,8 @@ export const FirstOpenLoginScreen: React.FC<FirstOpenLoginScreenProps> = ({
                   Create a free account for 30 minutes of full access. A subscription (${PRICE_STANDARD}, or ${PRICE_WITH_CODE} with a code) unlocks everything permanently.
                 </p>
               </form>
+              <LoginHelpLinks />
+              </>
             ) : step === 'LINK_STORAGE' ? (
               /* Step: Initial Login Google Drive Cloud Linking */
               <div className="space-y-4 relative z-10">
