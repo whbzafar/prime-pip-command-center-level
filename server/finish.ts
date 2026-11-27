@@ -19,7 +19,7 @@ export function freeMemoryMb(): number | null {
   return null;
 }
 /** 1080 wide when there is room, 720 wide when memory is tight: a smaller picture is better than a crashed server. */
-export const pickWidth = () => { const f = freeMemoryMb(); return f !== null && f < 330 ? 720 : 1080; };
+export const pickWidth = () => { const f = freeMemoryMb(); return f === null ? 720 : f < 190 ? 540 : f < 330 ? 720 : 1080; };
 
 export function ffmpegArgs(input: string, output: string, srt?: string, width = pickWidth()): string[] {
   // Memory-lean on purpose: the host has 512 MB in total, shared with the app. One thread, no look-ahead, no B-frames and a single
