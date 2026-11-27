@@ -12,15 +12,22 @@ const device = () => (window.innerWidth < 640 ? 'mobile' : window.innerWidth < 1
 
 export type AnalyticsState = { tab: string; cls: 'guest' | 'demo' | 'subscriber' | 'admin'; user?: string };
 let started = false;
+let lastInput = Date.now();
+/** Engaged = the page is in the foreground AND the person touched it (mouse, keys, scroll, touch) in the last 2 minutes. */
+const engaged = () => document.visibilityState === 'visible' && Date.now() - lastInput < 120_000;
 
 export function trackPing(state: AnalyticsState, kind: 'start' | 'view' | 'beat') {
-  send({ vid: store(localStorage, 'ppfx_vid'), sid: store(sessionStorage, 'ppfx_sid'), kind, device: device(), ...state });
+  send({ vid: store(localStorage, 'ppfx_vid'), sid: store(sessionStorage, 'ppfx_sid'), kind, device: device(), active: engaged(), ...state });
 }
 /** Call whenever the screen/tab/access class changes; sends a heartbeat every 30 s while the page is visible. */
 export function trackState(state: AnalyticsState, getLatest: () => AnalyticsState) {
   trackPing(state, started ? 'view' : 'start');
   if (!started) {
     started = true;
-    window.setInterval(() => { if (document.visibilityState === 'visible') trackPing(getLatest(), 'beat'); }, 120_000);
+    const bump = () => { lastInput = Date.now(); };
+    for (const ev of ['pointerdown', 'pointermove', 'keydown', 'wheel', 'touchstart', 'scroll']) window.addEventListener(ev, bump, { passive: true, capture: true });
+    // every 30 s while the page is in the foreground; the moment it goes to the background one last signal says "not engaged"
+    window.setInterval(() => { if (document.visibilityState === 'visible') trackPing(getLatest(), 'beat'); }, 30_000);
+    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') trackPing(getLatest(), 'beat'); else { lastInput = Date.now(); trackPing(getLatest(), 'beat'); } });
   }
 }

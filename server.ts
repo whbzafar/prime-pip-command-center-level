@@ -66,7 +66,7 @@ import {
   refreshRemovedMembers,
   bootstrapAdminPassword,
 } from "./server/authService.js";
-import { geoFromHeaders, recordPing, summary as analyticsSummary } from "./server/analytics.js";
+import { geoFromHeaders, recordPing, presenceByUser, summary as analyticsSummary } from "./server/analytics.js";
 import { durableStatus, flushDurable, getShared, hasPendingWrites, recentLogins, redisCmd } from "./server/durableStore.js";
 import { waitUntil as vercelWaitUntil } from "@vercel/functions";
 import { getCustomerData, saveCustomerData } from "./server/customerDataService.js";
@@ -3923,7 +3923,7 @@ app.post('/api/analytics/ping', async (req, res) => {
     const kind = ['start', 'view', 'beat'].includes(b.kind) ? b.kind : 'beat';
     const cls = ['guest', 'demo', 'subscriber', 'admin'].includes(b.cls) ? b.cls : 'guest';
     const device = ['mobile', 'tablet', 'desktop'].includes(b.device) ? b.device : 'desktop';
-    await recordPing({ vid: String(b.vid || ''), sid: String(b.sid || ''), tab: String(b.tab || ''), kind, cls, user: String(b.user || ''), device }, geoFromHeaders(req.headers as any));
+    await recordPing({ vid: String(b.vid || ''), sid: String(b.sid || ''), tab: String(b.tab || ''), kind, cls, user: String(b.user || ''), device, active: b.active !== false }, geoFromHeaders(req.headers as any));
   } catch { /* analytics must never break the app */ }
   res.status(204).end();
 });
@@ -4069,8 +4069,9 @@ setTimeout(() => { setInterval(() => void saTick(getGeminiClient()), 60_000); },
 app.get('/api/admin/login-security', requireDeveloper, async (_req, res) => {
   res.set('Cache-Control', 'no-store');
   const [events, warnings] = await Promise.all([listEvents(), listWarnings()]);
-  const users = summariseUsers(events, warnings);
-  res.json({ ok: true, users, events: events.slice(0, 200).map((e) => ({ ...e, place: placeOf(e), ipMasked: e.ip })), warnings: warnings.slice(0, 100), flagText: FLAG_TEXT, stored: events.length > 0 || warnings.length > 0 });
+  const presence = await presenceByUser().catch(() => ({} as Record<string, { state: 'active' | 'idle'; last: number }>));
+  const users = summariseUsers(events, warnings).map((u) => ({ ...u, presence: presence[u.username.toLowerCase()]?.state || 'offline', seenAt: presence[u.username.toLowerCase()]?.last || null }));
+  res.json({ ok: true, users, now: Date.now(), events: events.slice(0, 200).map((e) => ({ ...e, place: placeOf(e), ipMasked: e.ip })), warnings: warnings.slice(0, 100), flagText: FLAG_TEXT, stored: events.length > 0 || warnings.length > 0 });
 });
 app.post('/api/admin/login-security/warn', requireDeveloper, async (req, res) => {
   const { userId, note } = req.body || {};

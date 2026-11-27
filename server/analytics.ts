@@ -12,10 +12,10 @@ const TTL_S = 40 * 86400;
 
 export interface Ping {
   vid: string; sid: string; tab: string; kind: 'start' | 'view' | 'beat';
-  cls: 'guest' | 'demo' | 'subscriber' | 'admin'; user?: string; device: 'mobile' | 'tablet' | 'desktop';
+  cls: 'guest' | 'demo' | 'subscriber' | 'admin'; user?: string; device: 'mobile' | 'tablet' | 'desktop'; active?: boolean;
 }
 interface Geo { country: string; region: string; city: string }
-interface Live extends Geo { vid: string; sid: string; tab: string; cls: string; user: string; device: string; since: number; last: number }
+interface Live extends Geo { vid: string; sid: string; tab: string; cls: string; user: string; device: string; since: number; last: number; active?: boolean }
 
 const day = (t = Date.now()) => new Date(t).toISOString().slice(0, 10).replace(/-/g, '');
 const clean = (s: unknown, n = 40) => String(s ?? '').replace(/[^\w .@:\-/]/g, '').slice(0, n);
@@ -55,7 +55,7 @@ export async function recordPing(p: Ping, geo: Geo) {
   const now = Date.now(), d = day();
   const sid = clean(p.sid, 40), vid = clean(p.vid, 40);
   if (!sid || !vid) return;
-  const live: Live = { ...geo, vid, sid, tab: clean(p.tab, 40) || 'UNKNOWN', cls: p.cls, user: clean(p.user, 40), device: p.device, since: now, last: now };
+  const live: Live = { ...geo, vid, sid, tab: clean(p.tab, 40) || 'UNKNOWN', cls: p.cls, user: clean(p.user, 40), device: p.device, since: now, last: now, active: p.active !== false };
   if (durableEnabled) {
     const prev = await redisCmd(['HGET', 'ppfx:an:live', sid]).catch(() => null);
     if (prev) { try { live.since = JSON.parse(prev).since || now; } catch { /* new */ } }
@@ -80,6 +80,22 @@ export async function liveNow(): Promise<Live[]> {
     if (stale.length) void redisCmd(['HDEL', 'ppfx:an:live', ...stale]).catch(() => {});
   } else all = [...mem.live.values()];
   return all.filter((v) => now - v.last <= LIVE_MS).sort((a, b) => b.last - a.last);
+}
+
+/** Presence per signed-in username: 'active' = page open, in the foreground and used in the last 2 minutes (seen in the last 90 s); 'idle' = signed in but not engaged (background tab or no input); gone after 10 minutes without a signal. */
+export async function presenceByUser(): Promise<Record<string, { state: 'active' | 'idle'; last: number }>> {
+  const now = Date.now(); let all: Live[] = [];
+  if (durableEnabled) {
+    const a: string[] = (await redisCmd(['HGETALL', 'ppfx:an:live'])) || [];
+    for (let i = 0; i < a.length; i += 2) { try { all.push(JSON.parse(a[i + 1]) as Live); } catch { /* skip */ } }
+  } else all = [...mem.live.values()];
+  const out: Record<string, { state: 'active' | 'idle'; last: number }> = {};
+  for (const v of all) {
+    const u = (v.user || '').toLowerCase(); if (!u) continue; const age = now - v.last; if (age > LIVE_KEEP_MS) continue;
+    const state = v.active !== false && age <= 90_000 ? 'active' : 'idle';
+    const cur = out[u]; if (!cur || (state === 'active' && cur.state !== 'active') || (state === cur.state && v.last > cur.last)) out[u] = { state, last: v.last };
+  }
+  return out;
 }
 
 const sum = (rows: Record<string, number>[]) => { const o: Record<string, number> = {}; rows.forEach((r) => Object.entries(r).forEach(([k, v]) => { o[k] = (o[k] || 0) + v; })); return o; };

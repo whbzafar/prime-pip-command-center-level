@@ -69,7 +69,8 @@ export const listEvents = async (): Promise<LoginEvent[]> => ((await privateList
 
 export function summariseUsers(events: LoginEvent[], warnings: SecurityWarning[]) {
   const by = new Map<string, LoginEvent[]>();
-  for (const e of events) by.set(e.userId, [...(by.get(e.userId) || []), e]);
+  const keyOf = (e: LoginEvent) => (e.username || e.userId).toLowerCase();
+  for (const e of [...events].sort((a, b) => b.at.localeCompare(a.at))) by.set(keyOf(e), [...(by.get(keyOf(e)) || []), e]);
   const week = Date.now() - 7 * 86_400_000;
   return [...by.entries()].map(([userId, evs]) => {
     const recent = evs.filter((e) => Date.parse(e.at) >= week);
@@ -77,10 +78,10 @@ export function summariseUsers(events: LoginEvent[], warnings: SecurityWarning[]
     const places = new Map<string, { place: string; lat: number | null; lon: number | null; n: number; last: string }>();
     for (const e of recent) { const k = placeOf(e); const p = places.get(k); places.set(k, { place: k, lat: e.lat, lon: e.lon, n: (p?.n || 0) + 1, last: p && p.last > e.at ? p.last : e.at }); }
     const countries = new Set(recent.map((e) => e.countryCode).filter((c) => c && c !== 'ZZ'));
-    const w = warnings.filter((x) => x.userId === userId);
-    return { userId, username: evs[0].username, name: evs[0].name, lastAt: evs[0].at, lastPlace: placeOf(evs[0]), lastIp: evs[0].ip, logins7d: recent.length, countries7d: countries.size, networks7d: new Set(recent.map((e) => e.ip)).size,
+    const ids = new Set(evs.map((e) => e.userId)); const w = warnings.filter((x) => ids.has(x.userId));
+    return { userId: evs[0].userId, username: evs[0].username, name: evs[0].name, lastAt: evs[0].at, lastPlace: placeOf(evs[0]), lastIp: evs[0].ip, lastLat: evs[0].lat, lastLon: evs[0].lon, lastIsp: evs[0].isp, lastCountry: evs[0].countryCode, lastHosting: evs[0].hosting, logins7d: recent.length, countries7d: countries.size, networks7d: new Set(recent.map((e) => e.ip)).size,
       places: [...places.values()].sort((a, b) => b.n - a.n).slice(0, 8), flags, risk: Math.max(0, ...recent.map((e) => e.risk)), warnings: w.length, lastWarnedAt: w[0]?.at || null };
-  }).sort((a, b) => b.risk - a.risk || b.lastAt.localeCompare(a.lastAt));
+  }).sort((a, b) => b.lastAt.localeCompare(a.lastAt)); // newest sign-in first
 }
 
 export const listWarnings = async (): Promise<SecurityWarning[]> => ((await privateListGet('security_warnings')) as SecurityWarning[] | null) || [];
