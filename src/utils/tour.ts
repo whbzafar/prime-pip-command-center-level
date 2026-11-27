@@ -212,6 +212,27 @@ async function safeInteract(alive: () => boolean, max = 3) {
     done++; await sleep(1300);
   }
 }
+
+const PERSONAL = /name|e-?mail|phone|pass|token|secret|key|otp|code|address|user|search|card|account no|iban/i;
+const CALC = /^(calculate|compute|analy[sz]e|simulate|estimate|convert|predict|check|show result|get result|find|scan|run model)\b/i;
+const sampleFor = (hint: string) => (/pair|symbol|instrument|asset/i.test(hint) ? 'XAUUSD' : /balance|capital|equity|account size/i.test(hint) ? '10000' : /risk|percent|%/i.test(hint) ? '1' : /stop|sl\b/i.test(hint) ? '2640' : /take|tp\b|target/i.test(hint) ? '2680' : /entry|price|open/i.test(hint) ? '2650' : /lot|size|volume/i.test(hint) ? '0.1' : /pip/i.test(hint) ? '20' : '10');
+/** Calculator-style demo: fills EMPTY fields with sample values (never personal fields), presses a calculate button, shows the result, then puts the fields back as they were. */
+async function demoCalculate(alive: () => boolean) {
+  const root = (document.querySelector('main') as HTMLElement) || document.body; const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set; if (!setter) return;
+  const ok = (el: HTMLElement) => { if (el.closest('[role=dialog], form, [data-testid^="student-record"], .fixed')) return false; const r = el.getBoundingClientRect(); return r.width > 30 && r.height > 14 && r.bottom > 90 && r.top < window.innerHeight - 40; };
+  const inputs = Array.from(root.querySelectorAll<HTMLInputElement>('input')).filter((el) => ok(el) && ['text', 'number', ''].includes(el.type) && !el.value && !el.readOnly && !el.disabled && !PERSONAL.test(`${el.name} ${el.placeholder} ${el.getAttribute('aria-label') || ''} ${el.id}`)).slice(0, 4);
+  const calc = Array.from(root.querySelectorAll<HTMLButtonElement>('button')).find((b) => ok(b) && !b.disabled && CALC.test((b.innerText || b.getAttribute('aria-label') || '').trim()));
+  if (!inputs.length || !calc) return;
+  const touched: HTMLInputElement[] = [];
+  for (const el of inputs) {
+    if (!alive()) break; const hint = `${el.name} ${el.placeholder} ${el.getAttribute('aria-label') || ''} ${el.closest('label')?.textContent || ''} ${el.previousElementSibling?.textContent || ''}`;
+    el.scrollIntoView({ block: 'center', behavior: 'smooth' }); await sleep(380);
+    try { const r = el.getBoundingClientRect(); el.dispatchEvent(new MouseEvent('click', { bubbles: true, clientX: r.left + r.width / 2, clientY: r.top + r.height / 2 })); el.focus(); setter.call(el, sampleFor(hint)); el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new Event('change', { bubbles: true })); touched.push(el); } catch { /* skipped */ }
+    await sleep(700);
+  }
+  if (alive()) { try { calc.scrollIntoView({ block: 'center', behavior: 'smooth' }); await sleep(450); calc.click(); } catch { /* skipped */ } await sleep(2600); }
+  for (const el of touched) { try { setter.call(el, ''); el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new Event('change', { bubbles: true })); } catch { /* ignore */ } }
+}
 type SubTabLike = { el: HTMLElement; label: string; hint: string };
 /** Walks every tab and nested tab of the open category and reads what is really on each screen. */
 async function walkViews(v: HTMLVideoElement | null, title: string, onP: (m: string) => void): Promise<View[]> {
@@ -468,7 +489,7 @@ export async function recordTour(o: TourOpts, shared?: { video: HTMLVideoElement
             const ok = await openPath(bt.path!); if (!ok || segIdx !== mine) return; const sc = findScroller();
             if (bt.focus) { const f = findByText(new RegExp(esc(bt.focus), 'i')); if (f) { bt.el = (f.el.closest('section, article, [class*="rounded"]') as HTMLElement | null) || f.el; bringIntoView(sc, bt.el); } return; }
             scrollToTop(sc);
-            if (grand) window.setTimeout(() => { void safeInteract(() => segIdx === mine, 2); }, 1500);
+            if (grand) window.setTimeout(() => { void (async () => { await safeInteract(() => segIdx === mine, 2); if (segIdx === mine) await demoCalculate(() => segIdx === mine); })(); }, 1500);
             // a tall screen is scrolled once, so the options further down are shown too
             window.setTimeout(() => { try { if (segIdx === mine && sc.scrollHeight > sc.clientHeight * 1.25) sc.scrollBy({ top: sc.clientHeight * 0.75, behavior: 'smooth' }); } catch { /* ignore */ } }, Math.max(2600, s.seconds * 520));
           })();
