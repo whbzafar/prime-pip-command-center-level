@@ -51,7 +51,7 @@ export const StudentRecorder: React.FC = () => {
     try {
       setStep('In the pop-up choose “This tab” and click Share once. Everything else is automatic.');
       const n = await recordSeries({
-        tab: topic.tab, title: topic.title, theme: Math.floor(Math.random() * 6), features: topic.features, script: () => script(topic, seed + Math.floor(Math.random() * 1000)), voice: true, audio: 'ai', secondsPerPart: 6, voiceLang: 'ur', format: '9:16', stop: stopRef.current, returnTab: 'DASHBOARD', onStatus: (m) => setStep(m),
+        tab: topic.tab, title: topic.title, theme: Math.floor(Math.random() * 6), features: topic.features, script: () => script(topic, seed + Math.floor(Math.random() * 1000)), voice: true, audio: 'mic', secondsPerPart: 6, voiceLang: 'ur', format: '9:16', stop: stopRef.current, returnTab: 'DASHBOARD', onStatus: (m) => setStep(m),
         onVideo: async (blob, meta) => {
           const title = `${topic.title} — ${meta.label}`; setClips((c) => [...c, { title, url: URL.createObjectURL(blob), bytes: blob.size, ext: blob.type.includes('mp4') ? 'mp4' : 'webm' }]); const m = metaFor(topic.id, title).map((x) => ({ ...x, title: noFree(x.title), description: noFree(x.description) }));
           setStep(`Sending “${meta.label}” to the academy channels…`); tourStore.uploading = true; let id: string; let coverId: string | undefined;
@@ -79,7 +79,7 @@ export const StudentRecorder: React.FC = () => {
           <div className="max-h-[94vh] w-full max-w-3xl space-y-3 overflow-auto rounded-2xl border border-slate-700 bg-slate-950 p-4 text-slate-100 sm:p-5">
             <div className="flex items-center justify-between"><h2 className="text-lg font-bold">Record a video</h2><button type="button" aria-label="Close" onClick={() => setOpen(false)}><X className="h-5 w-5" /></button></div>
             <CategoryPicker topics={topics} value={tid} onChange={setTid} back="DASHBOARD" onScanning={setScanning} />
-            <p className="text-xs text-slate-400">Press Record, choose “This tab” in the pop-up and click Share once. The app records ONE video that opens every sub-category and shows every option, adds the voice, title, caption and hashtags, and posts the videos to the academy channels. Keep this page open until it says Done.</p>
+            <p className="text-xs text-slate-400">Press Record, allow the microphone, choose “This tab” in the pop-up and click Share once. Speak in your own voice while the app shows every option: your real voice and live captions go into the video. The app records ONE video that opens every sub-category and shows every option, adds the voice, title, caption and hashtags, and posts the videos to the academy channels. Keep this page open until it says Done.</p>
             <button type="button" disabled={scanning} onClick={() => void record()} className="w-full rounded-xl bg-rose-600 py-3 text-base font-bold text-white hover:bg-rose-500 disabled:cursor-wait disabled:opacity-60" data-testid="student-record-go">{scanning ? 'Reading the category…' : 'Record'}</button>
           </div>
         </div>
