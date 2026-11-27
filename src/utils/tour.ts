@@ -480,6 +480,8 @@ export async function recordTour(o: TourOpts, shared?: { video: HTMLVideoElement
         ctx.save(); ctx.shadowColor = th.a + '99'; ctx.shadowBlur = 60 * U; ctx.fillStyle = '#0b1220'; rr(ctx, BOX.x - 8 * U, BOX.y - 8 * U, BOX.w + 16 * U, BOX.h + 16 * U, 34 * U); ctx.fill(); ctx.restore();
         ctx.save(); rr(ctx, BOX.x, BOX.y, BOX.w, BOX.h, 28 * U); ctx.clip();
         ctx.drawImage(v, shot.x, shot.y, shot.w, shot.h, BOX.x, BOX.y, BOX.w, BOX.h);
+        // retention bar: a thin animated progress line that keeps viewers watching, plus a quick light flash on every cut
+        { ctx.save(); ctx.globalAlpha = 0.9; ctx.fillStyle = 'rgba(255,255,255,.14)'; ctx.fillRect(BOX.x, BOX.y + BOX.h - 7 * U, BOX.w, 7 * U); ctx.fillStyle = th.a; ctx.fillRect(BOX.x, BOX.y + BOX.h - 7 * U, BOX.w * clamp01(t / total), 7 * U); if (since < 0.18 && i > 0) { ctx.globalAlpha = 0.22 * (1 - since / 0.18); ctx.fillStyle = '#fff'; ctx.fillRect(BOX.x, BOX.y, BOX.w, BOX.h); } ctx.restore(); }
         try { drawLens(ctx, lens, performance.now(), { shot, box: BOX, vw: vw(), vh: vh(), U, accent: th.a, font: FONT }); } catch { /* the lens never stops a recording */ }
         if (since < 0.22 && i > 0) { const off = (1 - since / 0.22) * BOX.w * 0.08; ctx.globalAlpha = 0.28; ctx.drawImage(v, shot.x, shot.y, shot.w, shot.h, BOX.x - off, BOX.y, BOX.w, BOX.h); ctx.drawImage(v, shot.x, shot.y, shot.w, shot.h, BOX.x + off, BOX.y, BOX.w, BOX.h); ctx.globalAlpha = 1; }
         // spotlight on the real part, with its real name

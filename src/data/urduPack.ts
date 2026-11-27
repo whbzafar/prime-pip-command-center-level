@@ -209,6 +209,11 @@ export const HOOK_OPENERS: [string, string][] = [
   ['Zara rukiye! Ye cheez aap ki trading badal sakti hai.', 'ذرا رکیے! یہ چیز آپ کی ٹریڈنگ بدل سکتی ہے۔'],
   ['Aksar traders yahin ghalti karte hain. Iska hal yahan hai.', 'اکثر ٹریڈرز یہیں غلطی کرتے ہیں۔ اس کا حل یہاں ہے۔'],
   ['Agar aap serious trader hain, to ye aap ke liye hai.', 'اگر آپ سنجیدہ ٹریڈر ہیں، تو یہ آپ کے لیے ہے۔'],
+  // hooks built from short-form retention research: curiosity gap, stop-doing, open loop, specific promise
+  ['Ye ek cheez aksar traders ki nazar se chhup jati hai. Akhir mein batata hoon.', 'یہ ایک چیز اکثر ٹریڈرز کی نظر سے چھپ جاتی ہے۔ آخر میں بتاتا ہوں۔'],
+  ['Chart par ye ghalti rok dein. Yahan dekhiye kaise.', 'چارٹ پر یہ غلطی روک دیں۔ یہاں دیکھیے کیسے۔'],
+  ['Tees second mein dekhiye, trading tool ka asal kaam kya hai.', 'تیس سیکنڈ میں دیکھیے، ٹریڈنگ ٹول کا اصل کام کیا ہے۔'],
+  ['Teesra feature sab se zyada kaam ka hai. Rukiye aur dekhiye.', 'تیسرا فیچر سب سے زیادہ کام کا ہے۔ رکیے اور دیکھیے۔'],
 ];
 export const OVERVIEW_VARIANTS: [string, string][] = [
   OVERVIEW_LINE,
@@ -220,5 +225,7 @@ export const OUTRO_VARIANTS: [string, string][] = [
   ['Ye sab ek hi jagah milta hai. Link bio mein hai. Follow zaroor karein.', 'یہ سب ایک ہی جگہ ملتا ہے۔ لنک بائیو میں ہے۔ فالو ضرور کریں۔'],
   ['Pasand aaye to comment mein batayein, aur primepipfx.site abhi try karein.', 'پسند آئے تو کمنٹ میں بتائیں، اور پرائم پپ ایف ایکس ڈاٹ سائٹ ابھی آزمائیں۔'],
   ['Apne trader dost ko ye zaroor bhejein. Link bio mein hai.', 'اپنے ٹریڈر دوست کو یہ ضرور بھیجیں۔ لنک بائیو میں ہے۔'],
+  ['Kaun sa feature aap ko sab se acha laga? Comment mein likhein. Link bio mein hai.', 'کون سا فیچر آپ کو سب سے اچھا لگا؟ کمنٹ میں لکھیں۔ لنک بائیو میں ہے۔'],
+  ['Is video ko save kar lein taake baad mein kaam aaye. Link bio mein hai.', 'اس ویڈیو کو سیو کر لیں تاکہ بعد میں کام آئے۔ لنک بائیو میں ہے۔'],
 ];
 export const MUSIC_BPM = [102, 96, 108, 100, 112, 98];
