@@ -11,7 +11,6 @@ export function pickFeature(label: string, features: string[], used: Set<number>
   if (!features.length) return '';
   const lt = new Set(tokens(label)); let best = -1; let score = 0;
   features.forEach((f, i) => { if (used.has(i)) return; const sc = tokens(f).filter((t) => lt.has(t)).length; if (sc > score) { score = sc; best = i; } });
-  if (best < 0) best = features.findIndex((_, i) => !used.has(i));
   if (best < 0) return '';
   used.add(best); return features[best];
 }

@@ -233,10 +233,14 @@ export async function recordTour(o: TourOpts, shared?: { video: HTMLVideoElement
         const opener = HOOK_OPENERS[take % HOOK_OPENERS.length]; const ov = OVERVIEW_VARIANTS[take % OVERVIEW_VARIANTS.length]; const ou = OUTRO_VARIANTS[take % OUTRO_VARIANTS.length];
         // hand-written Urdu for this category: voice speaks Urdu script, viewers read Roman Urdu captions
         src.push({ kind: 'intro', headline: opener[0] || pack.hook[0], label: o.title, en: `${opener[0]} ${pack.hook[0]}`.trim(), rm: `${opener[0]} ${pack.hook[0]}`.trim(), urdu: `${opener[1]} ${pack.hook[1]}`.trim() });
-        if (feats.length) src.push({ kind: 'overview', headline: `Inside ${o.title}`, label: o.title, en: ov[0], rm: ov[0], urdu: ov[1], feats: pack.parts.map((p) => p[0]) });
+        const ovAt = src.length;
         // each line is paired with the part of the screen it describes (by name where known), the rest in reading order
         const free = beats.slice(); const taken: HTMLElement[] = []; const pick: (Beat | undefined)[] = pack.parts.map((pt) => { const k = pt[3] ? free.findIndex((b) => pt[3]!.test(b.label)) : -1; if (k >= 0) { const b = free.splice(k, 1)[0]; taken.push(b.el); return b; } const f = pt[3] ? findByText(pt[3], taken) : null; if (f) taken.push(f.el); return f || undefined; });
-        const order = pack.parts.map((_, i) => i); const rot = take % Math.max(1, order.length); const seq = [...order.slice(rot), ...order.slice(0, rot)]; seq.forEach((i) => { const pt = pack.parts[i]; src.push({ kind: 'part', headline: pt[0], label: pt[0], en: pt[1], rm: pt[1], urdu: pt[2], beat: pick[i] || free.shift() }); });
+        const order = pack.parts.map((_, i) => i); const rot = take % Math.max(1, order.length); const seq = [...order.slice(rot), ...order.slice(0, rot)]; // A line is only spoken when the part it describes is really on the screen (never paired with some other part), and every part left on the screen is described from the screen itself, so what is said and what is shown always match.
+        seq.forEach((i) => { const pt = pack.parts[i]; if (!pick[i]) return; src.push({ kind: 'part', headline: pt[0], label: pt[0], en: pt[1], rm: pt[1], urdu: pt[2], beat: pick[i] }); });
+        const LEAD2 = ['Also, ', 'Next, ', 'Then ', 'And ']; const spoken = new Set(src.filter((x) => x.beat).map((x) => x.beat!.el));
+        free.forEach((bt, k) => { if (spoken.has(bt.el)) return; const d = describePart(bt.el, bt.label, take + k); const lead = bt.click ? `Switch to the ${bt.label} view. ` : `${LEAD2[(k + take) % LEAD2.length]}${titleCase(bt.label)}. `; src.push({ kind: 'part', headline: bt.label, label: bt.label, en: `${lead}${d}`.trim(), rm: `${lead}${d}`.trim(), beat: bt }); });
+        if (feats.length) src.splice(ovAt, 0, { kind: 'overview', headline: `Inside ${o.title}`, label: o.title, en: ov[0], rm: ov[0], urdu: ov[1], feats: src.slice(ovAt).filter((x) => x.kind === 'part').map((x) => x.label) });
         // every sub-category (inner tab) of this section gets its own shot, so nothing inside the category is left out
         const shownTabs = new Set(src.filter((x) => x.beat?.click).map((x) => x.label.toLowerCase())); const TAB_LINES: [string, string][] = [['Now the next sub-section: ', 'اب اگلا سب سیکشن دیکھیں۔'], ['Also inside: ', 'اس کے اندر یہ بھی موجود ہے۔'], ['Next up: ', 'اور یہ بھی دیکھیے۔']];
         discoverTabBeats(8).forEach((tb, i) => { if (shownTabs.has(tb.label.toLowerCase())) return; const tl = TAB_LINES[(i + take) % TAB_LINES.length]; src.push({ kind: 'part', headline: tb.label, label: tb.label, en: `${tl[0]}${tb.label}.`, rm: `${tl[0]}${tb.label}.`, urdu: tl[1], beat: tb }); });
@@ -255,7 +259,7 @@ export async function recordTour(o: TourOpts, shared?: { video: HTMLVideoElement
       if (feats.length) src.push({ kind: 'overview', headline: `Inside ${o.title}`, label: o.title, en: `Here is everything inside ${o.title}: ${feats.length} tools, all in one place.`, feats });
       (beats.length ? beats : o.script.scenes.map(() => undefined)).forEach((bt, i) => {
         const label = bt?.label || o.script.scenes[i]?.caption || o.title; const f = pickFeature(label, feats, used);
-        src.push({ kind: 'part', headline: label, label, en: `${titleCase(label)}.${f ? ' ' + f : ''}`, beat: bt });
+        const said = f || (bt ? describePart(bt.el, bt.label, take + i) : ''); src.push({ kind: 'part', headline: label, label, en: `${titleCase(label)}.${said ? ' ' + said : ''}`, beat: bt });
       });
       src.push({ kind: 'outro', headline: o.script.cta, label: 'primepipfx.site', en: o.script.cta, urdu: o.script.ctaUrdu });
       }

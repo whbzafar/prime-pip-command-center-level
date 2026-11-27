@@ -24,11 +24,12 @@ describe('planTimeline', () => {
 
 describe('pickFeature', () => {
   const f = ['Live equity curve and balance tracking', 'Real-time daily loss circuit breaker', 'Quick trade execution launcher'];
-  it('matches by shared words and never reuses a feature', () => {
+  it('matches only by shared words (never pairs an unrelated feature) and never reuses one', () => {
     const used = new Set<number>();
     expect(pickFeature('LIVE EQUITY CURVE', f, used)).toBe(f[0]);
     expect(pickFeature('Daily loss circuit', f, used)).toBe(f[1]);
-    expect(pickFeature('Something else', f, used)).toBe(f[2]);
+    expect(pickFeature('Something else', f, used)).toBe('');
+    expect(pickFeature('Quick launcher', f, used)).toBe(f[2]);
     expect(pickFeature('Anything', f, used)).toBe('');
   });
 });
