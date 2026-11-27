@@ -46,7 +46,7 @@ const easeOut = (t: number) => 1 - Math.pow(1 - clamp01(t), 3);
 const easeBack = (t: number) => { const x = clamp01(t); const c = 1.7; return 1 + (c + 1) * Math.pow(x - 1, 3) + c * Math.pow(x - 1, 2); };
 const latin = (s: string) => !/[؀-ۿ]/.test(s);
 const URDU_FONT = '"Noto Nastaliq Urdu","Jameel Noori Nastaleeq","Segoe UI",Tahoma,sans-serif';
-export const RECORD_BITRATE = 14_000_000;
+export const RECORD_BITRATE = 6_000_000;
 /** Output formats the owner can pick. Layout is proportional to the height so every ratio keeps the same structure. */
 export const VIDEO_FORMATS = {
   '9:16': { label: 'Reels, TikTok, YouTube Shorts (9:16)', w: 1080, h: 1920 },
@@ -289,7 +289,7 @@ export async function recordTour(o: TourOpts, shared?: { video: HTMLVideoElement
         }
       }
       const items: Item[] = src.map((x, i) => ({ kind: x.kind, voice: voices[i]?.duration ?? null, base: Math.max(x.kind === 'overview' ? 5 : 3, wordsOf(x.en).length / 2.6 + 0.9) }));
-      const plan = planTimeline(items, 35, 90, 1.15); rate = plan.rate;
+      const plan = planTimeline(items, 30, 60, 1.15); rate = plan.rate;
       src.forEach((x, i) => { if (!plan.keep[i]) return; const ur = undefined as string | undefined; segs.push({ spoken: browserSpeech ? (browserSpeech.lang === 'ur' ? (urdu[i] && /[\u0600-\u06FF]/.test(urdu[i]) ? urdu[i] : x.en) : x.en) : undefined, spokenLang: browserSpeech ? (browserSpeech.lang === 'ur' && urdu[i] && /[\u0600-\u06FF]/.test(urdu[i]) ? 'ur' : 'en') : undefined, kind: x.kind, beat: x.beat, headline: x.headline, label: x.label, say: x.rm || x.en, ur, chunks: ur ? chunkCaption(ur, 6) : undefined, feats: x.feats, voice: voices[i], seconds: plan.seconds[i] }); });
     }
     const total = segs.reduce((a, s) => a + s.seconds, 0); const starts: number[] = []; segs.reduce((a, s) => { starts.push(a); return a + s.seconds; }, 0);

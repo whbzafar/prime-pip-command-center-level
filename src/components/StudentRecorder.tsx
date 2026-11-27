@@ -4,7 +4,7 @@ import { getTopics, templateScript, type Topic } from '../utils/topicContent';
 import { recordSeries, tourStore, type TourScript } from '../utils/tour';
 import { metaFor, makeThumbnail } from '../utils/publishPack';
 import { noFree } from '../utils/noFree';
-import { publishMeta, stageVideo, defaultCfg } from '../utils/publishClient';
+import { startPublish, waitPublish, stageVideo, defaultCfg } from '../utils/publishClient';
 import { getStoredToken } from '../utils/authClient';
 
 /** One-click recorder for paying students. Pick a category and press Record: the app records the tour, writes the title,
@@ -18,7 +18,7 @@ export const StudentRecorder: React.FC = () => {
   const [busy, setBusy] = useState(false);
   const [step, setStep] = useState('');
   const [result, setResult] = useState<{ ok: boolean; text: string } | null>(null);
-  const stopRef = useRef({ stop: false });
+  const stopRef = useRef({ stop: false }); const mounted = useRef(true); useEffect(() => () => { mounted.current = false; }, []);
   const [clips, setClips] = useState<{ title: string; url: string; bytes: number; ext: string }[]>([]);
   const [lockSt, setLockSt] = useState<{ busy: boolean; mine: boolean; since: number; by: string; skew: number }>({ busy: false, mine: false, since: 0, by: '', skew: 0 });
   const [tick, setTick] = useState(0);
@@ -44,7 +44,7 @@ export const StudentRecorder: React.FC = () => {
     const topic = topics.find((t) => t.id === tid); if (!topic || busy) return;
     const got = await lockCall('lock'); if (got.ok === false) { setResult({ ok: false, text: `⏳ ${got.error || 'Someone else is recording. Please wait.'}` }); setOpen(false); return; }
     clips.forEach((c) => URL.revokeObjectURL(c.url)); setClips([]);
-    setBusy(true); setResult(null); setOpen(false); stopRef.current = { stop: false }; const seed = Math.floor(Math.random() * 1e6); const jobs: Promise<{ ok: boolean; text: string }>[] = [];
+    setBusy(true); setResult(null); setOpen(false); stopRef.current = { stop: false }; const seed = Math.floor(Math.random() * 1e6); const jobs: Promise<string>[] = []; const waits: Promise<{ ok: boolean; text: string }>[] = [];
     try {
       setStep('In the pop-up choose “This tab” and click Share once. Everything else is automatic.');
       const n = await recordSeries({
@@ -52,14 +52,16 @@ export const StudentRecorder: React.FC = () => {
         onVideo: async (blob, meta) => {
           const title = `${topic.title} — ${meta.label}`; setClips((c) => [...c, { title, url: URL.createObjectURL(blob), bytes: blob.size, ext: blob.type.includes('mp4') ? 'mp4' : 'webm' }]); const m = metaFor(topic.id, title).map((x) => ({ ...x, title: noFree(x.title), description: noFree(x.description) }));
           setStep(`Sending “${meta.label}” to the academy channels…`); tourStore.uploading = true; let id: string; let coverId: string | undefined;
-          try { id = await stageVideo(blob); try { const th = await makeThumbnail(blob, `${topic.title}: ${meta.label}`); coverId = await stageVideo(th, 'jpg'); } catch { /* cover is optional */ } } finally { tourStore.uploading = false; }
-          jobs.push(publishMeta(id, defaultCfg(), m.find((x) => x.platform === 'facebook')!, m.find((x) => x.platform === 'instagram')!, [], coverId, undefined, { category: topic.id, title, student: true })
-            .then((r) => { const okN = Object.entries(r).filter(([, v]) => v.ok).length; const bad = Object.entries(r).filter(([, v]) => !v.ok).length; return { ok: okN > 0, text: bad && !okN ? 'not posted' : `${okN} platform${okN === 1 ? '' : 's'}` }; })
-            .catch((e: any) => ({ ok: false, text: String(e?.message || e) })));
+          try { const cover = makeThumbnail(blob, `${topic.title}: ${meta.label}`).then((th) => stageVideo(th, 'jpg')).catch(() => undefined); [id, coverId] = await Promise.all([stageVideo(blob), cover]); } finally { tourStore.uploading = false; }
+          const job = startPublish(id, defaultCfg(), m.find((x) => x.platform === 'facebook')!, m.find((x) => x.platform === 'instagram')!, [], coverId, undefined, { category: topic.id, title, student: true });
+          jobs.push(job);
+          waits.push(job.then((j) => waitPublish(j)).then((r) => { const okN = Object.entries(r).filter(([, v]) => v.ok).length; const bad = Object.entries(r).filter(([, v]) => !v.ok).length; return { ok: okN > 0, text: bad && !okN ? 'not posted' : `${okN} platform${okN === 1 ? '' : 's'}` }; }).catch((e: any) => ({ ok: false, text: String(e?.message || e) })));
         },
       });
-      setStep('Finishing the uploads…'); const res = await Promise.all(jobs); const good = res.filter((r) => r.ok).length; const first = res.find((r) => !r.ok);
-      setResult(good ? { ok: true, text: `✅ Done: ${good} of ${n} video${n === 1 ? '' : 's'} posted.${first ? ` (${res.length - good} could not be posted: ${first.text})` : ''}` } : { ok: false, text: `❌ Nothing was posted${first ? `: ${first.text}` : ''}. Please try again.` });
+      setStep('Handing the videos to the server…'); const queued = await Promise.allSettled(jobs); const sent = queued.filter((q) => q.status === 'fulfilled').length; const bad0 = queued.find((q) => q.status === 'rejected') as PromiseRejectedResult | undefined;
+      // The server posts in the background (Instagram can take minutes): the student is released now and the final result appears when it is ready.
+      setResult(sent ? { ok: true, text: `✅ ${sent} of ${n} video${n === 1 ? '' : 's'} uploaded. Posting to the academy channels continues on our server, so you can leave this page.${bad0 ? ` (${queued.length - sent} could not be sent: ${String(bad0.reason?.message || bad0.reason)})` : ''}` } : { ok: false, text: `❌ Nothing was uploaded${bad0 ? `: ${String(bad0.reason?.message || bad0.reason)}` : ''}. Please try again.` });
+      void Promise.all(waits).then((res) => { const good = res.filter((r) => r.ok).length; if (res.length && mounted.current) setResult(good ? { ok: true, text: `✅ Done: ${good} of ${res.length} video${res.length === 1 ? '' : 's'} posted.` } : { ok: false, text: `❌ Posting did not complete${res[0] ? `: ${res[0].text}` : ''}.` }); });
     } catch (e: any) { setResult({ ok: false, text: `❌ ${String(e?.message || e)}` }); } finally { setBusy(false); setStep(''); void lockCall('unlock'); }
   };
 
