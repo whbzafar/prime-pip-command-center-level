@@ -101,7 +101,7 @@ export async function urduSpeech(text: string, lang: 'ur' | 'en' = 'ur', trace?:
       note(`azure: HTTP ${r.status}`);
     } catch (e: any) { note(`azure: ${String(e?.message || e).slice(0, 80)}`); }
   }
-  const edge = await edgeSpeech(text, lang);
+  let edge = await edgeSpeech(text, lang); for (let k = 0; !edge && k < 3; k++) { await new Promise((r) => setTimeout(r, 700 * (k + 1))); edge = await edgeSpeech(text, lang); }
   if (edge) { note('edge: ok'); return edge; }
   note(`edge: failed (${lastEdgeError || 'no audio'})`);
   const goog = await googleSpeech(text, lang);
