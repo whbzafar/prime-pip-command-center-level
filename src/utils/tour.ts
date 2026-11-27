@@ -171,6 +171,8 @@ interface Seg { spoken?: string; spokenLang?: 'ur' | 'en'; kind: Kind; beat?: Be
 /** One screen of a category: a tab (or a tab inside a tab) with the real options read from it. */
 interface View { path: string[]; section: string; label: string; hint: string; prose: string; items: string[]; details: { label: string; say: string }[]; first: boolean }
 const sentence = (t: string, max: number) => { const s = (t || '').replace(/\s+/g, ' ').trim(); if (!s) return ''; const m = s.match(/^.{20,}?[.!?](\s|$)/); const f = (m ? m[0] : s).trim(); return f.length > max ? f.slice(0, max).replace(/[\s,;:]+\S*$/, '') + '.' : f; };
+const proseOf = (el: HTMLElement) => sentence((el.innerText || '').split('\n').map((x) => x.replace(/\s+/g, ' ').trim()).find((l) => l.length >= 40 && l.length <= 200 && /[a-z]{3}/.test(l) && ((l.match(/[a-z ,.'’()\-–—/&]/gi) || []).length / l.length) > 0.88 && !/computed|refresh|updated|\bago\b|model ppfa|loading|sign in|just now/i.test(l)) || '', 150);
+const goodItem = (l: string) => l.length >= 3 && l.length <= 40 && !/[.:]$/.test(l) && !/[^\u0000-\u2000]/.test(l) && !/^[A-Z0-9.\-]{2,12}$/.test(l) && !/[A-Z]{2,}\/[A-Z]{2,}/.test(l) && !/refresh|auto|live ·|model|computed|score \(|sub-indicator/i.test(l) && !DANGEROUS.test(l) && !/^[\d\s.,%+\-$]+$/.test(l);
 const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 /** Opens a path of tabs by name (every level), skipping tabs that are already open. */
 async function openPath(path: string[]) {
@@ -184,17 +186,17 @@ async function openPath(path: string[]) {
 }
 type SubTabLike = { el: HTMLElement; label: string; hint: string };
 /** Walks every tab and nested tab of the open category and reads what is really on each screen. */
-async function walkViews(v: HTMLVideoElement | null, tab: string, onP: (m: string) => void): Promise<View[]> {
+async function walkViews(v: HTMLVideoElement | null, title: string, onP: (m: string) => void): Promise<View[]> {
   const out: View[] = []; const prim0 = primaryTabs(); if (!prim0 || prim0.tabs.length < 2) return out;
   const sections = prim0.tabs.map((t) => ({ label: t.label, hint: t.hint })); const tabNames = new Set<string>(sections.map((s) => s.label.toLowerCase()));
   const read = async (path: string[], section: string, label: string, hint: string, first: boolean) => {
     await sleep(1100); if (v) await waitCalm(v, 4500); else await sleep(1200); const scroller = findScroller();
     const heads = discoverBeats(scroller, label, 18).filter((b) => !b.click);
     const root = (tablists().slice(-1)[0]?.list.parentElement) || (document.querySelector('main') as HTMLElement) || document.body;
-    const items: string[] = []; const seen = new Set<string>(tabNames); seen.add(label.toLowerCase());
-    heads.forEach((b) => { const l = b.label.replace(/\s+/g, ' ').trim(); const k = l.toLowerCase(); if (l.length < 3 || l.length > 40 || seen.has(k) || DANGEROUS.test(l) || /^[\d\s.,%+\-$]+$/.test(l)) return; seen.add(k); items.push(l); });
-    const details = heads.slice(0, 6).map((b) => ({ label: b.label, say: sentence(describePart(b.el, b.label, 1), 120) })).filter((d) => d.label.length >= 3 && !tabNames.has(d.label.toLowerCase()));
-    out.push({ path, section, label, hint, prose: sentence(describePart(root, label, 0), 150), items, details, first });
+    const items: string[] = []; const seen = new Set<string>(tabNames); seen.add(label.toLowerCase()); seen.add(title.toLowerCase());
+    heads.forEach((b) => { const l = b.label.replace(/\s+/g, ' ').trim(); const k = l.toLowerCase(); if (!goodItem(l) || seen.has(k)) return; seen.add(k); items.push(l); });
+    const details = heads.slice(0, 6).map((b) => ({ label: b.label, say: proseOf(b.el) })).filter((d) => goodItem(d.label) && !tabNames.has(d.label.toLowerCase()) && d.label.toLowerCase() !== title.toLowerCase());
+    out.push({ path, section, label, hint, prose: proseOf(root), items, details, first });
   };
   for (const s of sections) {
     onP(`Reading ${s.label}`); if (!(await openPath([s.label]))) continue; await sleep(900);
@@ -203,7 +205,7 @@ async function walkViews(v: HTMLVideoElement | null, tab: string, onP: (m: strin
     if (!names.length) { await read([s.label], s.label, s.label, s.hint, true); continue; }
     let k = 0; for (const n of names) { onP(`Reading ${s.label} › ${n}`); if (!(await openPath([s.label, n]))) continue; await read([s.label, n], s.label, n, k === 0 ? s.hint : '', k === 0); k++; }
   }
-  await openPath([sections[0].label]); try { scrollToTop(findScroller()); } catch { /* ignore */ } void tab;
+  await openPath([sections[0].label]); try { scrollToTop(findScroller()); } catch { /* ignore */ }
   return out;
 }
 
@@ -242,7 +244,7 @@ export async function recordTour(o: TourOpts, shared?: { video: HTMLVideoElement
 
     // 0. a category with tabs gets a grand tour: every tab and nested tab is opened and its real options are read first
     let views: View[] = [];
-    if (!o.sub) { try { views = await walkViews(v, o.tab, (m) => o.onProgress?.(0, m)); } catch { views = []; } if (views.length) { await sleep(600); } }
+    if (!o.sub) { try { views = await walkViews(v, o.title, (m) => o.onProgress?.(0, m)); } catch { views = []; } if (views.length) { await sleep(600); } }
     const grand = views.length >= 2;
     // 1. read the section: what is actually on this screen, top to bottom
     const scroller = findScroller();
@@ -659,4 +661,4 @@ if (typeof window !== 'undefined') (window as any).__ppParts = (title: string) =
 (window as any).__ppDescribe = () => { try { return discoverBeats(findScroller(), 'x', 11).map((b) => ({ label: b.label, click: !!b.click, say: describePart(b.el, b.label) })); } catch (e) { return String(e); } };
 
 /** Dry run of the grand tour for the screen that is open: lists every screen and the options read from it (no recording). */
-(window as any).__ppWalk = async () => { try { return (await walkViews(null, 'x', () => {})).map((x) => ({ path: x.path.join(' > '), hint: x.hint, prose: x.prose, items: x.items, details: x.details.length })); } catch (e) { return String(e); } };
+(window as any).__ppWalk = async () => { try { return (await walkViews(null, 'Fundamental Indicators', () => {})).map((x) => ({ path: x.path.join(' > '), hint: x.hint, prose: x.prose, items: x.items, details: x.details.length })); } catch (e) { return String(e); } };

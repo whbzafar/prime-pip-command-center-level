@@ -69,6 +69,8 @@ const visible = (el: HTMLElement) => {
   const cs = getComputedStyle(el);
   return cs.visibility !== 'hidden' && cs.display !== 'none' && Number(cs.opacity) > 0.05;
 };
+/** A tab is small (a short word is often under 100 px wide), so it has its own, lower, size test. */
+const tabVisible = (el: HTMLElement) => { const r = el.getBoundingClientRect(); if (r.width < 28 || r.height < 16) return false; const cs = getComputedStyle(el); return cs.visibility !== 'hidden' && cs.display !== 'none' && Number(cs.opacity) > 0.05; };
 const outside = (el: HTMLElement) => !!el.closest('[role="dialog"], nav, header, aside, footer, [data-tour-skip]');
 
 /** Lists the parts of the open section in reading order: every heading's card, plus up to three safe inner tabs. */
@@ -85,7 +87,7 @@ export function tablists(exclude: HTMLElement[] = []): { list: HTMLElement; tabs
     if (outside(list) || !visible(list) || exclude.includes(list)) continue;
     const seen = new Set<string>(); const tabs: SubTab[] = [];
     list.querySelectorAll<HTMLElement>('[role="tab"]').forEach((t) => {
-      if (!visible(t) || DANGEROUS.test(t.textContent || '')) return; const lines = (t.innerText || '').split('\n').map((x) => x.trim()).filter(Boolean); const label = lines[0] || ''; if (label.length < 2 || label.length > 40 || seen.has(label.toLowerCase())) return;
+      if (!tabVisible(t) || DANGEROUS.test(t.textContent || '')) return; const lines = (t.innerText || '').split('\n').map((x) => x.trim()).filter(Boolean); const label = lines[0] || ''; if (label.length < 2 || label.length > 40 || seen.has(label.toLowerCase())) return;
       seen.add(label.toLowerCase()); tabs.push({ el: t, label, hint: lines.slice(1).join(' ').slice(0, 120) });
     });
     if (tabs.length >= 2) out.push({ list, tabs });
@@ -107,7 +109,7 @@ export function describePart(el: HTMLElement, label: string, variant = 0): strin
 export function discoverTabBeats(max = 8): Beat[] {
   const root = (document.querySelector('main') as HTMLElement | null) || document.body; const seen = new Set<string>(); const out: Beat[] = [];
   root.querySelectorAll<HTMLElement>('[role="tab"]').forEach((t) => {
-    if (out.length >= max || outside(t) || !visible(t) || skipped(t) || DANGEROUS.test(t.textContent || '')) return;
+    if (out.length >= max || outside(t) || !tabVisible(t) || skipped(t) || DANGEROUS.test(t.textContent || '')) return;
     const label = clean(t.textContent); if (label.length < 2 || label.length > 40 || seen.has(label.toLowerCase())) return; seen.add(label.toLowerCase());
     out.push({ el: (t.closest('[role="tablist"]') as HTMLElement | null)?.parentElement || t, label, click: t });
   });
@@ -147,7 +149,7 @@ export function discoverBeats(scroller: HTMLElement, sectionTitle: string, max =
   const chosen = chooseParts(parts, Math.max(1, max - 2)).map((p) => p.beat);
   // inner tabs (charts, timeframes, sub-views): show up to three of them, never anything risky
   const tabs = [...root.querySelectorAll<HTMLElement>('[role="tab"]')]
-    .filter((t) => !outside(t) && visible(t) && !skipped(t) && t.getAttribute('aria-selected') !== 'true' && !DANGEROUS.test(t.textContent || '') && clean(t.textContent).length > 1)
+    .filter((t) => !outside(t) && tabVisible(t) && !skipped(t) && t.getAttribute('aria-selected') !== 'true' && !DANGEROUS.test(t.textContent || '') && clean(t.textContent).length > 1)
     .slice(0, 3);
   const tabBeats: Beat[] = tabs.map((t) => ({ el: (t.closest('[role="tablist"]') as HTMLElement | null)?.parentElement || t, label: clean(t.textContent), click: t }));
   return [...chosen.slice(0, 2), ...tabBeats, ...chosen.slice(2)].slice(0, max);
