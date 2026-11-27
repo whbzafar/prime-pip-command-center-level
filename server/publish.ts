@@ -30,7 +30,7 @@ export function registerPublishRoutes(app: Express, requireDeveloper: RequestHan
   });
   app.put("/api/admin/social/publish-config", requireDeveloper, async (req, res) => {
     const c = req.body?.cfg; if (!c || typeof c !== "object") return res.status(400).json({ ok: false, error: "No settings" });
-    const clean = { ytClientId: String(c.ytClientId || "").slice(0, 300), metaPageId: String(c.metaPageId || "").slice(0, 60), metaPageToken: String(c.metaPageToken || "").slice(0, 1000), igUserId: String(c.igUserId || "").slice(0, 60), auto: { youtube: !!c.auto?.youtube, facebook: !!c.auto?.facebook, instagram: !!c.auto?.instagram }, at: Number(c.at) || Date.now() };
+    const clean = { ytClientId: String(c.ytClientId || "").slice(0, 300), metaPageId: String(c.metaPageId || "").slice(0, 60), metaPageToken: String(c.metaPageToken || "").slice(0, 1000), igUserId: String(c.igUserId || "").slice(0, 60), autoSet: !!c.autoSet, auto: { youtube: !!c.auto?.youtube, facebook: !!c.auto?.facebook, instagram: !!c.auto?.instagram }, at: Number(c.at) || Date.now() };
     try { await privateListUpdate("social_publish_cfg", () => [clean]); res.json({ ok: true }); }
     catch { res.status(503).json({ ok: false, error: "Private storage is not available on the server yet" }); }
   });

@@ -1,9 +1,11 @@
 import { getStoredToken } from './authClient';
 import type { PlatformMeta } from './publishPack';
 
-export interface PubConfig { at?: number; ytClientId: string; metaPageId: string; metaPageToken: string; igUserId: string; auto: { youtube: boolean; facebook: boolean; instagram: boolean } }
+export interface PubConfig { at?: number; autoSet?: boolean; ytClientId: string; metaPageId: string; metaPageToken: string; igUserId: string; auto: { youtube: boolean; facebook: boolean; instagram: boolean } }
 const KEY = 'pp_publish_cfg_v1';
 export const defaultCfg = (): PubConfig => ({ ytClientId: '', metaPageId: '', metaPageToken: '', igUserId: '', auto: { youtube: false, facebook: false, instagram: false } });
+/** Facebook/Instagram auto-post is ON by default until the owner deliberately changes it. */
+export const autoOn = (c: PubConfig, k: 'youtube' | 'facebook' | 'instagram') => (c.autoSet ? !!c.auto[k] : k !== 'youtube' ? true : !!c.auto.youtube);
 export function loadCfg(): PubConfig { try { return { ...defaultCfg(), ...JSON.parse(localStorage.getItem(KEY) || '{}') }; } catch { return defaultCfg(); } }
 let pushT: ReturnType<typeof setTimeout> | null = null; let lastSync = '';
 /** Saves in this browser at once, and to the owner's encrypted account storage a moment later (so every device shares it). */

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Copy, Download, Rocket } from 'lucide-react';
 import { PlatformMeta, makeThumbnail, metaFor } from '../../utils/publishPack';
-import { PubConfig, loadCfg, publishMeta, saveCfg, stageVideo, syncCfg, uploadYouTube, verifyMeta } from '../../utils/publishClient';
+import { PubConfig, autoOn, loadCfg, publishMeta, saveCfg, stageVideo, syncCfg, uploadYouTube, verifyMeta } from '../../utils/publishClient';
 import { download } from '../../utils/postVisuals';
 import { tourStore } from '../../utils/tour';
 import { SetupGuide } from './SetupGuide';
@@ -22,7 +22,7 @@ export function PublishPanel({ video }: { video: FinishedVideo | null }) {
     if (!video || video.at === last.current) return; last.current = video.at; const fresh = !tourStore.handled.has(video.at); tourStore.handled.add(video.at);
     const m = metaFor(video.category, video.title); setMetas(m); setLog([]);
     void makeThumbnail(video.blob, video.headline).then((b) => { setThumb(b); setThumbUrl((u) => { if (u) URL.revokeObjectURL(u); return URL.createObjectURL(b); }); }).catch(() => { /* optional */ });
-    const c = loadCfg(); if (fresh && (c.auto.youtube || c.auto.facebook || c.auto.instagram)) void publish(['youtube', 'facebook', 'instagram'].filter((k) => (c.auto as any)[k]), m, c);
+    const c = loadCfg(); const t = (['youtube', 'facebook', 'instagram'] as const).filter((k) => autoOn(c, k) && (k === 'youtube' ? !!c.ytClientId : !!(c.metaPageId && c.metaPageToken))); if (fresh && t.length) void publish(t, m, c); else if (fresh) setLog(['Auto-post is waiting: add the Facebook Page ID and token above, then press “Post to all”.']);
   }, [video]); // eslint-disable-line react-hooks/exhaustive-deps
   const publish = async (targets: string[], m = metas, c = cfg) => {
     if (!video || !m.length) return; setBusy(true);
@@ -50,7 +50,7 @@ export function PublishPanel({ video }: { video: FinishedVideo | null }) {
           <label className="block text-[11px] text-slate-400">Facebook Page access token (also posts to the linked Instagram)<input className={inp} type="password" value={cfg.metaPageToken} onChange={(e) => upd({ metaPageToken: e.target.value.trim() })} /></label>
           <button type="button" onClick={() => void verify()} className="rounded bg-slate-700 px-2 py-1 text-xs text-white">Check Facebook / Instagram connection</button>
           <div className="flex flex-wrap gap-3 pt-1 text-[11px] text-slate-300">
-            {(['youtube', 'facebook', 'instagram'] as const).map((k) => <label key={k} className="flex items-center gap-1"><input type="checkbox" checked={cfg.auto[k]} onChange={(e) => upd({ auto: { ...cfg.auto, [k]: e.target.checked } })} />Auto-post to {NAMES[k]} after recording</label>)}
+            {(['youtube', 'facebook', 'instagram'] as const).map((k) => <label key={k} className="flex items-center gap-1"><input type="checkbox" checked={autoOn(cfg, k)} onChange={(e) => upd({ autoSet: true, auto: { youtube: autoOn(cfg, 'youtube'), facebook: autoOn(cfg, 'facebook'), instagram: autoOn(cfg, 'instagram'), [k]: e.target.checked } })} />Auto-post to {NAMES[k]} after recording</label>)}
           </div>
           <div className="text-[11px] text-slate-500">TikTok and public YouTube uploads need each platform’s one-time approval (explained in the setup guide). Until then use the manual buttons: download, copy the text below, upload (10 seconds).</div>
         </div>
