@@ -6,7 +6,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { randomUUID } from "node:crypto";
 import { privateListGet, privateListUpdate, durableStatus } from "./durableStore.js";
-import { ytUpload, pinPost, ytStats, readCh, registerChannelRoutes } from "./channels.js";
+import { ytUpload, pinPost, pinStats, ytStats, readCh, registerChannelRoutes } from "./channels.js";
 import { analyse, type Metrics, type PostEntry } from "./socialInsights.js";
 
 /* Publishing helpers. Credentials are NOT stored on the server: the admin's browser keeps them and sends them with each request.
@@ -51,6 +51,7 @@ async function refreshAll(force = false): Promise<void> {
       const last = Math.max(0, ...Object.values(e.metrics || {}).map((m) => m.at)); const age = now - e.at; const every = age < 2 * 86400_000 ? 20 * 60_000 : 6 * 3600_000;
       if (!force && now - last < every) continue; const mm: Record<string, Metrics> = { ...(e.metrics || {}) };
       const yr = e.results.youtube; if (yr?.ok && yr.id) { try { const st = (await ytStats([yr.id]))[yr.id]; if (st) mm.youtube = { at: Date.now(), views: st.views, likes: st.likes, comments: st.comments }; } catch { /* keep the old numbers */ } }
+      const pr = e.results.pinterest; if (pr?.ok && pr.id) { try { const st = await pinStats(pr.id); mm.pinterest = { at: Date.now(), views: st.views, saves: st.saves, likes: st.clicks }; } catch { /* keep the old numbers */ } }
       for (const k of (token ? ["facebook", "instagram"] : []) as ("facebook" | "instagram")[]) { const r = e.results[k]; if (r?.ok && r.id) { try { mm[k] = await readMetrics(k, r.id, token); } catch { /* keep the old numbers */ } } }
       upd.set(e.id, mm);
     }

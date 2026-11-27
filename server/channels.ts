@@ -71,6 +71,11 @@ async function pinApi(method: string, path: string, body?: any, retried = false)
   if (!r.ok) { if (r.status === 403 && /trial|sandbox/i.test(String(j.message || "")) && !c.pinSandbox) { await patchCh({ pinSandbox: true }); return pinApi(method, path, body, true); } throw new Error(j.message || `Pinterest HTTP ${r.status}`); }
   return j;
 }
+export async function pinStats(id: string): Promise<{ views: number; saves: number; clicks: number }> {
+  const d = new Date(); const e = d.toISOString().slice(0, 10); const st = new Date(Date.now() - 80 * 864e5).toISOString().slice(0, 10);
+  const j = await pinApi("GET", `/pins/${encodeURIComponent(id)}/analytics?start_date=${st}&end_date=${e}&metric_types=IMPRESSION,SAVE,PIN_CLICK`);
+  const a = j?.all?.summary_metrics || j?.summary_metrics || {}; return { views: Number(a.IMPRESSION || 0), saves: Number(a.SAVE || 0), clicks: Number(a.PIN_CLICK || 0) };
+}
 export async function pinPost(path: string, coverUrl: string, o: { title: string; description: string; link?: string }): Promise<{ id: string; sandbox: boolean }> {
   const c = await readCh(); if (!c.pinBoard) throw new Error("Choose a Pinterest board in Social Agent → Channels first.");
   const m = await pinApi("POST", "/media", { media_type: "video" }); const fd = new FormData(); for (const [k, v] of Object.entries(m.upload_parameters || {})) fd.append(k, String(v));
