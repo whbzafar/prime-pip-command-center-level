@@ -66,6 +66,9 @@ const AlertControls: React.FC = () => {
   const btn = 'inline-flex items-center gap-1 px-2 py-1 rounded-lg border text-[10.5px] font-bold cursor-pointer transition';
   return (
     <div className="flex flex-wrap items-center gap-1.5" data-testid="level-alert-controls">
+      <button type="button" data-testid="level-popups-toggle" onClick={() => setLevelSettings({ muted: !cfg.muted })} className={`${btn} ${cfg.muted ? 'border-rose-500/50 bg-rose-500/10 text-rose-200' : 'border-emerald-500/50 bg-emerald-500/10 text-emerald-200'}`} title={cfg.muted ? 'Trade pop-ups are muted — tap to turn them back on' : 'Trade pop-ups are on — tap to mute them (no pop-up, sound, voice or notification)'}>
+        {cfg.muted ? <VolumeX className="w-3 h-3" /> : <BellRing className="w-3 h-3" />}Trade pop-ups {cfg.muted ? 'muted' : 'on'}
+      </button>
       <button type="button" onClick={() => setLevelSettings({ sound: !cfg.sound })} className={`${btn} ${cfg.sound ? 'border-emerald-500/50 bg-emerald-500/10 text-emerald-200' : 'border-rose-500/50 bg-rose-500/10 text-rose-200'}`} title="Alarm sound when a setup reaches its level">
         {cfg.sound ? <Volume2 className="w-3 h-3" /> : <VolumeX className="w-3 h-3" />}Sound {cfg.sound ? 'on' : 'off'}
       </button>
@@ -105,7 +108,7 @@ export const LevelAlertEnablePrompt: React.FC = () => {
   const ios = typeof navigator !== 'undefined' && /iPhone|iPad|iPod/.test(navigator.userAgent);
   const standalone = typeof window !== 'undefined' && (window.matchMedia?.('(display-mode: standalone)').matches || (navigator as any).standalone);
   const needsInstall = ios && !standalone;
-  if (!show || hidden || perm === 'granted' || (perm === 'unsupported' && !needsInstall)) return null;
+  if (!show || hidden || getLevelSettings().muted || perm === 'granted' || (perm === 'unsupported' && !needsInstall)) return null;
   const later = () => { try { localStorage.setItem(K, 'later'); localStorage.setItem(K + '_at', String(Date.now())); } catch { /* storage blocked */ } setHidden(true); };
   return (
     <div data-testid="level-enable-prompt" role="dialog" aria-label="Turn on setup alerts"
@@ -144,7 +147,9 @@ export const LevelAlertBanner: React.FC<{ onOpen: (engineSymbol: string) => void
   useEffect(() => {
     const on = (e: Event) => {
       const now = Date.now();
-      const add = ((e as CustomEvent).detail as any[]).map((d) => {
+      const evs = ((e as CustomEvent).detail as any[]).filter((d) => d?.test || !getLevelSettings().muted); // muted: no trade pop-ups (a test alert the person asked for still shows)
+      if (!evs.length) return;
+      const add = evs.map((d) => {
         const ctx = !d.test && d.display && d.side ? alertContext(d.symbol, d.side, d.display) : null;
         return ctx ? { ...d, kind: 'TEST_EMPTY', title: ctx.title, text: ctx.text, models: [], shownAt: now } : { ...d, models: d.models || [], shownAt: now };
       });
@@ -156,6 +161,7 @@ export const LevelAlertBanner: React.FC<{ onOpen: (engineSymbol: string) => void
     return () => { window.removeEventListener('ppfx:level-alert', on); window.clearInterval(t); };
   }, []);
   if (!items.length) return null;
+  const muteNow = () => { setLevelSettings({ muted: true }); setItems([]); };
   const shell = 'fixed left-1/2 -translate-x-1/2 top-[calc(env(safe-area-inset-top,0px)+4rem)] z-[2147482000] isolate';
   if (min) {
     const top = items[0];
@@ -171,7 +177,8 @@ export const LevelAlertBanner: React.FC<{ onOpen: (engineSymbol: string) => void
   }
   return (
     <div className={`${shell} w-[min(520px,calc(100vw-1rem))] space-y-2`} data-testid="level-alert-banner" role="alert" aria-live="assertive">
-      <div className="flex justify-end">
+      <div className="flex justify-end gap-2">
+        <button type="button" data-testid="level-alert-mute" onClick={muteNow} className="px-2.5 py-1 rounded-full border border-rose-400/70 bg-slate-900 text-[11px] font-semibold text-rose-200 hover:text-white cursor-pointer">Mute trade pop-ups</button>
         <button type="button" data-testid="level-alert-minimize" onClick={() => setMin(true)} className="px-2.5 py-1 rounded-full border border-slate-500 bg-slate-900 text-[11px] font-semibold text-slate-200 hover:text-white cursor-pointer">Minimize</button>
       </div>
       {items.map((a) => {
