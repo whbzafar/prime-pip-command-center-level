@@ -1,11 +1,14 @@
 import { getStoredToken } from './authClient';
 import type { PlatformMeta } from './publishPack';
 
-export interface PubConfig { at?: number; autoSet?: boolean; ytClientId: string; metaPageId: string; metaPageToken: string; igUserId: string; auto: { youtube: boolean; facebook: boolean; instagram: boolean } }
+export interface PubConfig { at?: number; autoSet?: boolean; ytClientId: string; metaPageId: string; metaPageToken: string; igUserId: string; auto: { youtube: boolean; pinterest?: boolean; facebook: boolean; instagram: boolean } }
 const KEY = 'pp_publish_cfg_v1';
 export const defaultCfg = (): PubConfig => ({ ytClientId: '', metaPageId: '', metaPageToken: '', igUserId: '', auto: { youtube: false, facebook: false, instagram: false } });
 /** Facebook/Instagram auto-post is ON by default until the owner deliberately changes it. */
-export const autoOn = (c: PubConfig, k: 'youtube' | 'facebook' | 'instagram') => (c.autoSet ? !!c.auto[k] : k !== 'youtube' ? true : !!c.auto.youtube);
+export const autoOn = (c: PubConfig, k: 'youtube' | 'pinterest' | 'facebook' | 'instagram') => (c.autoSet ? c.auto[k] !== false && (k in c.auto ? !!c.auto[k] : true) : true);
+export interface ChannelStatus { youtube: { clientSet: boolean; connected: boolean; channel: string }; pinterest: { appSet: boolean; connected: boolean; user: string; board: string; boardName: string; sandbox: boolean } }
+export async function fetchChannels(): Promise<ChannelStatus> { const none: ChannelStatus = { youtube: { clientSet: false, connected: false, channel: '' }, pinterest: { appSet: false, connected: false, user: '', board: '', boardName: '', sandbox: false } }; try { const r = await fetch('/api/admin/social/channels', { credentials: 'include', headers: { ...auth() }, cache: 'no-store' }); const j = await r.json(); return j.ok ? j : none; } catch { return none; } }
+export async function chApi(path: string, method = 'GET', body?: unknown): Promise<any> { const r = await fetch(`/api/admin/social${path}`, { method, credentials: 'include', headers: { 'Content-Type': 'application/json', ...auth() }, body: body ? JSON.stringify(body) : undefined }); const j = await r.json().catch(() => ({})); if (!r.ok || j.ok === false) throw new Error(j.error || `HTTP ${r.status}`); return j; }
 export function loadCfg(): PubConfig { try { return { ...defaultCfg(), ...JSON.parse(localStorage.getItem(KEY) || '{}') }; } catch { return defaultCfg(); } }
 let pushT: ReturnType<typeof setTimeout> | null = null; let lastSync = '';
 /** Saves in this browser at once, and to the owner's encrypted account storage a moment later (so every device shares it). */

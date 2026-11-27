@@ -6,6 +6,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { randomUUID } from "node:crypto";
 import { privateListGet, privateListUpdate, durableStatus } from "./durableStore.js";
+import { ytUpload, pinPost, ytStats, readCh, registerChannelRoutes } from "./channels.js";
 import { analyse, type Metrics, type PostEntry } from "./socialInsights.js";
 
 /* Publishing helpers. Credentials are NOT stored on the server: the admin's browser keeps them and sends them with each request.
@@ -44,12 +45,13 @@ let refreshing = false;
 async function refreshAll(force = false): Promise<void> {
   if (refreshing) return; refreshing = true;
   try {
-    const cfg = (await privateListGet("social_publish_cfg"))?.[0]; const token = String(cfg?.metaPageToken || ""); if (!token) return;
+    const cfg = (await privateListGet("social_publish_cfg"))?.[0]; const token = String(cfg?.metaPageToken || "");
     const list: PostEntry[] = (await privateListGet(HIST)) || []; const now = Date.now(); const upd = new Map<string, Record<string, Metrics>>();
     for (const e of list.filter((x) => x.status === "done" && now - x.at < 45 * 86400_000).slice(0, 40)) {
       const last = Math.max(0, ...Object.values(e.metrics || {}).map((m) => m.at)); const age = now - e.at; const every = age < 2 * 86400_000 ? 20 * 60_000 : 6 * 3600_000;
       if (!force && now - last < every) continue; const mm: Record<string, Metrics> = { ...(e.metrics || {}) };
-      for (const k of ["facebook", "instagram"] as const) { const r = e.results[k]; if (r?.ok && r.id) { try { mm[k] = await readMetrics(k, r.id, token); } catch { /* keep the old numbers */ } } }
+      const yr = e.results.youtube; if (yr?.ok && yr.id) { try { const st = (await ytStats([yr.id]))[yr.id]; if (st) mm.youtube = { at: Date.now(), views: st.views, likes: st.likes, comments: st.comments }; } catch { /* keep the old numbers */ } }
+      for (const k of (token ? ["facebook", "instagram"] : []) as ("facebook" | "instagram")[]) { const r = e.results[k]; if (r?.ok && r.id) { try { mm[k] = await readMetrics(k, r.id, token); } catch { /* keep the old numbers */ } } }
       upd.set(e.id, mm);
     }
     if (upd.size) await privateListUpdate(HIST, (l) => l.map((e: PostEntry) => (upd.has(e.id) ? { ...e, metrics: upd.get(e.id) } : e)));
@@ -57,6 +59,7 @@ async function refreshAll(force = false): Promise<void> {
 }
 
 export function registerPublishRoutes(app: Express, requireDeveloper: RequestHandler) {
+  registerChannelRoutes(app, requireDeveloper);
   /* Publishing settings (Page ID, permanent Page token, auto-post choices) live in the encrypted private store, so every
      device and browser signed in as the owner sees the same connection. Never logged, never sent to other users. */
   app.get("/api/admin/social/publish-config", requireDeveloper, async (_req, res) => {
@@ -115,7 +118,7 @@ export function registerPublishRoutes(app: Express, requireDeveloper: RequestHan
     const { id, coverId, pageId, pageToken, igUserId, title, description, caption, targets, category, videoTitle } = req.body || {}; const v = staged.get(String(id || "")); const cv = coverId ? staged.get(String(coverId)) : undefined;
     if (!v) return res.status(400).json({ ok: false, error: "The video expired. Record or stage it again." });
     const base = (process.env.PUBLIC_BASE_URL || `${req.headers["x-forwarded-proto"] || req.protocol}://${req.get("host")}`).replace(/\/$/, ""); const url = `${base}/api/public/staged/${id}.mp4`; const coverUrl = cv ? `${base}/api/public/staged/${coverId}.jpg` : "";
-    const out: Record<string, { ok: boolean; id?: string; error?: string }> = {}; const jobId = randomBytes(8).toString("hex"); jobs.set(jobId, { done: false, out, note: "Starting…", at: Date.now() }); const job = jobs.get(jobId)!; res.json({ ok: true, job: jobId }); void histAdd({ id: jobId, at: Date.now(), title: String(videoTitle || title || "Video").slice(0, 120), category: String(category || "General").slice(0, 60), targets: Array.isArray(targets) ? targets.map(String) : [], status: "pending", stage: "Uploading", results: {} }); void (async () => { try { await run(); } catch (e: any) { out.error = { ok: false, error: String(e?.message || e) }; } finally { job.done = true; job.note = ""; const res: Record<string, { ok: boolean; id?: string; error?: string }> = {}; for (const k of ["facebook", "instagram"]) if (out[k]) res[k] = out[k]; if (out.error) res.error = out.error; const any = Object.entries(res).some(([k, v]) => k !== "error" && v.ok); await histPatch(jobId, { status: any ? "done" : "failed", stage: any ? "Published" : "Failed", results: res }); if (any) setTimeout(() => { void refreshAll(true); }, 90_000); } })(); return;
+    const out: Record<string, { ok: boolean; id?: string; error?: string }> = {}; const jobId = randomBytes(8).toString("hex"); jobs.set(jobId, { done: false, out, note: "Starting…", at: Date.now() }); const job = jobs.get(jobId)!; res.json({ ok: true, job: jobId }); void histAdd({ id: jobId, at: Date.now(), title: String(videoTitle || title || "Video").slice(0, 120), category: String(category || "General").slice(0, 60), targets: Array.isArray(targets) ? targets.map(String) : [], status: "pending", stage: "Uploading", results: {} }); void (async () => { try { await run(); } catch (e: any) { out.error = { ok: false, error: String(e?.message || e) }; } finally { job.done = true; job.note = ""; const res: Record<string, { ok: boolean; id?: string; error?: string }> = {}; for (const k of ["facebook", "instagram", "youtube", "pinterest"]) if (out[k]) res[k] = out[k]; if (out.error) res.error = out.error; const any = Object.entries(res).some(([k, v]) => k !== "error" && v.ok); await histPatch(jobId, { status: any ? "done" : "failed", stage: any ? "Published" : "Failed", results: res }); if (any) setTimeout(() => { void refreshAll(true); }, 90_000); } })(); return;
     async function run() {
     const j0 = (n: string) => { job.note = n; void histPatch(jobId, { stage: /Instagram: sending/.test(n) ? "Processing on Instagram" : n.replace(/…$/, "") }); };
     const want: string[] = Array.isArray(targets) ? targets : [];
@@ -132,6 +135,18 @@ export function registerPublishRoutes(app: Express, requireDeveloper: RequestHan
         }
       }
       catch (e: any) { out.facebook = { ok: false, error: String(e?.message || e) }; }
+    }
+    if (want.includes("youtube")) {
+      try {
+        j0("YouTube: uploading the Short…"); const sz = (await stat(v.path)).size; const r = await ytUpload(v.path, sz, { title: String(title || videoTitle || "Prime Pip"), description: String(description || caption || ""), tags: ["forex", "trading", "gold", "XAUUSD", "PrimePipFX", "Shorts"] });
+        out.youtube = { ok: true, id: r.id }; if (r.privacy !== "public") out.youtube.error = `Uploaded as ${r.privacy}: Google keeps videos of unverified projects private until the app is audited or published.`;
+      } catch (e: any) { out.youtube = { ok: false, error: String(e?.message || e) }; }
+    }
+    if (want.includes("pinterest")) {
+      try {
+        j0("Pinterest: pinning the video…"); if (!cv) throw new Error("Pinterest needs a cover image; none was staged."); const r = await pinPost(v.path, coverUrl, { title: String(title || videoTitle || "Prime Pip"), description: String(description || caption || ""), link: "https://primepipfx.site" });
+        out.pinterest = { ok: true, id: r.id }; if (r.sandbox) out.pinterest.error = "Pinterest has this app in trial access: pins are saved in its sandbox and are not public yet. Apply for Standard access to go public.";
+      } catch (e: any) { out.pinterest = { ok: false, error: String(e?.message || e) }; }
     }
     if (want.includes("instagram")) {
       try {
