@@ -91,10 +91,11 @@ export async function pinStats(id: string): Promise<{ views: number; saves: numb
 }
 export async function pinPost(path: string, coverUrl: string, o: { title: string; description: string; link?: string }): Promise<{ id: string; sandbox: boolean }> {
   const c = await readCh(); if (!c.pinBoard) throw new Error("Choose a Pinterest board in Social Agent → Channels first.");
-  const m = await pinApi("POST", "/media", { media_type: "video" }); const fd = new FormData(); for (const [k, v] of Object.entries(m.upload_parameters || {})) fd.append(k, String(v));
+  const step = async <T,>(n: string, f: () => Promise<T>): Promise<T> => { try { return await f(); } catch (e: any) { throw new Error(`${n}: ${String(e?.message || e)}`); } };
+  const m = await step("register video", () => pinApi("POST", "/media", { media_type: "video" })); const fd = new FormData(); for (const [k, v] of Object.entries(m.upload_parameters || {})) fd.append(k, String(v));
   fd.append("file", await openAsBlob(path, { type: "video/mp4" }), "video.mp4"); const up = await fetch(m.upload_url, { method: "POST", body: fd, signal: AbortSignal.timeout(300_000) }); if (!up.ok && up.status !== 204) throw new Error(`Pinterest upload failed (HTTP ${up.status})`);
-  for (let i = 0; i < 60; i++) { const s = await pinApi("GET", `/media/${m.media_id}`); if (s.status === "succeeded") break; if (s.status === "failed") throw new Error("Pinterest could not process the video."); await sleep(5000); if (i === 59) throw new Error("Pinterest is still processing the video."); }
-  const pin = await pinApi("POST", "/pins", { board_id: c.pinBoard, title: o.title.slice(0, 100), description: o.description.slice(0, 800), ...(o.link ? { link: o.link } : {}), media_source: { source_type: "video_id", media_id: m.media_id, cover_image_url: coverUrl } });
+  for (let i = 0; i < 60; i++) { const s = await step("check video", () => pinApi("GET", `/media/${m.media_id}`)); if (s.status === "succeeded") break; if (s.status === "failed") throw new Error("Pinterest could not process the video."); await sleep(5000); if (i === 59) throw new Error("Pinterest is still processing the video."); }
+  const pin = await step("create pin", () => pinApi("POST", "/pins", { board_id: c.pinBoard, title: o.title.slice(0, 100), description: o.description.slice(0, 800), ...(o.link ? { link: o.link } : {}), media_source: { source_type: "video_id", media_id: m.media_id, cover_image_url: coverUrl } }));
   return { id: String(pin.id), sandbox: !!(await readCh()).pinSandbox };
 }
 
