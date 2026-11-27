@@ -177,6 +177,8 @@ export function registerChannelRoutes(app: Express, requireDeveloper: RequestHan
       await patchCh({ ytRefresh: j.refresh_token, ytChannel: name }); ytTok = null; res.send(page(true, name ? `YouTube channel “${name}” is connected. Recordings will now post automatically.` : "YouTube is connected. Recordings will now post automatically."));
     } catch (e: any) { res.status(400).send(page(false, String(e?.message || e))); }
   });
+  /* TikTok proves site ownership by fetching a signature file from the site root. */
+  app.get("/tiktokTccV2w1R52QMx2DFQ2exRgJgZz5vDTOv.txt", (_req, res) => { res.type("text/plain").send("tiktok-developers-site-verification=TccV2w1R52QMx2DFQ2exRgJgZz5vDTOv"); });
   app.get("/api/admin/social/tt/auth-url", requireDeveloper, async (req, res) => {
     const c = await readCh(); if (!c.ttKey || !c.ttSecret) return res.status(400).json({ ok: false, error: "Save the TikTok client key and secret first." });
     const q = new URLSearchParams({ client_key: c.ttKey, scope: "user.info.basic,video.publish,video.upload", response_type: "code", redirect_uri: `${baseOf(req)}/api/public/oauth/tiktok`, state: newState() });
