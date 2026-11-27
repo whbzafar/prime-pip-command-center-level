@@ -3989,7 +3989,7 @@ app.post('/api/admin/social-agent/preview', requireDeveloper, async (req, res) =
   try { const pl = ['facebook', 'instagram', 'youtube', 'tiktok'].includes(req.body?.platform) ? req.body.platform : 'instagram'; const ex = Array.isArray(req.body?.exclude) ? req.body.exclude.map(String).slice(-6) : []; res.json({ ok: true, post: await saPreview(getGeminiClient(), pl, Number(req.body?.variant) || 0, ex) }); }
   catch (e: any) { res.status(500).json({ ok: false, error: String(e?.message || e) }); }
 });
-app.post('/api/admin/social-agent/script', requireDeveloper, async (req, res) => {
+app.post('/api/admin/social-agent/script', requireActiveMember, async (req, res) => {
   try {
     const t = req.body?.topic || {}; if (!t.title) return res.status(400).json({ ok: false, error: 'topic required' });
     const topic = { id: String(t.id || ''), title: String(t.title).slice(0, 120), short: String(t.short || '').slice(0, 300), overview: String(t.overview || '').slice(0, 900), features: (Array.isArray(t.features) ? t.features : []).map(String).slice(0, 8) };
@@ -4026,7 +4026,7 @@ app.post('/api/admin/social-brain/calendar/queue', requireDeveloper, (req, res) 
 app.delete('/api/admin/social-brain/library/:id', requireDeveloper, (req, res) => { removeAsset(req.params.id); res.json({ ok: true }); });
 const ttsCache = new Map<string, Buffer>();
 app.get('/api/admin/social-brain/tts/status', requireDeveloper, (_req, res) => res.json({ ok: true, ...voiceStatus() }));
-app.post('/api/admin/social-brain/tts', requireDeveloper, async (req, res) => {
+app.post('/api/admin/social-brain/tts', requireActiveMember, async (req, res) => {
   const text = String(req.body?.text || '').replace(/[\u0000-\u001f]/g, ' ').trim().slice(0, 600);
   const lang = req.body?.lang === 'en' ? 'en' : 'ur';
   if (text.length < 2) return res.status(400).json({ ok: false, error: 'Text required' });
@@ -4043,7 +4043,7 @@ app.post('/api/admin/social-brain/tts/test', requireDeveloper, async (_req, res)
   const audio = await urduSpeech('پرائم پپ کمانڈ سینٹر میں خوش آمدید۔', 'ur', trace);
   return res.json({ ok: !!audio, bytes: audio?.length || 0, ms: Date.now() - t0, trace, ...voiceStatus() });
 });
-registerPublishRoutes(app, requireDeveloper);
+registerPublishRoutes(app, requireDeveloper, requireActiveMember);
 app.post('/api/admin/social-brain/finish', requireDeveloper, express.raw({ type: () => true, limit: '25mb' }), async (req, res) => {
   const body = req.body as Buffer;
   if (!Buffer.isBuffer(body) || body.length < 1000) return res.status(400).json({ ok: false, error: 'No video received' });
@@ -4052,7 +4052,7 @@ app.post('/api/admin/social-brain/finish', requireDeveloper, express.raw({ type:
     res.set('Content-Type', 'video/mp4'); return res.send(mp4);
   } catch (e: any) { return res.status(500).json({ ok: false, error: String(e?.message || e).slice(0, 300) }); }
 });
-app.post('/api/admin/social-brain/urdu', requireDeveloper, async (req, res) => {
+app.post('/api/admin/social-brain/urdu', requireActiveMember, async (req, res) => {
   const list: string[] = Array.isArray(req.body?.texts) ? req.body.texts.slice(0, 40).map((x: unknown) => String(x || '').slice(0, 500)) : [];
   const out: string[] = [];
   for (const t of list) out.push(await translateUrdu(t));
@@ -4459,6 +4459,17 @@ app.get('/api/auth/students-count', async (_req, res) => {
   }
 });
 
+// Paying students (and staff): a real session plus an active subscription.
+async function requireActiveMember(req: express.Request, res: express.Response, next: express.NextFunction) {
+  try {
+    if (!getAuthToken(req)) return res.status(401).json({ ok: false, error: 'Please sign in.' });
+    let user: StoredUser | null = resolveRequestUser(req);
+    if (!user) { await Promise.allSettled([syncUsersFromDurable(0)]); user = resolveRequestUser(req) || (await getCommunityUser(req)); }
+    if (!user) return res.status(401).json({ ok: false, error: 'Invalid or expired session' });
+    if (!isActiveCommunityMember(user)) return res.status(403).json({ ok: false, error: 'An active subscription is required.' });
+    (req as any).currentUser = user; next();
+  } catch { res.status(401).json({ ok: false, error: 'Invalid or expired session' }); }
+}
 // Admin Middleware: Developer / Admin check
 function requireDeveloper(req: express.Request, res: express.Response, next: express.NextFunction) {
   // Admin access requires a real admin session — there is no header-based override.

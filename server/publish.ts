@@ -22,6 +22,12 @@ async function graph(path: string, params: Record<string, string>, method: "GET"
   const r = await fetch(method === "GET" ? `${url}?${body}` : url, method === "GET" ? { signal: AbortSignal.timeout(60_000) } : { method, body, signal: AbortSignal.timeout(180_000) });
   const j: any = await r.json().catch(() => ({})); if (!r.ok || j?.error) throw new Error(j?.error?.message || `Facebook returned HTTP ${r.status}`); return j;
 }
+/* At most 2 videos are converted and uploaded at once (the host has 512 MB); the rest wait in line, so many students can click Record together. */
+const MAXRUN = 2; let active = 0; const waiting: (() => void)[] = [];
+async function gate<T>(job: { note: string }, f: () => Promise<T>): Promise<T> {
+  if (active >= MAXRUN) { job.note = "Waiting in line…"; await new Promise<void>((r) => waiting.push(r)); }
+  active++; try { return await f(); } finally { active--; waiting.shift()?.(); }
+}
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 const HIST = "social_post_history";
@@ -59,7 +65,7 @@ async function refreshAll(force = false): Promise<void> {
   } finally { refreshing = false; }
 }
 
-export function registerPublishRoutes(app: Express, requireDeveloper: RequestHandler) {
+export function registerPublishRoutes(app: Express, requireDeveloper: RequestHandler, requireMember: RequestHandler = requireDeveloper) {
   registerChannelRoutes(app, requireDeveloper);
   /* Publishing settings (Page ID, permanent Page token, auto-post choices) live in the encrypted private store, so every
      device and browser signed in as the owner sees the same connection. Never logged, never sent to other users. */
@@ -82,7 +88,7 @@ export function registerPublishRoutes(app: Express, requireDeveloper: RequestHan
   });
   /* Large videos arrive in small pieces (the host rejects single uploads over ~100 MB). Pieces are appended in order, the last one finishes the file. */
   const parts = new Map<string, { path: string; next: number; at: number; ext: string }>();
-  app.post("/api/admin/social/stage-chunk", requireDeveloper, express.raw({ type: () => true, limit: "20mb" }), async (req, res) => {
+  app.post("/api/admin/social/stage-chunk", requireMember, express.raw({ type: () => true, limit: "20mb" }), async (req, res) => {
     const uid = String(req.query.uid || "").replace(/[^a-z0-9]/gi, "").slice(0, 40); const i = Number(req.query.i), n = Number(req.query.n); const ext = ({ jpg: "jpg", webm: "webm" } as Record<string, string>)[String(req.query.ext || "mp4")] || "mp4"; const body = req.body as Buffer;
     if (!uid || !Number.isInteger(i) || !Number.isInteger(n) || n < 1 || n > 80 || !Buffer.isBuffer(body) || !body.length) return res.status(400).json({ ok: false, error: "Bad upload piece" });
     try {
@@ -94,7 +100,7 @@ export function registerPublishRoutes(app: Express, requireDeveloper: RequestHan
     } catch (e: any) { res.status(500).json({ ok: false, error: String(e?.message || e) }); }
   });
   /* Converts a staged recording to the MP4 (H.264 + AAC) that Instagram and Facebook accept. Runs in the background; poll publish-status. */
-  app.post("/api/admin/social/finish-staged", requireDeveloper, async (req, res) => {
+  app.post("/api/admin/social/finish-staged", requireMember, async (req, res) => {
     const id = String(req.query.id || ""); const v = staged.get(id); if (!v) return res.status(400).json({ ok: false, error: "The recording expired. Record again." });
     const jobId = randomBytes(8).toString("hex"); const out: Record<string, { ok: boolean; id?: string; error?: string }> = {}; jobs.set(jobId, { done: false, out, note: "Converting to MP4…", at: Date.now() }); const job = jobs.get(jobId)!; res.json({ ok: true, job: jobId });
     void (async () => { try { const nid = randomBytes(8).toString("hex"); const np = join(DIR, `${nid}.mp4`); const { finishFile } = await import("./finish.js"); await finishFile(v.path, np); staged.set(nid, { path: np, at: Date.now(), ext: "mp4" }); out.video = { ok: true, id: nid }; } catch (e: any) { out.video = { ok: false, error: String(e?.message || e).slice(0, 300) }; } finally { job.done = true; job.note = ""; } })();
@@ -115,11 +121,11 @@ export function registerPublishRoutes(app: Express, requireDeveloper: RequestHan
       res.json({ ok: true, name: j.name, igUserId: j.instagram_business_account?.id || null, pageToken: token, upgraded, expires });
     } catch (e: any) { res.status(400).json({ ok: false, error: String(e?.message || e) }); }
   });
-  app.post("/api/admin/social/meta/publish", requireDeveloper, async (req, res) => {
+  const publishH: RequestHandler = async (req, res) => {
     const { id, coverId, pageId, pageToken, igUserId, title, description, caption, targets, category, videoTitle } = req.body || {}; const v = staged.get(String(id || "")); const cv = coverId ? staged.get(String(coverId)) : undefined;
     if (!v) return res.status(400).json({ ok: false, error: "The video expired. Record or stage it again." });
     const base = (process.env.PUBLIC_BASE_URL || `${req.headers["x-forwarded-proto"] || req.protocol}://${req.get("host")}`).replace(/\/$/, ""); const url = `${base}/api/public/staged/${id}.mp4`; const coverUrl = cv ? `${base}/api/public/staged/${coverId}.jpg` : "";
-    const out: Record<string, { ok: boolean; id?: string; error?: string }> = {}; const jobId = randomBytes(8).toString("hex"); jobs.set(jobId, { done: false, out, note: "Starting…", at: Date.now() }); const job = jobs.get(jobId)!; res.json({ ok: true, job: jobId }); void histAdd({ id: jobId, at: Date.now(), title: String(videoTitle || title || "Video").slice(0, 120), category: String(category || "General").slice(0, 60), targets: Array.isArray(targets) ? targets.map(String) : [], status: "pending", stage: "Uploading", results: {} }); void (async () => { try { await run(); } catch (e: any) { out.error = { ok: false, error: String(e?.message || e) }; } finally { job.done = true; job.note = ""; const res: Record<string, { ok: boolean; id?: string; error?: string }> = {}; for (const k of ["facebook", "instagram", "youtube", "pinterest"]) if (out[k]) res[k] = out[k]; if (out.error) res.error = out.error; const any = Object.entries(res).some(([k, v]) => k !== "error" && v.ok); await histPatch(jobId, { status: any ? "done" : "failed", stage: any ? "Published" : "Failed", results: res }); if (any) setTimeout(() => { void refreshAll(true); }, 90_000); } })(); return;
+    const out: Record<string, { ok: boolean; id?: string; error?: string }> = {}; const jobId = randomBytes(8).toString("hex"); jobs.set(jobId, { done: false, out, note: "Starting…", at: Date.now() }); const job = jobs.get(jobId)!; res.json({ ok: true, job: jobId }); void histAdd({ by: String((req as any).currentUser?.username || "").slice(0, 60), id: jobId, at: Date.now(), title: String(videoTitle || title || "Video").slice(0, 120), category: String(category || "General").slice(0, 60), targets: Array.isArray(targets) ? targets.map(String) : [], status: "pending", stage: "Uploading", results: {} }); void (async () => { try { await gate(job, () => run()); } catch (e: any) { out.error = { ok: false, error: String(e?.message || e) }; } finally { job.done = true; job.note = ""; const res: Record<string, { ok: boolean; id?: string; error?: string }> = {}; for (const k of ["facebook", "instagram", "youtube", "pinterest"]) if (out[k]) res[k] = out[k]; if (out.error) res.error = out.error; const any = Object.entries(res).some(([k, v]) => k !== "error" && v.ok); await histPatch(jobId, { status: any ? "done" : "failed", stage: any ? "Published" : "Failed", results: res }); if (any) setTimeout(() => { void refreshAll(true); }, 90_000); } })(); return;
     async function run() {
     const j0 = (n: string) => { job.note = n; void histPatch(jobId, { stage: /Instagram: sending/.test(n) ? "Processing on Instagram" : n.replace(/…$/, "") }); };
     const want: string[] = Array.isArray(targets) ? targets : [];
@@ -159,12 +165,33 @@ export function registerPublishRoutes(app: Express, requireDeveloper: RequestHan
       } catch (e: any) { out.instagram = { ok: false, error: String(e?.message || e) }; }
     }
     }
-  });
+  };
+  app.post("/api/admin/social/meta/publish", requireDeveloper, publishH);
+  /* Students: the browser sends only the finished video and its text. Every key, token, page and board comes from the private
+     store on the server, and the platforms to post to are chosen here, so no credential ever reaches a student. */
+  const perUser = new Map<string, number[]>(); const DAILY = Number(process.env.STUDENT_DAILY_POSTS || 30);
+  const studentCreds: RequestHandler = async (req, res, next) => {
+    try {
+      const u: any = (req as any).currentUser; const staff = u?.isDeveloper || u?.role === "ADMIN" || u?.role === "DEVELOPER";
+      const key = String(u?.id || u?.username || "x"); const now = Date.now(); const recent = (perUser.get(key) || []).filter((t) => now - t < 864e5);
+      if (!staff && recent.length >= DAILY) return res.status(429).json({ ok: false, error: `Daily posting limit reached (${DAILY} videos). Try again tomorrow.` });
+      recent.push(now); perUser.set(key, recent);
+      const l = await privateListGet("social_publish_cfg"); const c: any = (l && l[0]) || {}; const ch = await readCh(); const b: any = req.body || {};
+      const targets: string[] = []; const fbOk = !!(c.metaPageId && c.metaPageToken);
+      if (fbOk) targets.push("facebook"); if (fbOk && c.igUserId) targets.push("instagram"); if (ch.ytRefresh) targets.push("youtube"); if (ch.pinAccess && ch.pinBoard) targets.push("pinterest");
+      if (!targets.length) return res.status(503).json({ ok: false, error: "Posting is not set up yet. Please tell the admin." });
+      const clean = (v: any, n: number) => String(v || "").replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g, "").slice(0, n);
+      req.body = { id: clean(b.id, 60), coverId: clean(b.coverId, 60), pageId: c.metaPageId, pageToken: c.metaPageToken, igUserId: c.igUserId, title: clean(b.title, 100), description: clean(b.description, 5000), caption: clean(b.caption, 2200), targets, category: clean(b.category, 60), videoTitle: clean(b.videoTitle, 120) };
+      next();
+    } catch { res.status(500).json({ ok: false, error: "Could not start posting. Try again." }); }
+  };
+  app.post("/api/student/social/publish", requireMember, studentCreds, publishH);
+  app.get("/api/student/social/ready", requireMember, async (_req, res) => { const l = await privateListGet("social_publish_cfg"); const c: any = (l && l[0]) || {}; const ch = await readCh(); res.json({ ok: true, ready: !!((c.metaPageId && c.metaPageToken) || ch.ytRefresh || (ch.pinAccess && ch.pinBoard)) }); });
   app.get("/api/admin/social/insights", requireDeveloper, async (req, res) => {
     res.set("Cache-Control", "no-store"); if (req.query.refresh === "1") await refreshAll(true).catch(() => {}); else void refreshAll(false).catch(() => {});
     const list: PostEntry[] | null = await privateListGet(HIST); if (list === null) return res.json({ ok: false, error: "Private storage is not available on the server yet" });
     res.json({ ok: true, posts: list.slice(0, 60), advice: analyse(list) });
   });
   setInterval(() => { void refreshAll(false).catch(() => {}); }, 3 * 3600_000).unref?.();
-  app.get("/api/admin/social/meta/publish-status", requireDeveloper, (req, res) => { const j = jobs.get(String(req.query.job || "")); if (!j) return res.json({ ok: false, error: "Unknown or expired job." }); res.json({ ok: true, done: j.done, note: j.note, results: j.out }); });
+  app.get("/api/admin/social/meta/publish-status", requireMember, (req, res) => { const j = jobs.get(String(req.query.job || "")); if (!j) return res.json({ ok: false, error: "Unknown or expired job." }); res.json({ ok: true, done: j.done, note: j.note, results: j.out }); });
 }

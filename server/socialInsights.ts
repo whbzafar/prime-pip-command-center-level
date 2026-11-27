@@ -4,7 +4,7 @@
 export interface PlatformResult { ok: boolean; id?: string; error?: string }
 export interface Metrics { views?: number; reach?: number; likes?: number; comments?: number; shares?: number; saves?: number; at: number; note?: string }
 export interface PostEntry {
-  id: string; at: number; title: string; category: string; targets: string[]; status: "pending" | "done" | "failed"; stage?: string;
+  id: string; by?: string; at: number; title: string; category: string; targets: string[]; status: "pending" | "done" | "failed"; stage?: string;
   results: Record<string, PlatformResult>; metrics?: Record<string, Metrics>;
 }
 

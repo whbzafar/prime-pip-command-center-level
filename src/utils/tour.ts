@@ -534,7 +534,7 @@ export async function streamTours(items: StreamItem[], opts: StreamOpts): Promis
   } finally { scr.stream.getTracks().forEach((t) => t.stop()); go('ADMIN'); }
 }
 
-export interface SeriesOpts { tab: string; title: string; theme: number; features?: string[]; script: () => Promise<TourScript>; voice: boolean; audio?: AudioMode; secondsPerPart?: number; voiceLang: 'ur' | 'en'; format?: VideoFormatId; stop: { stop: boolean }; onVideo: (blob: Blob, meta: { label: string; index: number; total: number }) => void | Promise<void>; onStatus: (s: string) => void }
+export interface SeriesOpts { tab: string; title: string; theme: number; features?: string[]; script: () => Promise<TourScript>; voice: boolean; audio?: AudioMode; secondsPerPart?: number; voiceLang: 'ur' | 'en'; format?: VideoFormatId; stop: { stop: boolean }; returnTab?: string; onVideo: (blob: Blob, meta: { label: string; index: number; total: number }) => void | Promise<void>; onStatus: (s: string) => void }
 export interface Leaf { path: string[]; label: string }
 /** Every sub-category of a category, down to the last level of tabs, read from the live screen. Empty when it has none. */
 export async function listSubTabs(tab: string): Promise<Leaf[]> {
@@ -570,7 +570,7 @@ export async function recordSeries(o: SeriesOpts): Promise<number> {
         } catch (e: any) { o.onStatus(`Skipped ${leaf.label}: ${String(e?.message || e)}`); break; }
       }
     }
-  } finally { scr.stream.getTracks().forEach((t) => t.stop()); go('ADMIN'); reopenStudio(); }
+  } finally { scr.stream.getTracks().forEach((t) => t.stop()); go(o.returnTab || 'ADMIN'); if (!o.returnTab || o.returnTab === 'ADMIN') reopenStudio(); }
   return made;
 }
 

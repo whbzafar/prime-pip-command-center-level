@@ -11,6 +11,7 @@ import { trackState, type AnalyticsState } from './services/analyticsClient';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { Header } from './components/Header';
+import { StudentRecorder } from './components/StudentRecorder';
 import { AuroraScene } from './components/AuroraScene';
 import { AppPerimeterGlow } from './components/AppPerimeterGlow';
 import { MarketAura } from './components/MarketAura';
@@ -1433,6 +1434,7 @@ export default function App() {
       <DeferredOcean />
       {newEraOpen && currentUser && <NewEraWelcome name={welcomeName(currentUser)} onEnter={() => { markNewEraSeen(currentUser.id); setNewEraOpen(false); }} onFounder={() => { markNewEraSeen(currentUser.id); setNewEraOpen(false); setFounderMin(false); setFounderOpen(true); }} />}
       {founderOpen && <React.Suspense fallback={null}><FounderExperienceModal isOpen isMinimized={founderMin} onClose={() => { setFounderOpen(false); setFounderMin(false); }} onMinimize={() => setFounderMin(true)} onReopen={() => setFounderMin(false)} /></React.Suspense>}
+      {currentUser && !isDemoMode && <StudentRecorder />}
       <SecurityWarningModal userId={currentUser && !isUserAdmin(currentUser) ? currentUser.id : undefined} />
       <Header
         activeTab={activeTab as any}
