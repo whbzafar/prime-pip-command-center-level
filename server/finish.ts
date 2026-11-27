@@ -34,3 +34,15 @@ export async function finishVideo(data: Buffer, ext = "webm"): Promise<Buffer> {
     return await readFile(out);
   } finally { unlink(inp).catch(() => {}); unlink(out).catch(() => {}); }
 }
+
+/** Same conversion working on files (no big buffers in memory). */
+export async function finishFile(inp: string, out: string): Promise<void> {
+  const bin = await ffmpegPath();
+  await new Promise<void>((resolve, reject) => {
+    const p = spawn(bin, ffmpegArgs(inp, out), { stdio: ["ignore", "ignore", "pipe"] }); let err = "";
+    const t = setTimeout(() => { p.kill("SIGKILL"); reject(new Error("ffmpeg timed out")); }, 600_000);
+    p.stderr.on("data", (d) => { err += String(d).slice(0, 2000); });
+    p.on("error", (e) => { clearTimeout(t); reject(e); });
+    p.on("close", (c) => { clearTimeout(t); c === 0 ? resolve() : reject(new Error(err.trim().slice(-300) || `ffmpeg exited ${c}`)); });
+  });
+}

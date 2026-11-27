@@ -8,6 +8,7 @@ import { HOOK_OPENERS, MUSIC_BPM, OUTRO_VARIANTS, OVERVIEW_VARIANTS, PACKS } fro
 
 /** How many videos have been made for this category (kept in this browser): drives a different hook, order, outro, look and music each time. */
 function nextTake(tab: string): number { try { const k = `pp_take_${tab}`; const n = Number(localStorage.getItem(k) || '0'); localStorage.setItem(k, String(n + 1)); return n; } catch { return Math.floor(Math.random() * 50); } }
+import { stageVideo } from './publishClient';
 import { chunkCaption, pickFeature, planTimeline, titleCase, type Item } from './timeline';
 
 /* Live tour video. The director reads the real section (every heading, card and safe inner tab, top to bottom),
@@ -74,10 +75,14 @@ async function urduFor(texts: string[]): Promise<string[]> {
 /** Final pass on the server with ffmpeg: H.264 + AAC MP4 at short-video loudness. Returns the original recording if the server cannot do it. */
 export async function finishOnServer(blob: Blob): Promise<Blob> {
   try {
-    const t = getStoredToken(); const ext = blob.type.includes('mp4') ? 'mp4' : 'webm';
-    const r = await fetch(`/api/admin/social-brain/finish?ext=${ext}`, { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/octet-stream', ...(t ? { Authorization: `Bearer ${t}` } : {}) }, body: blob });
-    if (!r.ok || !(r.headers.get('content-type') || '').includes('video/mp4')) return blob;
-    const out = await r.blob(); return out.size > 1000 ? new Blob([out], { type: 'video/mp4' }) : blob;
+    const t = getStoredToken(); const H = t ? { Authorization: `Bearer ${t}` } : {}; const ext = blob.type.includes('mp4') ? 'mp4' : 'webm';
+    const id = await stageVideo(blob, ext); // in small pieces: one 100 MB request is refused by the host
+    const r = await fetch(`/api/admin/social/finish-staged?id=${id}`, { method: 'POST', credentials: 'include', headers: H }); const j = await r.json().catch(() => ({})); if (!j.job) return blob;
+    for (let k = 0; k < 150; k++) {
+      await sleep(4000); const p = await (await fetch(`/api/admin/social/meta/publish-status?job=${j.job}`, { credentials: 'include', headers: H, cache: 'no-store' })).json();
+      if (p.done) { const vid = p.results?.video; if (!vid?.ok) return blob; const g = await fetch(`/api/public/staged/${vid.id}.mp4`); const out = await g.blob(); return out.size > 1000 ? new Blob([out], { type: 'video/mp4' }) : blob; }
+    }
+    return blob;
   } catch { return blob; }
 }
 

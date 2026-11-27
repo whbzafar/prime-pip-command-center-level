@@ -45,7 +45,7 @@ export function registerPublishRoutes(app: Express, requireDeveloper: RequestHan
   /* Large videos arrive in small pieces (the host rejects single uploads over ~100 MB). Pieces are appended in order, the last one finishes the file. */
   const parts = new Map<string, { path: string; next: number; at: number; ext: string }>();
   app.post("/api/admin/social/stage-chunk", requireDeveloper, express.raw({ type: () => true, limit: "20mb" }), async (req, res) => {
-    const uid = String(req.query.uid || "").replace(/[^a-z0-9]/gi, "").slice(0, 40); const i = Number(req.query.i), n = Number(req.query.n); const ext = String(req.query.ext || "mp4") === "jpg" ? "jpg" : "mp4"; const body = req.body as Buffer;
+    const uid = String(req.query.uid || "").replace(/[^a-z0-9]/gi, "").slice(0, 40); const i = Number(req.query.i), n = Number(req.query.n); const ext = ({ jpg: "jpg", webm: "webm" } as Record<string, string>)[String(req.query.ext || "mp4")] || "mp4"; const body = req.body as Buffer;
     if (!uid || !Number.isInteger(i) || !Number.isInteger(n) || n < 1 || n > 80 || !Buffer.isBuffer(body) || !body.length) return res.status(400).json({ ok: false, error: "Bad upload piece" });
     try {
       await mkdir(DIR, { recursive: true }); let p = parts.get(uid);
@@ -54,6 +54,12 @@ export function registerPublishRoutes(app: Express, requireDeveloper: RequestHan
       if (i === n - 1) { parts.delete(uid); await sweep(); staged.set(uid, { path: p!.path, at: Date.now(), ext }); const base = (process.env.PUBLIC_BASE_URL || `${req.headers["x-forwarded-proto"] || req.protocol}://${req.get("host")}`).replace(/\/$/, ""); return res.json({ ok: true, done: true, id: uid, url: `${base}/api/public/staged/${uid}.${ext}` }); }
       res.json({ ok: true, done: false });
     } catch (e: any) { res.status(500).json({ ok: false, error: String(e?.message || e) }); }
+  });
+  /* Converts a staged recording to the MP4 (H.264 + AAC) that Instagram and Facebook accept. Runs in the background; poll publish-status. */
+  app.post("/api/admin/social/finish-staged", requireDeveloper, async (req, res) => {
+    const id = String(req.query.id || ""); const v = staged.get(id); if (!v) return res.status(400).json({ ok: false, error: "The recording expired. Record again." });
+    const jobId = randomBytes(8).toString("hex"); const out: Record<string, { ok: boolean; id?: string; error?: string }> = {}; jobs.set(jobId, { done: false, out, note: "Converting to MP4…", at: Date.now() }); const job = jobs.get(jobId)!; res.json({ ok: true, job: jobId });
+    void (async () => { try { const nid = randomBytes(8).toString("hex"); const np = join(DIR, `${nid}.mp4`); const { finishFile } = await import("./finish.js"); await finishFile(v.path, np); staged.set(nid, { path: np, at: Date.now(), ext: "mp4" }); out.video = { ok: true, id: nid }; } catch (e: any) { out.video = { ok: false, error: String(e?.message || e).slice(0, 300) }; } finally { job.done = true; job.note = ""; } })();
   });
   app.get("/api/public/staged/:file", async (req, res) => {
     const id = String(req.params.file).replace(/\.(mp4|jpg)$/, ""); const v = staged.get(id); if (!v || Date.now() - v.at > TTL) return res.status(404).end();

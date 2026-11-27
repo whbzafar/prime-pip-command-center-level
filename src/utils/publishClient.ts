@@ -57,7 +57,7 @@ export async function uploadYouTube(clientId: string, video: Blob, meta: Platfor
 export async function verifyMeta(pageId: string, pageToken: string): Promise<{ ok: boolean; name?: string; igUserId?: string | null; pageToken?: string; upgraded?: boolean; expires?: string; error?: string }> {
   const r = await fetch('/api/admin/social/meta/verify', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json', ...auth() }, body: JSON.stringify({ pageId, pageToken }) }); return await r.json().catch(() => ({ ok: false, error: `HTTP ${r.status}` }));
 }
-export async function stageVideo(video: Blob, ext: 'mp4' | 'jpg' = 'mp4'): Promise<string> {
+export async function stageVideo(video: Blob, ext: 'mp4' | 'jpg' | 'webm' = 'mp4'): Promise<string> {
   // sent in 8 MB pieces so no single request is too large for the host; each piece is retried once
   const uid = (crypto.randomUUID?.() || String(Date.now()) + Math.random().toString(16).slice(2)).replace(/-/g, ''); const SIZE = 8 * 1024 * 1024; const n = Math.max(1, Math.ceil(video.size / SIZE));
   for (let i = 0; i < n; i++) {
