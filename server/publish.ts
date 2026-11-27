@@ -1,3 +1,4 @@
+import { randomBytes } from "node:crypto";
 import type { Express, RequestHandler } from "express";
 import express from "express";
 import { mkdir, writeFile, appendFile, unlink, stat } from "node:fs/promises";
@@ -10,8 +11,9 @@ import { privateListGet, privateListUpdate, durableStatus } from "./durableStore
    - /stage keeps the finished MP4 for 30 minutes at an unguessable public link (Instagram needs a URL it can download from).
    - /meta/verify and /meta/publish talk to the Facebook Graph API (Page video + Instagram Reel). */
 const DIR = join(tmpdir(), "pp-staged"); const TTL = 30 * 60 * 1000; const GRAPH = "https://graph.facebook.com/v21.0";
+const jobs = new Map<string, { done: boolean; out: Record<string, { ok: boolean; id?: string; error?: string }>; note: string; at: number }>();
 const staged = new Map<string, { path: string; at: number; ext: string }>();
-async function sweep() { const now = Date.now(); for (const [id, v] of staged) if (now - v.at > TTL) { staged.delete(id); try { await unlink(v.path); } catch { /* gone */ } } }
+async function sweep() { const now = Date.now(); for (const [k, v] of jobs) if (now - v.at > 2 * 60 * 60 * 1000) jobs.delete(k); for (const [id, v] of staged) if (now - v.at > TTL) { staged.delete(id); try { await unlink(v.path); } catch { /* gone */ } } }
 
 async function graph(path: string, params: Record<string, string>, method: "GET" | "POST" = "POST"): Promise<any> {
   const url = `${GRAPH}${path}`; const body = new URLSearchParams(params);
@@ -73,17 +75,20 @@ export function registerPublishRoutes(app: Express, requireDeveloper: RequestHan
     const { id, coverId, pageId, pageToken, igUserId, title, description, caption, targets } = req.body || {}; const v = staged.get(String(id || "")); const cv = coverId ? staged.get(String(coverId)) : undefined;
     if (!v) return res.status(400).json({ ok: false, error: "The video expired. Record or stage it again." });
     const base = (process.env.PUBLIC_BASE_URL || `${req.headers["x-forwarded-proto"] || req.protocol}://${req.get("host")}`).replace(/\/$/, ""); const url = `${base}/api/public/staged/${id}.mp4`; const coverUrl = cv ? `${base}/api/public/staged/${coverId}.jpg` : "";
-    const out: Record<string, { ok: boolean; id?: string; error?: string }> = {}; const want: string[] = Array.isArray(targets) ? targets : [];
+    const out: Record<string, { ok: boolean; id?: string; error?: string }> = {}; const jobId = randomBytes(8).toString("hex"); jobs.set(jobId, { done: false, out, note: "Starting…", at: Date.now() }); const job = jobs.get(jobId)!; res.json({ ok: true, job: jobId }); void (async () => { try { await run(); } catch (e: any) { out.error = { ok: false, error: String(e?.message || e) }; } finally { job.done = true; job.note = ""; } })(); return;
+    async function run() {
+    const j0 = (n: string) => { job.note = n; };
+    const want: string[] = Array.isArray(targets) ? targets : [];
     if (want.includes("facebook")) {
       try {
         // Facebook Reel first (vertical 9:16 gets Reels reach); fall back to a normal Page video if Facebook declines it.
         try {
-          const st = await graph(`/${String(pageId)}/video_reels`, { upload_phase: "start", access_token: String(pageToken) });
+          j0("Facebook: starting the Reel…"); const st = await graph(`/${String(pageId)}/video_reels`, { upload_phase: "start", access_token: String(pageToken) });
           const up = await fetch(st.upload_url, { method: "POST", headers: { Authorization: `OAuth ${String(pageToken)}`, file_url: url }, signal: AbortSignal.timeout(180_000) }); const uj: any = await up.json().catch(() => ({})); if (!up.ok || uj?.success === false) throw new Error(uj?.debug_info?.message || `upload HTTP ${up.status}`);
           await graph(`/${String(pageId)}/video_reels`, { upload_phase: "finish", video_id: String(st.video_id), video_state: "PUBLISHED", description: String(description || "").slice(0, 5000), title: String(title || "").slice(0, 100), access_token: String(pageToken) });
           out.facebook = { ok: true, id: String(st.video_id) };
         } catch (re: any) {
-          const j = await graph(`/${String(pageId)}/videos`, { file_url: url, title: String(title || "").slice(0, 100), description: String(description || "").slice(0, 5000), published: "true", access_token: String(pageToken) }); out.facebook = { ok: true, id: j.id };
+          j0("Facebook: posting as a video…"); const j = await graph(`/${String(pageId)}/videos`, { file_url: url, title: String(title || "").slice(0, 100), description: String(description || "").slice(0, 5000), published: "true", access_token: String(pageToken) }); out.facebook = { ok: true, id: j.id };
         }
       }
       catch (e: any) { out.facebook = { ok: false, error: String(e?.message || e) }; }
@@ -91,12 +96,13 @@ export function registerPublishRoutes(app: Express, requireDeveloper: RequestHan
     if (want.includes("instagram")) {
       try {
         if (!igUserId) throw new Error("No Instagram professional account is linked to this Facebook Page.");
-        const c = await graph(`/${String(igUserId)}/media`, { media_type: "REELS", video_url: url, ...(coverUrl ? { cover_url: coverUrl } : {}), caption: String(caption || description || "").slice(0, 2200), share_to_feed: "true", access_token: String(pageToken) });
+        j0("Instagram: sending the Reel…"); const c = await graph(`/${String(igUserId)}/media`, { media_type: "REELS", video_url: url, ...(coverUrl ? { cover_url: coverUrl } : {}), caption: String(caption || description || "").slice(0, 2200), share_to_feed: "true", access_token: String(pageToken) });
         let status = ""; for (let i = 0; i < 40; i++) { await sleep(5000); const s = await graph(`/${c.id}`, { fields: "status_code,status", access_token: String(pageToken) }, "GET"); status = s.status_code; if (status === "FINISHED") break; if (status === "ERROR") throw new Error(`Instagram could not process the video: ${s.status || "error"}`); }
         if (status !== "FINISHED") throw new Error("Instagram is still processing; check the app in a few minutes.");
         const p = await graph(`/${String(igUserId)}/media_publish`, { creation_id: c.id, access_token: String(pageToken) }); out.instagram = { ok: true, id: p.id };
       } catch (e: any) { out.instagram = { ok: false, error: String(e?.message || e) }; }
     }
-    res.json({ ok: Object.values(out).every((x) => x.ok), results: out });
+    }
   });
+  app.get("/api/admin/social/meta/publish-status", requireDeveloper, (req, res) => { const j = jobs.get(String(req.query.job || "")); if (!j) return res.json({ ok: false, error: "Unknown or expired job." }); res.json({ ok: true, done: j.done, note: j.note, results: j.out }); });
 }

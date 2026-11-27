@@ -73,7 +73,17 @@ export async function stageVideo(video: Blob, ext: 'mp4' | 'jpg' = 'mp4'): Promi
   }
   throw new Error('Empty video');
 }
-export async function publishMeta(id: string, cfg: PubConfig, fb: PlatformMeta, ig: PlatformMeta, targets: string[], coverId?: string): Promise<Record<string, { ok: boolean; id?: string; error?: string }>> {
+export async function publishMeta(id: string, cfg: PubConfig, fb: PlatformMeta, ig: PlatformMeta, targets: string[], coverId?: string, onNote?: (n: string) => void): Promise<Record<string, { ok: boolean; id?: string; error?: string }>> {
   const r = await fetch('/api/admin/social/meta/publish', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json', ...auth() }, body: JSON.stringify({ id, coverId, pageId: cfg.metaPageId, pageToken: cfg.metaPageToken, igUserId: cfg.igUserId, title: fb.title, description: fb.description, caption: ig.description, targets }) });
-  const j = await r.json().catch(() => ({})); if (!j.results) throw new Error(j?.error || `HTTP ${r.status}`); return j.results;
+  const j = await r.json().catch(() => ({})); if (!j.job) throw new Error(j?.error || `HTTP ${r.status}`);
+  // The server posts in the background (Instagram can take minutes); ask for progress until it is done.
+  const end = Date.now() + 15 * 60_000; let lastNote = ''; let fails = 0;
+  while (Date.now() < end) {
+    await new Promise((res) => setTimeout(res, 4000));
+    try { const p = await fetch(`/api/admin/social/meta/publish-status?job=${j.job}`, { credentials: 'include', headers: { ...auth() }, cache: 'no-store' }); const pj = await p.json(); fails = 0;
+      if (!pj.ok) throw new Error(pj.error || 'status unavailable'); if (pj.note && pj.note !== lastNote) { lastNote = pj.note; onNote?.(pj.note); }
+      if (pj.done) { const { error, ...res } = pj.results || {}; if (error && !Object.keys(res).length) throw new Error(error.error); return res; }
+    } catch (e: any) { if (++fails >= 6) throw new Error(`Lost contact with the server while posting: ${String(e?.message || e)}`); }
+  }
+  throw new Error('Posting took longer than 15 minutes; check Facebook/Instagram directly.');
 }

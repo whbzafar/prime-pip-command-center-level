@@ -25,6 +25,7 @@ export function voiceStatus() {
 }
 
 /** Free Microsoft Edge online voices (same Uzma voice, no key) through the MIT-licensed node-edge-tts package. */
+export let lastEdgeError = "";
 export async function edgeSpeech(text: string, lang: "ur" | "en" = "ur"): Promise<Buffer | null> {
   const path = join(tmpdir(), `pp-tts-${randomUUID()}.mp3`);
   try {
@@ -33,8 +34,9 @@ export async function edgeSpeech(text: string, lang: "ur" | "en" = "ur"): Promis
     const tts = new EdgeTTS({ voice: v.name, lang: v.lang, outputFormat: "audio-24khz-96kbitrate-mono-mp3" });
     await timeout(tts.ttsPromise(text, path), 25000);
     const buf = await readFile(path);
+    if (!buf.length) lastEdgeError = "empty audio"; else lastEdgeError = "";
     return buf.length ? buf : null;
-  } catch { return null; }
+  } catch (e: any) { lastEdgeError = String(e?.message || e?.code || e).slice(0, 200); return null; }
   finally { unlink(path).catch(() => {}); }
 }
 
@@ -101,7 +103,7 @@ export async function urduSpeech(text: string, lang: 'ur' | 'en' = 'ur', trace?:
   }
   const edge = await edgeSpeech(text, lang);
   if (edge) { note('edge: ok'); return edge; }
-  note('edge: failed (no audio)');
+  note(`edge: failed (${lastEdgeError || 'no audio'})`);
   const goog = await googleSpeech(text, lang);
   if (goog) { note('google: ok'); return goog; }
   note('google: failed (no audio)');
