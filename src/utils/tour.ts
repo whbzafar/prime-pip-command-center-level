@@ -1,7 +1,7 @@
 import { FONT, fitText, rr, THEMES } from './postVisuals';
 import { go, grab, lockedNotice, openScreen, shotStore, sleep, SLOW, waitCalm } from './agentCapture';
 import { getStoredToken } from './authClient';
-import { type Beat, type Box, bringIntoView, discoverBeats, findScroller, fitCrop, fullCrop, panCrop, scrollToTop, toVideo } from './sectionDirector';
+import { type Beat, type Box, bringIntoView, discoverBeats, findByText, findScroller, fitCrop, fullCrop, panCrop, scrollToTop, toVideo } from './sectionDirector';
 import { startLiveCaptions, toSrt, type LiveCaptions } from './liveCaptions';
 import { loadClipBuffer } from './voiceClips';
 import { OUTRO_LINE, OVERVIEW_LINE, PACKS } from '../data/urduPack';
@@ -208,7 +208,7 @@ export async function recordTour(o: TourOpts, shared?: { video: HTMLVideoElement
         src.push({ kind: 'intro', headline: pack.hook[0], label: o.title, en: pack.hook[0], rm: pack.hook[0], urdu: pack.hook[1] });
         if (feats.length) src.push({ kind: 'overview', headline: `Inside ${o.title}`, label: o.title, en: OVERVIEW_LINE[0], rm: OVERVIEW_LINE[0], urdu: OVERVIEW_LINE[1], feats: pack.parts.map((p) => p[0]) });
         // each line is paired with the part of the screen it describes (by name where known), the rest in reading order
-        const free = beats.slice(); const pick: (Beat | undefined)[] = pack.parts.map((pt) => { const k = pt[3] ? free.findIndex((b) => pt[3]!.test(b.label)) : -1; return k >= 0 ? free.splice(k, 1)[0] : undefined; });
+        const free = beats.slice(); const taken: HTMLElement[] = []; const pick: (Beat | undefined)[] = pack.parts.map((pt) => { const k = pt[3] ? free.findIndex((b) => pt[3]!.test(b.label)) : -1; if (k >= 0) { const b = free.splice(k, 1)[0]; taken.push(b.el); return b; } const f = pt[3] ? findByText(pt[3], taken) : null; if (f) taken.push(f.el); return f || undefined; });
         pack.parts.forEach((pt, i) => src.push({ kind: 'part', headline: pt[0], label: pt[0], en: pt[1], rm: pt[1], urdu: pt[2], beat: pick[i] || free.shift() }));
         src.push({ kind: 'outro', headline: o.script.cta, label: 'primepipfx.site', en: OUTRO_LINE[0], rm: OUTRO_LINE[0], urdu: OUTRO_LINE[1] });
       } else {
@@ -243,7 +243,7 @@ export async function recordTour(o: TourOpts, shared?: { video: HTMLVideoElement
         }
       }
       const items: Item[] = src.map((x, i) => ({ kind: x.kind, voice: voices[i]?.duration ?? null, base: Math.max(x.kind === 'overview' ? 5 : 3, wordsOf(x.en).length / 2.6 + 0.9) }));
-      const plan = planTimeline(items, 30, 58); rate = plan.rate;
+      const plan = planTimeline(items, 35, 75, 1.15); rate = plan.rate;
       src.forEach((x, i) => { if (!plan.keep[i]) return; const ur = undefined as string | undefined; segs.push({ spoken: browserSpeech ? (browserSpeech.lang === 'ur' ? (urdu[i] && /[\u0600-\u06FF]/.test(urdu[i]) ? urdu[i] : x.en) : x.en) : undefined, spokenLang: browserSpeech ? (browserSpeech.lang === 'ur' && urdu[i] && /[\u0600-\u06FF]/.test(urdu[i]) ? 'ur' : 'en') : undefined, kind: x.kind, beat: x.beat, headline: x.headline, label: x.label, say: x.rm || x.en, ur, chunks: ur ? chunkCaption(ur, 6) : undefined, feats: x.feats, voice: voices[i], seconds: plan.seconds[i] }); });
     }
     const total = segs.reduce((a, s) => a + s.seconds, 0); const starts: number[] = []; segs.reduce((a, s) => { starts.push(a); return a + s.seconds; }, 0);
@@ -374,6 +374,14 @@ export async function recordTour(o: TourOpts, shared?: { video: HTMLVideoElement
         const lh = fit.size * (latin(head) ? 1.08 : 1.6); const y0 = headY - (fit.lines.length * lh) / 2;
         fit.lines.forEach((ln, li) => { ctx.fillStyle = li === fit.lines.length - 1 ? th.a : '#fff'; const w = ctx.measureText(ln).width; ctx.fillText(ln, land ? textX : textCX - w / 2, y0 + li * lh); }); ctx.restore();
 
+        // intro teaser: gives a reason to stay until the end
+        if (s.kind === 'intro' && mode !== 'mic') {
+          const ta = easeBack((since - 0.9) / 0.5); if (ta > 0) {
+            const tx = mode === 'ai' && lang === 'ur' ? 'AAKHIR TAK DEKHEIN  ▼' : 'WATCH TILL THE END  ▼'; ctx.font = `900 ${34 * U}px ${FONT}`; const tw = ctx.measureText(tx).width + 70 * U; const th2 = 62 * U; const tcx = land ? textX + textW / 2 : W / 2; const ty = land ? H * 0.46 : BOX.y + BOX.h * 0.5;
+            ctx.save(); ctx.translate(tcx, ty); ctx.scale(ta, ta); ctx.fillStyle = '#FACC15'; rr(ctx, -tw / 2, -th2 / 2, tw, th2, th2 / 2); ctx.fill(); ctx.fillStyle = '#0b0b0b'; ctx.textBaseline = 'middle'; ctx.fillText(tx, -tw / 2 + 35 * U, 2 * U); ctx.restore(); ctx.textBaseline = 'top';
+          }
+        }
+
         // captions: live transcript of your voice (Urdu script) or word-by-word voice-over captions
         const urduBox = (said: string) => {
           ctx.save(); ctx.font = `700 ${50 * U}px ${URDU_FONT}`; ctx.direction = 'rtl'; ctx.textBaseline = 'middle';
@@ -428,7 +436,7 @@ export async function recordTour(o: TourOpts, shared?: { video: HTMLVideoElement
           const pa = easeBack((since - 0.25) / 0.5); if (pa > 0) {
             const cx = BOX.x + BOX.w / 2; const cy = BOX.y + BOX.h / 2; ctx.save(); ctx.translate(cx, cy); ctx.scale(pa, pa);
             ctx.font = `900 ${84 * U}px ${FONT}`; const site = 'primepipfx.site'; const sw = ctx.measureText(site).width; const gg = ctx.createLinearGradient(-sw / 2, 0, sw / 2, 0); gg.addColorStop(0, th.a); gg.addColorStop(1, th.b); ctx.fillStyle = gg; ctx.textBaseline = 'middle'; ctx.fillText(site, -sw / 2, 0);
-            ctx.font = `700 ${34 * U}px ${FONT}`; ctx.fillStyle = '#fff'; const sub = 'Link in bio · Free to try'; ctx.fillText(sub, -ctx.measureText(sub).width / 2, 80 * U); ctx.restore(); ctx.textBaseline = 'top';
+            ctx.font = `700 ${34 * U}px ${FONT}`; ctx.fillStyle = '#fff'; const sub = 'Link in bio · Free to try'; ctx.fillText(sub, -ctx.measureText(sub).width / 2, 80 * U); ctx.font = `800 ${36 * U}px ${FONT}`; ctx.fillStyle = th.a; const ask = mode === 'ai' && lang === 'ur' ? 'Comment mein likhein: kaun sa feature pasand aaya?' : 'Comment: which feature do you want next?'; ctx.fillText(ask, -ctx.measureText(ask).width / 2, 150 * U); ctx.font = `700 ${30 * U}px ${FONT}`; ctx.fillStyle = '#fff'; const fol = mode === 'ai' && lang === 'ur' ? 'Follow karein, roz naya feature' : 'Follow for a new feature every day'; ctx.fillText(fol, -ctx.measureText(fol).width / 2, 205 * U); ctx.restore(); ctx.textBaseline = 'top';
           }
         }
 
@@ -483,3 +491,7 @@ export async function streamTours(items: StreamItem[], opts: StreamOpts): Promis
     }
   } finally { scr.stream.getTracks().forEach((t) => t.stop()); go('ADMIN'); }
 }
+
+/** Read-only helper: names of the parts the director finds on the screen that is open now (used to check narration coverage). */
+if (typeof window !== 'undefined') (window as any).__ppParts = (title: string) => { try { return discoverBeats(findScroller(), title, 9).map((b) => b.label); } catch { return []; } };
+(window as any).__ppFind = (src: string) => { try { const b = findByText(new RegExp(src, 'i')); if (!b) return null; const r = b.el.getBoundingClientRect(); return { label: b.label, tag: b.el.tagName, x: Math.round(r.x), y: Math.round(r.y), w: Math.round(r.width), h: Math.round(r.height), cls: String(b.el.className).slice(0, 70) }; } catch (e) { return String(e); } };

@@ -111,6 +111,61 @@ export function discoverBeats(scroller: HTMLElement, sectionTitle: string, max =
   return [...chosen.slice(0, 2), ...tabBeats, ...chosen.slice(2)].slice(0, max);
 }
 
+/** Splits a pattern on its top-level "|" so the most specific wording (written first) can be tried first. */
+export function altsOf(re: RegExp): RegExp[] {
+  const src = re.source; const out: string[] = []; let depth = 0; let cur = ''; let esc = false; let cls = false;
+  for (const ch of src) {
+    if (esc) { cur += ch; esc = false; continue; }
+    if (ch === '\\') { cur += ch; esc = true; continue; }
+    if (cls) { cur += ch; if (ch === ']') cls = false; continue; }
+    if (ch === '[') { cls = true; cur += ch; continue; }
+    if (ch === '(') depth++; if (ch === ')') depth--;
+    if (ch === '|' && depth === 0) { out.push(cur); cur = ''; continue; }
+    cur += ch;
+  }
+  out.push(cur);
+  const flags = re.flags.includes('i') ? re.flags : `${re.flags}i`;
+  return out.filter(Boolean).map((a) => new RegExp(a, flags));
+}
+
+/** Finds the on-screen element whose visible text matches `re` and returns the card around it as a camera target.
+ *  The first alternative of the pattern wins over later ones (so "ACCOUNT BALANCE" beats a stray "PKR" in a banner).
+ *  Used so every narrated line can point at the exact feature it talks about, even when the screen has no headings. */
+export function findByText(re: RegExp, avoid: HTMLElement[] = []): Beat | null {
+  const root = (document.querySelector('main') as HTMLElement | null) || document.body;
+  // page chrome (menus, footers, dialogs) is skipped, but a header or aside that sits inside the section itself is content
+  const hidden = (e: HTMLElement) => { const x = e.closest('[role="dialog"], nav, header, aside, footer, [data-tour-skip]'); return !!x && !(root.contains(x) && x !== root); };
+  const vh = window.innerHeight;
+  for (const alt of altsOf(re)) {
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+    let n: Node | null;
+    while ((n = walker.nextNode())) {
+      const txt = (n.textContent || '').replace(/\s+/g, ' ').trim();
+      if (txt.length < 3 || !alt.test(txt)) continue;
+      let el = n.parentElement as HTMLElement | null; if (!el || el.closest('script, style')) continue;
+      if (el.tagName === 'OPTION') el = el.closest('select'); // filter lists: frame the dropdown itself
+      if (!el || hidden(el)) continue;
+      // climb to a card that is big enough to frame, but not the whole page
+      let card: HTMLElement | null = el;
+      for (let i = 0; i < 7 && card; i++) {
+        const r = card.getBoundingClientRect();
+        if (r.width >= 200 && r.height >= 56) break;
+        card = card.parentElement;
+      }
+      if (!card || card === root || hidden(card) || !visible(card)) continue;
+      // a label inside a huge panel: frame just the row around the label, not the whole panel
+      if (card.getBoundingClientRect().height > vh * 0.55) { const up = el.parentElement?.parentElement; card = up && !hidden(up) && visible(up) ? up : el; if (card.getBoundingClientRect().height > vh * 0.8) card = el; }
+      const clash = (c: HTMLElement) => avoid.some((a) => a === c || a.contains(c) || c.contains(a));
+      if (!clash(card)) return { el: card, label: clean(txt) };
+      // the roomy card is already used by another line: frame the exact control or label instead
+      const tight = (el.closest('button, select, a, input, [role="tab"], [role="button"]') as HTMLElement | null) || el;
+      const tr = tight.getBoundingClientRect();
+      if (tr.width >= 40 && tr.height >= 16 && !hidden(tight) && !avoid.some((a) => a === tight)) return { el: tight, label: clean(txt) };
+    }
+  }
+  return null;
+}
+
 /** Smoothly brings a part into view inside its scroller, a little above centre so the camera has room. */
 export function bringIntoView(scroller: HTMLElement, el: HTMLElement) {
   const isPage = scroller === document.scrollingElement || scroller === document.documentElement;
