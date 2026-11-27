@@ -73,32 +73,35 @@ const outside = (el: HTMLElement) => !!el.closest('[role="dialog"], nav, header,
 
 /** Lists the parts of the open section in reading order: every heading's card, plus up to three safe inner tabs. */
 /** Every inner tab (sub-category) of the open section, so a recording can show each one — never anything that could trade, pay or delete. */
-let skipTablist: HTMLElement | null = null;
-/** While a sub-category video is recorded, its sibling tabs are never treated as extra shots. */
-export const setSkipTablist = (el: HTMLElement | null) => { skipTablist = el; };
-const skipped = (t: HTMLElement) => !!skipTablist && skipTablist.contains(t);
+let skipLists: HTMLElement[] = [];
+/** While a sub-category video is recorded, no tab row is treated as extra shots (its tabs are clicked on purpose, never as a shot). */
+export const setSkipTablists = (l: HTMLElement[]) => { skipLists = l; };
+const skipped = (t: HTMLElement) => skipLists.some((l) => l.contains(t));
 export interface SubTab { el: HTMLElement; label: string; hint: string }
-/** The main row of tabs of the open section (the sub-categories), with each tab's name and one-line description. */
-export function primaryTabs(): { list: HTMLElement; tabs: SubTab[] } | null {
-  const root = (document.querySelector('main') as HTMLElement | null) || document.body;
+/** Every visible row of tabs on the open section (two or more tabs), top to bottom, apart from the rows given. */
+export function tablists(exclude: HTMLElement[] = []): { list: HTMLElement; tabs: SubTab[] }[] {
+  const root = (document.querySelector('main') as HTMLElement | null) || document.body; const out: { list: HTMLElement; tabs: SubTab[] }[] = [];
   for (const list of [...root.querySelectorAll<HTMLElement>('[role="tablist"]')]) {
-    if (outside(list) || !visible(list)) continue;
+    if (outside(list) || !visible(list) || exclude.includes(list)) continue;
     const seen = new Set<string>(); const tabs: SubTab[] = [];
     list.querySelectorAll<HTMLElement>('[role="tab"]').forEach((t) => {
       if (!visible(t) || DANGEROUS.test(t.textContent || '')) return; const lines = (t.innerText || '').split('\n').map((x) => x.trim()).filter(Boolean); const label = lines[0] || ''; if (label.length < 2 || label.length > 40 || seen.has(label.toLowerCase())) return;
       seen.add(label.toLowerCase()); tabs.push({ el: t, label, hint: lines.slice(1).join(' ').slice(0, 120) });
     });
-    if (tabs.length >= 2) return { list, tabs };
+    if (tabs.length >= 2) out.push({ list, tabs });
   }
-  return null;
+  return out;
 }
+/** The main row of tabs of the open section (the sub-categories), with each tab's name and one-line description. */
+export const primaryTabs = (): { list: HTMLElement; tabs: SubTab[] } | null => tablists()[0] || null;
 /** What a part of the screen is about, in words taken from the screen itself: its sentences, or else the names of the items it holds. */
-export function describePart(el: HTMLElement, label: string): string {
+export function describePart(el: HTMLElement, label: string, variant = 0): string {
   const lines = (el.innerText || '').split('\n').map((x) => x.trim()).filter(Boolean).filter((l) => l.toLowerCase() !== label.toLowerCase());
   const prose = lines.filter((l) => l.length >= 28 && l.length <= 220 && /[a-z]/i.test(l) && ((l.match(/[a-z ,.'’-]/gi) || []).length / l.length) > 0.85);
-  if (prose.length) return prose.slice(0, 2).join(' ').slice(0, 200);
-  const items = [...new Set(lines.filter((l) => l.length >= 3 && l.length <= 36 && /[a-z]{3}/i.test(l) && !/^[\d+\-.,%$ ]+$/.test(l)))].slice(0, 5);
-  return items.length >= 2 ? `It covers ${items.join(', ')}.` : '';
+  const items = [...new Set(lines.filter((l) => l.length >= 3 && l.length <= 36 && /[a-z]{3}/i.test(l) && !/^[\d+\-.,%$ ]+$/.test(l) && !prose.includes(l)))].slice(0, 6);
+  const a = prose.length ? prose.slice(variant % 2 === 0 ? 0 : Math.min(1, prose.length - 1), (variant % 2 === 0 ? 0 : Math.min(1, prose.length - 1)) + 1).join(' ').slice(0, 190) : '';
+  const b = items.length >= 3 ? `${['It includes', 'You will find', 'Inside are', 'It brings together'][variant % 4]} ${items.slice(0, 5).join(', ')}.` : '';
+  return `${a} ${b}`.trim().slice(0, 300);
 }
 
 export function discoverTabBeats(max = 8): Beat[] {

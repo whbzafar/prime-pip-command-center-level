@@ -1,7 +1,7 @@
 import { FONT, fitText, rr, THEMES } from './postVisuals';
 import { go, grab, lockedNotice, openScreen, shotStore, sleep, SLOW, waitCalm } from './agentCapture';
 import { getStoredToken } from './authClient';
-import { type Beat, type Box, bringIntoView, describePart, discoverBeats, discoverTabBeats, findByText, primaryTabs, setSkipTablist, findScroller, fitCrop, fullCrop, panCrop, scrollToTop, toVideo } from './sectionDirector';
+import { type Beat, type Box, bringIntoView, describePart, discoverBeats, discoverTabBeats, findByText, primaryTabs, setSkipTablists, tablists, findScroller, fitCrop, fullCrop, panCrop, scrollToTop, toVideo } from './sectionDirector';
 import { startLiveCaptions, toSrt, type LiveCaptions } from './liveCaptions';
 import { loadClipBuffer } from './voiceClips';
 import { HOOK_OPENERS, MUSIC_BPM, OUTRO_VARIANTS, OVERVIEW_VARIANTS, PACKS } from '../data/urduPack';
@@ -10,6 +10,7 @@ import { HOOK_OPENERS, MUSIC_BPM, OUTRO_VARIANTS, OVERVIEW_VARIANTS, PACKS } fro
 function nextTake(tab: string): number { try { const k = `pp_take_${tab}`; const n = Number(localStorage.getItem(k) || '0'); localStorage.setItem(k, String(n + 1)); return n; } catch { return Math.floor(Math.random() * 50); } }
 import { stageVideo } from './publishClient';
 import { noFree } from './noFree';
+import { DANGEROUS } from './sectionDirector';
 import { chunkCaption, pickFeature, planTimeline, titleCase, type Item } from './timeline';
 
 /* Live tour video. The director reads the real section (every heading, card and safe inner tab, top to bottom),
@@ -31,10 +32,10 @@ export interface TourOpts {
   /** Every feature of the category; shown as an overview card and used for the narration. */
   features?: string[];
   /** One video about one sub-category (inner tab) of the section, e.g. “CFTC COT Report” inside Fundamentals. */
-  sub?: { label: string; index: number; total: number };
+  sub?: { path: string[]; label: string; index: number; total: number; part?: number };
   format?: VideoFormatId; voiceLang?: 'ur' | 'en'; returnTab?: string; onProgress?: (p: number, label: string) => void;
 }
-export const tourStore: { videos: Record<string, { blob: Blob; title: string; at: number }>; running: boolean; lastSrt: string; finished: { blob: Blob; category: string; title: string; headline: string; at: number } | null; handled: Set<number>; uploading?: boolean } = { videos: {}, running: false, lastSrt: '', finished: null, handled: new Set() };
+export const tourStore: { videos: Record<string, { blob: Blob; title: string; at: number }>; running: boolean; lastSrt: string; finished: { blob: Blob; category: string; title: string; headline: string; at: number } | null; handled: Set<number>; uploading?: boolean; lastParts?: number } = { videos: {}, running: false, lastSrt: '', finished: null, handled: new Set() };
 /** After the tour returns to the admin page, reopen the Social Agent tab so the studio (and the publish panel) is on screen again. */
 export function reopenStudio() { let n = 0; const t = window.setInterval(() => { const el = document.querySelector('[data-testid="admin-tab-social-agent"]') as HTMLElement | null; if (el) { el.click(); window.clearInterval(t); } else if (++n > 40) window.clearInterval(t); }, 250); }
 
@@ -186,8 +187,15 @@ export async function recordTour(o: TourOpts, shared?: { video: HTMLVideoElement
     if (lockedNotice()) throw new Error(`“${o.title}” is locked for this account, so it cannot be recorded.`);
     if (!calm) await sleep(1500);
     if (o.sub) {
-      const pt = primaryTabs(); const tb = pt?.tabs.find((x) => x.label === o.sub!.label); if (!pt || !tb) throw new Error(`Could not find “${o.sub.label}” inside ${o.title}.`);
-      setSkipTablist(pt.list); try { tb.el.click(); } catch { /* handled below */ } await sleep(1600); await waitCalm(v, SLOW[o.tab] || 6500); await sleep(800); window.scrollTo(0, 0);
+      // click down the path of sub-categories (e.g. Fundamentals › Pairs), one level at a time
+      const used: HTMLElement[] = [];
+      for (const step of o.sub.path) {
+        let hit: { el: HTMLElement } | undefined; let host: HTMLElement | undefined;
+        for (let tries = 0; tries < 6 && !hit; tries++) { for (const c of tablists(used)) { const f = c.tabs.find((x) => x.label === step); if (f) { hit = f; host = c.list; break; } } if (!hit) await sleep(600); }
+        if (!hit || !host) throw new Error(`Could not find “${step}” inside ${o.title}.`);
+        used.push(host); try { hit.el.click(); } catch { /* handled by the check below */ } await sleep(1500); await waitCalm(v, SLOW[o.tab] || 6500);
+      }
+      setSkipTablists(tablists().map((x) => x.list)); await sleep(800); window.scrollTo(0, 0);
     }
     // every recording also leaves a real screenshot of this section for the image posts
     try { if (v.videoWidth) shotStore.shots[o.tab] = { img: await grab(v), label: o.title, tab: o.tab, at: Date.now() }; } catch { /* optional */ }
@@ -195,7 +203,10 @@ export async function recordTour(o: TourOpts, shared?: { video: HTMLVideoElement
 
     // 1. read the section: what is actually on this screen, top to bottom
     const scroller = findScroller();
-    const beats = discoverBeats(scroller, o.sub?.label || o.title, o.sub ? 11 : 9);
+    const allBeats = discoverBeats(scroller, o.sub?.path[o.sub.path.length - 1] || o.title, o.sub ? 40 : 9);
+    // a long sub-category is told in parts of 7 shots each, so every part stays a short video and nothing is left out
+    const CH = 7; const nParts = o.sub ? Math.max(1, Math.ceil(allBeats.length / CH)) : 1; const partNo = o.sub?.part || 0; tourStore.lastParts = nParts;
+    const beats = o.sub ? allBeats.slice(partNo * CH, partNo * CH + CH) : allBeats;
     o.onProgress?.(0, `Found ${beats.length} parts in ${o.title}`);
 
     // 2. build the edit: intro, one shot per real part, outro
@@ -231,11 +242,13 @@ export async function recordTour(o: TourOpts, shared?: { video: HTMLVideoElement
         discoverTabBeats(8).forEach((tb, i) => { if (shownTabs.has(tb.label.toLowerCase())) return; const tl = TAB_LINES[(i + take) % TAB_LINES.length]; src.push({ kind: 'part', headline: tb.label, label: tb.label, en: `${tl[0]}${tb.label}.`, rm: `${tl[0]}${tb.label}.`, urdu: tl[1], beat: tb }); });
         src.push({ kind: 'outro', headline: o.script.cta, label: 'primepipfx.site', en: ou[0], rm: ou[0], urdu: ou[1] });
       } else if (o.sub) {
-        // one video per sub-category: each real part and each inner view of it is shown and described from what is on the screen
-        const S = o.sub; const HK = [`Part ${S.index} of ${S.total}: everything inside ${S.label}.`, `${S.label}, explained from top to bottom. Part ${S.index} of ${S.total}.`, `Let us go through ${S.label}, one function at a time. Part ${S.index} of ${S.total}.`];
-        const HU = [`اس ویڈیو میں ہم ${o.title} کے حصے ${S.label} کو شروع سے آخر تک دیکھیں گے۔`, `${S.label}، ایک ایک فنکشن کے ساتھ، مکمل تفصیل سے۔`, `آئیے ${o.title} کے اندر ${S.label} کو قدم بہ قدم سمجھتے ہیں۔`];
-        src.push({ kind: 'intro', headline: `${o.title} · ${S.label}`, label: o.title, en: HK[take % HK.length], rm: HK[take % HK.length], urdu: HU[take % HU.length] });
-        const NOW = ['Next, ', 'Now ', 'Then ']; beats.forEach((bt, i) => { const d = describePart(bt.el, bt.label); const lead = bt.click ? `${NOW[(i + take) % NOW.length]}the ${bt.label} view. ` : `${titleCase(bt.label)}. `; src.push({ kind: 'part', headline: bt.label, label: bt.label, en: `${lead}${d}`.trim(), beat: bt }); });
+        // one video per sub-category (or part of one): each real part and each function in it is shown and described from the screen
+        const S = o.sub; const pn = nParts > 1 ? ` Part ${partNo + 1} of ${nParts}.` : ''; const where = S.path.join(' › ');
+        const HK = [`Everything inside ${where}, from top to bottom.${pn}`, `Do you really know what ${where} can do? Let us go through it.${pn}`, `${where}: every function, one by one.${pn}`, `Most traders use only half of ${where}. Here is all of it.${pn}`, `Open ${where} with me, and I will show you each part.${pn}`, `A complete tour of ${where}.${pn}`];
+        const HU = [`${where} کے اندر جو کچھ ہے، اوپر سے نیچے تک دیکھتے ہیں۔`, `کیا آپ واقعی جانتے ہیں کہ ${where} کیا کچھ کر سکتا ہے؟ آئیے دیکھتے ہیں۔`, `${where}، ایک ایک فنکشن کے ساتھ۔`, `زیادہ تر ٹریڈرز ${where} کا آدھا حصہ ہی استعمال کرتے ہیں۔ یہ رہا پورا۔`, `میرے ساتھ ${where} کھولیے، میں ہر حصہ دکھاتا ہوں۔`, `${where} کا مکمل جائزہ۔`];
+        const hi = take % HK.length; src.push({ kind: 'intro', headline: `${o.title} · ${S.label}`, label: o.title, en: HK[hi], rm: HK[hi], urdu: HU[hi] });
+        const LEAD = ['Start with ', 'Next, ', 'Then ', 'Look at ', 'Here you get ', 'Do not miss ', 'And ', 'Finally, ']; const TABLEAD = ['Switch to the ', 'Now open the ', 'Then the ']; 
+        beats.forEach((bt, i) => { const d = describePart(bt.el, bt.label, take + i); const lead = bt.click ? `${TABLEAD[(i + take) % TABLEAD.length]}${bt.label} view. ` : `${LEAD[(i + take) % LEAD.length]}${titleCase(bt.label)}. `; src.push({ kind: 'part', headline: bt.label, label: bt.label, en: `${lead}${d}`.trim(), beat: bt }); });
         const ou = OUTRO_VARIANTS[take % OUTRO_VARIANTS.length]; src.push({ kind: 'outro', headline: o.script.cta, label: 'primepipfx.site', en: ou[0], rm: ou[0], urdu: ou[1] });
       } else {
       src.push({ kind: 'intro', headline: o.script.hook, label: o.title, en: o.script.hook, urdu: o.script.hookUrdu });
@@ -488,7 +501,7 @@ export async function recordTour(o: TourOpts, shared?: { video: HTMLVideoElement
     if (mode === 'ai' && silent) o.onProgress?.(1, `${silent} line(s) had no Urdu voice: those use captions only`);
     return blob;
   } finally {
-    captions?.stop(); mic?.getTracks().forEach((t) => t.stop()); setSkipTablist(null);
+    captions?.stop(); mic?.getTracks().forEach((t) => t.stop()); setSkipTablists([]);
     tourStore.running = false; window.scrollTo(0, 0);
     if (own) { own.stream.getTracks().forEach((t) => t.stop()); go(o.returnTab || 'ADMIN'); if ((o.returnTab || 'ADMIN') === 'ADMIN') reopenStudio(); }
   }
@@ -522,25 +535,40 @@ export async function streamTours(items: StreamItem[], opts: StreamOpts): Promis
 }
 
 export interface SeriesOpts { tab: string; title: string; theme: number; features?: string[]; script: () => Promise<TourScript>; voice: boolean; audio?: AudioMode; secondsPerPart?: number; voiceLang: 'ur' | 'en'; format?: VideoFormatId; stop: { stop: boolean }; onVideo: (blob: Blob, meta: { label: string; index: number; total: number }) => void | Promise<void>; onStatus: (s: string) => void }
-/** The sub-categories (main tab row) of a category, read from the live screen. Empty when the category has none. */
-export async function listSubTabs(tab: string): Promise<{ label: string; hint: string }[]> {
+export interface Leaf { path: string[]; label: string }
+/** Every sub-category of a category, down to the last level of tabs, read from the live screen. Empty when it has none. */
+export async function listSubTabs(tab: string): Promise<Leaf[]> {
   go(tab); await sleep(2500); for (let i = 0; i < 8 && !primaryTabs(); i++) await sleep(700);
-  const pt = primaryTabs(); return pt ? pt.tabs.map((t) => ({ label: t.label, hint: t.hint })) : [];
+  const prim = primaryTabs(); if (!prim) return [];
+  const names = prim.tabs.map((t) => t.label); const leaves: Leaf[] = [];
+  for (const name of names) {
+    const cur = primaryTabs(); const t = cur?.tabs.find((x) => x.label === name); if (!cur || !t) continue;
+    try { t.el.click(); } catch { /* skip */ } await sleep(1500);
+    const nested = tablists([cur.list]).filter((l) => !l.list.contains(cur.list) && !cur.list.contains(l.list)); const seen = new Set<string>();
+    for (const l of nested) for (const nt of l.tabs) { const k = nt.label.toLowerCase(); if (seen.has(k) || DANGEROUS.test(nt.label)) continue; seen.add(k); leaves.push({ path: [name, nt.label], label: `${name} › ${nt.label}` }); }
+    if (!seen.size) leaves.push({ path: [name], label: name });
+  }
+  return leaves;
 }
-/** One permission click, then one finished video for every sub-category of the category. Each is handed over as soon as it is ready. */
+/** One permission click, then finished videos for every sub-category of the category (long ones in parts). Each is handed over as soon as it is ready. */
 export async function recordSeries(o: SeriesOpts): Promise<number> {
-  o.onStatus(`Reading the sub-categories of ${o.title}…`); const subs = await listSubTabs(o.tab);
+  o.onStatus(`Reading every sub-category of ${o.title}…`); const subs = await listSubTabs(o.tab);
   if (!subs.length) { o.onStatus(`${o.title} has no sub-categories: recording it as one video`); const blob = await recordTour({ tab: o.tab, title: o.title, script: await o.script(), theme: o.theme, voice: o.voice, audio: o.audio, secondsPerPart: o.secondsPerPart, features: o.features, voiceLang: o.voiceLang, format: o.format, onProgress: (_p, l) => l && o.onStatus(l) }); await o.onVideo(blob, { label: o.title, index: 1, total: 1 }); return 1; }
+  o.onStatus(`Found ${subs.length} sub-categories in ${o.title}: ${subs.map((x) => x.label).join(', ')}`); await sleep(1500);
   const scr = await openScreen(); let made = 0;
   try {
     for (let i = 0; i < subs.length && !o.stop.stop; i++) {
-      const label = subs[i].label; o.onStatus(`(${i + 1}/${subs.length}) Recording ${label}…`);
-      try {
-        const blob = await recordTour({ tab: o.tab, title: o.title, script: await o.script(), theme: (o.theme + i) % THEMES.length, voice: o.voice, audio: o.audio, secondsPerPart: o.secondsPerPart, features: o.features, voiceLang: o.voiceLang, format: o.format, sub: { label, index: i + 1, total: subs.length }, onProgress: (_p, l) => l && o.onStatus(`(${i + 1}/${subs.length}) ${label}: ${l}`) }, scr);
-        await o.onVideo(blob, { label, index: i + 1, total: subs.length }); made++;
-        // the next recording waits until this one has been uploaded, so recording and uploading never compete for the computer
-        await sleep(2500); for (let k = 0; k < 200 && tourStore.uploading; k++) await sleep(3000);
-      } catch (e: any) { o.onStatus(`Skipped ${label}: ${String(e?.message || e)}`); }
+      const leaf = subs[i];
+      for (let part = 0, parts = 1; part < parts && !o.stop.stop; part++) {
+        o.onStatus(`(${i + 1}/${subs.length}) Recording ${leaf.label}${parts > 1 ? ` · part ${part + 1}/${parts}` : ''}…`);
+        try {
+          const blob = await recordTour({ tab: o.tab, title: o.title, script: await o.script(), theme: (o.theme + i + part) % THEMES.length, voice: o.voice, audio: o.audio, secondsPerPart: o.secondsPerPart, features: o.features, voiceLang: o.voiceLang, format: o.format, sub: { path: leaf.path, label: leaf.label, index: i + 1, total: subs.length, part }, onProgress: (_p, l) => l && o.onStatus(`(${i + 1}/${subs.length}) ${leaf.label}: ${l}`) }, scr);
+          parts = Math.max(1, tourStore.lastParts || 1);
+          await o.onVideo(blob, { label: parts > 1 ? `${leaf.label} (part ${part + 1}/${parts})` : leaf.label, index: i + 1, total: subs.length }); made++;
+          // the next recording waits until this one has been uploaded, so recording and uploading never compete for the computer
+          await sleep(2500); for (let k = 0; k < 200 && tourStore.uploading; k++) await sleep(3000);
+        } catch (e: any) { o.onStatus(`Skipped ${leaf.label}: ${String(e?.message || e)}`); break; }
+      }
     }
   } finally { scr.stream.getTracks().forEach((t) => t.stop()); go('ADMIN'); reopenStudio(); }
   return made;
