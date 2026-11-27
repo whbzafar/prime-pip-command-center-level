@@ -121,7 +121,7 @@ export function discoverBeats(scroller: HTMLElement, sectionTitle: string, max =
   root.querySelectorAll<HTMLElement>('h1, h2, h3, h4, [role="heading"]').forEach((h) => {
     if (outside(h) || !visible(h)) return;
     const label = clean(h.textContent);
-    if (label.length < 3) return;
+    if (label.length < 3 || (label.match(/[A-Za-z]/g) || []).length < 3 || label.toLowerCase() === sectionTitle.toLowerCase()) return; // numbers, symbols and the page title are not parts
     let block = (h.closest('section, article, [class*="rounded"]') as HTMLElement | null) || h.parentElement || h;
     if (block.getBoundingClientRect().height > vh * 1.6 || block === root) block = h.parentElement || h;
     if (used.has(block)) return;
