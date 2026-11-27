@@ -1,4 +1,4 @@
-import { randomBytes } from "node:crypto";
+import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import type { Express, RequestHandler } from "express";
 import { openAsBlob } from "node:fs";
 import { open as openP } from "node:fs/promises";
@@ -12,9 +12,14 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 export const readCh = async (): Promise<Channels> => ((await privateListGet(KEY))?.[0] as Channels) || {};
 export const patchCh = async (p: Partial<Channels>) => { await privateListUpdate(KEY, (l) => [{ ...(l[0] || {}), ...p }]); };
 const baseOf = (req: any) => (process.env.PUBLIC_BASE_URL || `${req.headers["x-forwarded-proto"] || req.protocol}://${req.get("host")}`).replace(/\/$/, "");
-const states = new Map<string, number>();
-const newState = () => { const s = randomBytes(16).toString("hex"); states.set(s, Date.now()); for (const [k, t] of states) if (Date.now() - t > 20 * 60_000) states.delete(k); return s; };
-const okState = (s: string) => { const t = states.get(s); states.delete(s); return !!t && Date.now() - t < 20 * 60_000; };
+/* Sign-in links carry a signed timestamp, so they stay valid even if the server restarts or another copy of it answers the callback. */
+const STATE_KEY = () => process.env.PRIMEPIPFX_SESSION_SECRET || process.env.SESSION_SECRET || process.env.RENDER_SERVICE_ID || "primepipfx-oauth-state";
+const sign = (v: string) => createHmac("sha256", STATE_KEY()).update(v).digest("hex").slice(0, 32);
+const newState = () => { const v = `${Date.now().toString(36)}${randomBytes(6).toString("hex")}`; return `${v}.${sign(v)}`; };
+const okState = (s: string) => {
+  const [v, g] = String(s || "").split("."); if (!v || !g) return false; const want = Buffer.from(sign(v)); const got = Buffer.from(g); if (want.length !== got.length || !timingSafeEqual(want, got)) return false;
+  const t = parseInt(v.slice(0, v.length - 12), 36); return Number.isFinite(t) && Date.now() - t < 20 * 60_000 && Date.now() - t > -60_000;
+};
 const page = (ok: boolean, msg: string) => `<!doctype html><meta charset=utf-8><meta name=viewport content="width=device-width"><body style="font-family:system-ui;background:#0b1220;color:#fff;display:grid;place-items:center;height:100vh;margin:0"><div style="max-width:420px;text-align:center"><h2>${ok ? "✅ Connected" : "❌ Not connected"}</h2><p>${msg.replace(/</g, "&lt;")}</p><p><a style="color:#fbbf24" href="/">Back to the app</a></p></div>`;
 
 /* ---------- YouTube ---------- */
