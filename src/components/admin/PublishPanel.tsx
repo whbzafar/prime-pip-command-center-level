@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Copy, Download, Rocket } from 'lucide-react';
 import { PlatformMeta, makeThumbnail, metaFor } from '../../utils/publishPack';
-import { PubConfig, loadCfg, publishMeta, saveCfg, stageVideo, uploadYouTube, verifyMeta } from '../../utils/publishClient';
+import { PubConfig, loadCfg, publishMeta, saveCfg, stageVideo, syncCfg, uploadYouTube, verifyMeta } from '../../utils/publishClient';
 import { download } from '../../utils/postVisuals';
 import { tourStore } from '../../utils/tour';
 import { SetupGuide } from './SetupGuide';
@@ -14,6 +14,8 @@ export function PublishPanel({ video }: { video: FinishedVideo | null }) {
   const [cfg, setCfg] = useState<PubConfig>(loadCfg); const [metas, setMetas] = useState<PlatformMeta[]>([]); const [thumb, setThumb] = useState<Blob | null>(null); const [thumbUrl, setThumbUrl] = useState('');
   const [log, setLog] = useState<string[]>([]); const [busy, setBusy] = useState(false); const last = useRef(0);
   const say = (m: string) => setLog((l) => [...l, m].slice(-12));
+  const [store, setStore] = useState('');
+  useEffect(() => { let off = false; void syncCfg().then((r) => { if (off) return; setCfg(r.cfg); setStore(r.saved ? '✅ Saved to your account — the same on every device and browser.' : `⚠️ Only saved in this browser (${r.error || 'server storage unavailable'}).`); }); return () => { off = true; }; }, []);
   const upd = (p: Partial<PubConfig>) => { const n = { ...cfg, ...p }; setCfg(n); saveCfg(n); };
   const meta = (p: string) => metas.find((m) => m.platform === p)!;
   useEffect(() => {
@@ -40,7 +42,8 @@ export function PublishPanel({ video }: { video: FinishedVideo | null }) {
       <summary className="cursor-pointer text-sm font-semibold text-emerald-200">🚀 Titles, thumbnail and auto-posting {video ? `— ready for “${video.title}”` : '— record a video to fill this in'}</summary>
       <div className="mt-3 grid gap-3 md:grid-cols-2">
         <div className="space-y-2 rounded-lg bg-slate-900/60 p-2">
-          <div className="text-xs font-bold text-slate-200">Connect your accounts (kept only in this browser)</div>
+          <div className="text-xs font-bold text-slate-200">Connect your accounts</div>
+          {store && <div className="text-[11px] text-slate-300" data-testid="publish-store">{store}</div>}
           <label className="block text-[11px] text-slate-400">YouTube — Google OAuth client ID (see the setup guide above for the 5 steps)
             <input className={inp} value={cfg.ytClientId} onChange={(e) => upd({ ytClientId: e.target.value.trim() })} placeholder="1234-abc.apps.googleusercontent.com" /></label>
           <label className="block text-[11px] text-slate-400">Facebook Page ID<input className={inp} value={cfg.metaPageId} onChange={(e) => upd({ metaPageId: e.target.value.trim() })} /></label>

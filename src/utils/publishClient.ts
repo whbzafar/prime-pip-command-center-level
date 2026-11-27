@@ -1,11 +1,27 @@
 import { getStoredToken } from './authClient';
 import type { PlatformMeta } from './publishPack';
 
-export interface PubConfig { ytClientId: string; metaPageId: string; metaPageToken: string; igUserId: string; auto: { youtube: boolean; facebook: boolean; instagram: boolean } }
+export interface PubConfig { at?: number; ytClientId: string; metaPageId: string; metaPageToken: string; igUserId: string; auto: { youtube: boolean; facebook: boolean; instagram: boolean } }
 const KEY = 'pp_publish_cfg_v1';
 export const defaultCfg = (): PubConfig => ({ ytClientId: '', metaPageId: '', metaPageToken: '', igUserId: '', auto: { youtube: false, facebook: false, instagram: false } });
 export function loadCfg(): PubConfig { try { return { ...defaultCfg(), ...JSON.parse(localStorage.getItem(KEY) || '{}') }; } catch { return defaultCfg(); } }
-export function saveCfg(c: PubConfig) { try { localStorage.setItem(KEY, JSON.stringify(c)); } catch { /* ignore */ } }
+let pushT: ReturnType<typeof setTimeout> | null = null; let lastSync = '';
+/** Saves in this browser at once, and to the owner's encrypted account storage a moment later (so every device shares it). */
+export function saveCfg(c: PubConfig) { const n = { ...c, at: Date.now() }; try { localStorage.setItem(KEY, JSON.stringify(n)); } catch { /* ignore */ } if (pushT) clearTimeout(pushT); pushT = setTimeout(() => { void pushCfg(n); }, 600); }
+async function pushCfg(c: PubConfig): Promise<boolean> { try { const r = await fetch('/api/admin/social/publish-config', { method: 'PUT', credentials: 'include', headers: { 'Content-Type': 'application/json', ...auth() }, body: JSON.stringify({ cfg: c }) }); const j = await r.json().catch(() => ({})); lastSync = j.ok ? 'ok' : (j.error || `HTTP ${r.status}`); return !!j.ok; } catch (e: any) { lastSync = String(e?.message || e); return false; } }
+export const syncStatus = () => lastSync;
+/** Loads the account-wide settings. The newest copy wins; an older/missing server copy is refreshed from this browser. */
+export async function syncCfg(): Promise<{ cfg: PubConfig; from: 'server' | 'browser' | 'none'; saved: boolean; error?: string }> {
+  const local = loadCfg();
+  try {
+    const r = await fetch('/api/admin/social/publish-config', { credentials: 'include', headers: { ...auth() }, cache: 'no-store' }); const j = await r.json().catch(() => ({}));
+    if (!j.ok) return { cfg: local, from: local.metaPageToken ? 'browser' : 'none', saved: false, error: j.error || `HTTP ${r.status}` };
+    const sv: PubConfig | null = j.cfg ? { ...defaultCfg(), ...j.cfg } : null;
+    if (sv && (sv.at || 0) >= (local.at || 0) && (sv.metaPageToken || sv.ytClientId)) { try { localStorage.setItem(KEY, JSON.stringify(sv)); } catch { /* ignore */ } return { cfg: sv, from: 'server', saved: true }; }
+    if (local.metaPageToken || local.ytClientId) { const ok = await pushCfg(local.at ? local : { ...local, at: Date.now() }); return { cfg: local, from: 'browser', saved: ok, error: ok ? undefined : lastSync }; }
+    return { cfg: sv || local, from: sv ? 'server' : 'none', saved: true };
+  } catch (e: any) { return { cfg: local, from: 'browser', saved: false, error: String(e?.message || e) }; }
+}
 const auth = () => { const t = getStoredToken(); return t ? { Authorization: `Bearer ${t}` } : {}; };
 
 let gsi: Promise<void> | null = null;

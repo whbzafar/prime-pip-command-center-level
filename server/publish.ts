@@ -4,6 +4,7 @@ import { mkdir, writeFile, unlink, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { randomUUID } from "node:crypto";
+import { privateListGet, privateListUpdate, durableStatus } from "./durableStore.js";
 
 /* Publishing helpers. Credentials are NOT stored on the server: the admin's browser keeps them and sends them with each request.
    - /stage keeps the finished MP4 for 30 minutes at an unguessable public link (Instagram needs a URL it can download from).
@@ -20,6 +21,19 @@ async function graph(path: string, params: Record<string, string>, method: "GET"
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 export function registerPublishRoutes(app: Express, requireDeveloper: RequestHandler) {
+  /* Publishing settings (Page ID, permanent Page token, auto-post choices) live in the encrypted private store, so every
+     device and browser signed in as the owner sees the same connection. Never logged, never sent to other users. */
+  app.get("/api/admin/social/publish-config", requireDeveloper, async (_req, res) => {
+    res.set("Cache-Control", "no-store"); const l = await privateListGet("social_publish_cfg");
+    if (l === null) return res.json({ ok: false, error: "Private storage is not available on the server yet", mode: durableStatus().mode });
+    res.json({ ok: true, cfg: l[0] || null, mode: durableStatus().mode });
+  });
+  app.put("/api/admin/social/publish-config", requireDeveloper, async (req, res) => {
+    const c = req.body?.cfg; if (!c || typeof c !== "object") return res.status(400).json({ ok: false, error: "No settings" });
+    const clean = { ytClientId: String(c.ytClientId || "").slice(0, 300), metaPageId: String(c.metaPageId || "").slice(0, 60), metaPageToken: String(c.metaPageToken || "").slice(0, 1000), igUserId: String(c.igUserId || "").slice(0, 60), auto: { youtube: !!c.auto?.youtube, facebook: !!c.auto?.facebook, instagram: !!c.auto?.instagram }, at: Number(c.at) || Date.now() };
+    try { await privateListUpdate("social_publish_cfg", () => [clean]); res.json({ ok: true }); }
+    catch { res.status(503).json({ ok: false, error: "Private storage is not available on the server yet" }); }
+  });
   app.post("/api/admin/social/stage", requireDeveloper, express.raw({ type: () => true, limit: "150mb" }), async (req, res) => {
     const body = req.body as Buffer; if (!Buffer.isBuffer(body) || body.length < 1000) return res.status(400).json({ ok: false, error: "No video received" });
     await sweep(); await mkdir(DIR, { recursive: true }); const ext = String(req.query.ext || "mp4") === "jpg" ? "jpg" : "mp4"; const id = randomUUID().replace(/-/g, ""); const path = join(DIR, `${id}.${ext}`); await writeFile(path, body); staged.set(id, { path, at: Date.now(), ext });
