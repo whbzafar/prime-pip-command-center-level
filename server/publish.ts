@@ -186,6 +186,20 @@ export function registerPublishRoutes(app: Express, requireDeveloper: RequestHan
     } catch { res.status(500).json({ ok: false, error: "Could not start posting. Try again." }); }
   };
   app.post("/api/student/social/publish", requireMember, studentCreds, publishH);
+  /* Only one recording at a time (the host is small, and the screen-share flow is single-user per server job queue):
+     the first student to press Record holds the lock, everyone else sees a timer and a greyed-out button until it is released.
+     A lock without a heartbeat for 90 s (closed tab, crash) frees itself. */
+  let lock: { uid: string; name: string; since: number; beat: number } | null = null; const LOCK_BEAT = 90_000, LOCK_MAX = 60 * 60_000;
+  const lockLive = () => { if (lock && (Date.now() - lock.beat > LOCK_BEAT || Date.now() - lock.since > LOCK_MAX)) lock = null; return lock; };
+  const who = (req: any) => { const u = req.currentUser || {}; return { uid: String(u.id || u.username || "x"), name: String(u.name || u.fullName || u.username || "A student").split(" ")[0].slice(0, 20) }; };
+  const lockView = (req: any) => { const l = lockLive(); return { busy: !!l, mine: !!l && l.uid === who(req).uid, since: l?.since || 0, by: l ? l.name : "", now: Date.now() }; };
+  app.get("/api/student/social/lock", requireMember, (req, res) => { res.set("Cache-Control", "no-store"); res.json({ ok: true, ...lockView(req) }); });
+  app.post("/api/student/social/lock", requireMember, (req, res) => {
+    const w = who(req); const l = lockLive();
+    if (l && l.uid !== w.uid) return res.json({ ok: false, ...lockView(req), error: `${l.name} is recording right now. Please wait until they finish.` });
+    lock = { uid: w.uid, name: w.name, since: l ? l.since : Date.now(), beat: Date.now() }; res.json({ ok: true, ...lockView(req) });
+  });
+  app.post("/api/student/social/unlock", requireMember, (req, res) => { const l = lockLive(); if (l && l.uid === who(req).uid) lock = null; res.json({ ok: true, ...lockView(req) }); });
   app.get("/api/student/social/ready", requireMember, async (_req, res) => { const l = await privateListGet("social_publish_cfg"); const c: any = (l && l[0]) || {}; const ch = await readCh(); res.json({ ok: true, ready: !!((c.metaPageId && c.metaPageToken) || ch.ytRefresh || (ch.pinAccess && ch.pinBoard)) }); });
   app.get("/api/admin/social/insights", requireDeveloper, async (req, res) => {
     res.set("Cache-Control", "no-store"); if (req.query.refresh === "1") await refreshAll(true).catch(() => {}); else void refreshAll(false).catch(() => {});
