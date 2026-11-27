@@ -6,7 +6,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { randomUUID } from "node:crypto";
 import { privateListGet, privateListUpdate, durableStatus } from "./durableStore.js";
-import { ytUpload, pinPost, pinStats, ytStats, readCh, registerChannelRoutes } from "./channels.js";
+import { ytUpload, ttPost, pinPost, pinStats, ytStats, readCh, registerChannelRoutes } from "./channels.js";
 import { analyse, type Metrics, type PostEntry } from "./socialInsights.js";
 
 /* Publishing helpers. Credentials are NOT stored on the server: the admin's browser keeps them and sends them with each request.
@@ -149,6 +149,12 @@ export function registerPublishRoutes(app: Express, requireDeveloper: RequestHan
         out.youtube = { ok: true, id: r.id }; if (r.privacy !== "public") out.youtube.error = `Uploaded as ${r.privacy}: Google keeps videos of unverified projects private until the app is audited or published.`;
       } catch (e: any) { out.youtube = { ok: false, error: String(e?.message || e) }; }
     }
+    if (want.includes("tiktok")) {
+      try {
+        j0("TikTok: uploading the video…"); const sz = (await stat(v.path)).size; const r = await ttPost(v.path, sz, { title: String(caption || description || title || videoTitle || "Prime Pip").replace(/\s+\n/g, "\n") });
+        out.tiktok = { ok: true, id: r.id }; if (r.privacy !== "PUBLIC_TO_EVERYONE") out.tiktok.error = `Posted to TikTok as “${r.privacy.toLowerCase().replace(/_/g, " ")}”: TikTok keeps posts from apps it has not audited private. Submit the app for audit to go public.`;
+      } catch (e: any) { out.tiktok = { ok: false, error: String(e?.message || e) }; }
+    }
     if (want.includes("pinterest")) {
       try {
         j0("Pinterest: pinning the video…"); if (!cv) throw new Error("Pinterest needs a cover image; none was staged."); const r = await pinPost(v.path, coverUrl, { title: String(title || videoTitle || "Prime Pip"), description: String(description || caption || ""), link: "https://primepipfx.site" });
@@ -178,7 +184,7 @@ export function registerPublishRoutes(app: Express, requireDeveloper: RequestHan
       recent.push(now); perUser.set(key, recent);
       const l = await privateListGet("social_publish_cfg"); const c: any = (l && l[0]) || {}; const ch = await readCh(); const b: any = req.body || {};
       const targets: string[] = []; const fbOk = !!(c.metaPageId && c.metaPageToken);
-      if (fbOk) targets.push("facebook"); if (fbOk && c.igUserId) targets.push("instagram"); if (ch.ytRefresh) targets.push("youtube"); if (ch.pinAccess && ch.pinBoard) targets.push("pinterest");
+      if (fbOk) targets.push("facebook"); if (fbOk && c.igUserId) targets.push("instagram"); if (ch.ytRefresh) targets.push("youtube"); if (ch.pinAccess && ch.pinBoard) targets.push("pinterest"); if (ch.ttAccess) targets.push("tiktok");
       if (!targets.length) return res.status(503).json({ ok: false, error: "Posting is not set up yet. Please tell the admin." });
       const clean = (v: any, n: number) => String(v || "").replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g, "").slice(0, n);
       req.body = { id: clean(b.id, 60), coverId: clean(b.coverId, 60), pageId: c.metaPageId, pageToken: c.metaPageToken, igUserId: c.igUserId, title: clean(b.title, 100), description: clean(b.description, 5000), caption: clean(b.caption, 2200), targets, category: clean(b.category, 60), videoTitle: clean(b.videoTitle, 120) };
@@ -200,7 +206,7 @@ export function registerPublishRoutes(app: Express, requireDeveloper: RequestHan
     lock = { uid: w.uid, name: w.name, since: l ? l.since : Date.now(), beat: Date.now() }; res.json({ ok: true, ...lockView(req) });
   });
   app.post("/api/student/social/unlock", requireMember, (req, res) => { const l = lockLive(); if (l && l.uid === who(req).uid) lock = null; res.json({ ok: true, ...lockView(req) }); });
-  app.get("/api/student/social/ready", requireMember, async (_req, res) => { const l = await privateListGet("social_publish_cfg"); const c: any = (l && l[0]) || {}; const ch = await readCh(); res.json({ ok: true, ready: !!((c.metaPageId && c.metaPageToken) || ch.ytRefresh || (ch.pinAccess && ch.pinBoard)) }); });
+  app.get("/api/student/social/ready", requireMember, async (_req, res) => { const l = await privateListGet("social_publish_cfg"); const c: any = (l && l[0]) || {}; const ch = await readCh(); res.json({ ok: true, ready: !!((c.metaPageId && c.metaPageToken) || ch.ytRefresh || (ch.pinAccess && ch.pinBoard) || ch.ttAccess) }); });
   app.get("/api/admin/social/insights", requireDeveloper, async (req, res) => {
     res.set("Cache-Control", "no-store"); if (req.query.refresh === "1") await refreshAll(true).catch(() => {}); else void refreshAll(false).catch(() => {});
     const list: PostEntry[] | null = await privateListGet(HIST); if (list === null) return res.json({ ok: false, error: "Private storage is not available on the server yet" });

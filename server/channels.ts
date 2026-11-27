@@ -7,7 +7,7 @@ import { privateListGet, privateListUpdate } from "./durableStore.js";
 /* YouTube Shorts and Pinterest: the owner signs in ONCE, the server keeps the long-lived refresh tokens in the private store
    (admin-only, never sent to students) and refreshes access tokens by itself, so every later post is fully automatic. */
 const KEY = "social_channels_cfg";
-export interface Channels { ytClientId?: string; ytClientSecret?: string; ytRefresh?: string; ytChannel?: string; pinAppId?: string; pinAppSecret?: string; pinAccess?: string; pinRefresh?: string; pinBoard?: string; pinBoardName?: string; pinUser?: string; pinSandbox?: boolean }
+export interface Channels { ytClientId?: string; ytClientSecret?: string; ytRefresh?: string; ytChannel?: string; pinAppId?: string; pinAppSecret?: string; pinAccess?: string; pinRefresh?: string; pinBoard?: string; pinBoardName?: string; pinUser?: string; pinSandbox?: boolean; ttKey?: string; ttSecret?: string; ttAccess?: string; ttRefresh?: string; ttExp?: number; ttOpenId?: string; ttUser?: string }
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 export const readCh = async (): Promise<Channels> => ((await privateListGet(KEY))?.[0] as Channels) || {};
 export const patchCh = async (p: Partial<Channels>) => { await privateListUpdate(KEY, (l) => [{ ...(l[0] || {}), ...p }]); };
@@ -85,6 +85,48 @@ export async function pinPost(path: string, coverUrl: string, o: { title: string
   return { id: String(pin.id), sandbox: !!(await readCh()).pinSandbox };
 }
 
+
+/* ---------- TikTok (Content Posting API v2) ---------- */
+const TT = "https://open.tiktokapis.com";
+async function ttToken(force = false): Promise<string> {
+  const c = await readCh(); if (!c.ttAccess) throw new Error("TikTok is not connected yet. Open Social Agent → Channels and press Connect TikTok.");
+  if (!force && c.ttExp && c.ttExp > Date.now() + 90_000) return c.ttAccess;
+  if (!c.ttRefresh || !c.ttKey || !c.ttSecret) return c.ttAccess;
+  const r = await fetch(`${TT}/v2/oauth/token/`, { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" }, body: new URLSearchParams({ client_key: c.ttKey, client_secret: c.ttSecret, grant_type: "refresh_token", refresh_token: c.ttRefresh }), signal: AbortSignal.timeout(30_000) });
+  const j: any = await r.json().catch(() => ({})); if (!r.ok || !j.access_token) throw new Error(`TikTok sign-in expired (${j.error_description || j.error || r.status}). Press Connect TikTok again.`);
+  await patchCh({ ttAccess: j.access_token, ttRefresh: j.refresh_token || c.ttRefresh, ttExp: Date.now() + Number(j.expires_in || 86400) * 1000 }); return j.access_token;
+}
+async function ttApi(path: string, body?: any, method = "POST"): Promise<any> {
+  const tok = await ttToken(); const r = await fetch(`${TT}${path}`, { method, headers: { Authorization: `Bearer ${tok}`, "Content-Type": "application/json; charset=UTF-8" }, body: body ? JSON.stringify(body) : undefined, signal: AbortSignal.timeout(60_000) });
+  const j: any = await r.json().catch(() => ({})); const code = j?.error?.code; if (!r.ok || (code && code !== "ok")) throw new Error(j?.error?.message || `TikTok HTTP ${r.status}`); return j.data || {};
+}
+/** Posts the finished MP4 straight to the connected TikTok account. Apps TikTok has not audited yet can only post privately; the result says so. */
+export async function ttPost(path: string, size: number, o: { title: string }): Promise<{ id: string; privacy: string }> {
+  const info = await ttApi("/v2/post/publish/creator_info/query/"); const opts: string[] = info.privacy_level_options || ["SELF_ONLY"];
+  const privacy = ["PUBLIC_TO_EVERYONE", "MUTUAL_FOLLOW_FRIENDS", "FOLLOWER_OF_CREATOR", "SELF_ONLY"].find((x) => opts.includes(x)) || opts[0];
+  const MB = 1024 * 1024; const chunk = size <= 64 * MB ? size : 32 * MB; const total = Math.max(1, Math.floor(size / chunk));
+  const init = await ttApi("/v2/post/publish/video/init/", { post_info: { title: o.title.slice(0, 2200), privacy_level: privacy, disable_duet: false, disable_comment: false, disable_stitch: false, video_cover_timestamp_ms: 1000 }, source_info: { source: "FILE_UPLOAD", video_size: size, chunk_size: chunk, total_chunk_count: total } });
+  if (!init.upload_url || !init.publish_id) throw new Error("TikTok gave no upload address.");
+  const fh = await openP(path, "r");
+  try {
+    for (let i = 0; i < total; i++) {
+      const start = i * chunk; const end = i === total - 1 ? size - 1 : start + chunk - 1; const len = end - start + 1; const buf = Buffer.alloc(len); await fh.read(buf, 0, len, start); let tries = 0;
+      for (;;) {
+        try {
+          const r = await fetch(init.upload_url, { method: "PUT", headers: { "Content-Type": "video/mp4", "Content-Length": String(len), "Content-Range": `bytes ${start}-${end}/${size}` }, body: buf, signal: AbortSignal.timeout(240_000) });
+          if (r.ok || r.status === 206) break; throw new Error(`HTTP ${r.status}`);
+        } catch (e) { if (++tries > 3) throw new Error(`TikTok upload failed (${String((e as any)?.message || e)})`); await sleep(3000 * tries); }
+      }
+    }
+  } finally { await fh.close(); }
+  for (let i = 0; i < 60; i++) {
+    await sleep(4000); const st = await ttApi("/v2/post/publish/status/fetch/", { publish_id: init.publish_id });
+    if (st.status === "PUBLISH_COMPLETE") return { id: String((st.publicaly_available_post_id || st.publicly_available_post_id || [init.publish_id])[0] || init.publish_id), privacy };
+    if (st.status === "FAILED") throw new Error(`TikTok rejected the video: ${st.fail_reason || "unknown reason"}`);
+  }
+  throw new Error("TikTok is still processing the video; check the TikTok app in a few minutes.");
+}
+
 const doc = (title: string, body: string) => `<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title} — Prime Pip FX</title><body style="font-family:system-ui,sans-serif;max-width:760px;margin:40px auto;padding:0 18px;line-height:1.6;color:#111"><h1>${title}</h1><p><em>Prime Pip FX Command Center — primepipfx.site. Last updated 27 November 2026.</em></p>${body}<p>Contact: whbzafar@gmail.com</p></body></html>`;
 const PRIVACY = doc("Privacy Policy", `<p>Prime Pip FX Command Center is an education and trading-tools website run by Wahab Zafar.</p><h3>What we collect</h3><p>Account details you give us (name, email), your activity inside the app, and settings you save. We do not sell personal data.</p><h3>YouTube, Pinterest, Facebook and Instagram connections</h3><p>The site owner can connect the brand's own YouTube channel, Pinterest business account, Facebook Page and Instagram account so that educational videos are published automatically. The app uses these permissions only to upload and publish the owner's own videos and to read the resulting view and engagement counts. Access keys are stored encrypted on our server, are visible only to the owner, and are never shared. The owner can disconnect at any time inside the app or from the platform's own permission settings (for Google: myaccount.google.com/permissions). Our use of information received from Google APIs follows the Google API Services User Data Policy, including the Limited Use requirements.</p><h3>Your rights</h3><p>Ask us to access or delete your data by emailing the address below.</p>`);
 const TERMS = doc("Terms of Service", `<p>The content on primepipfx.site is for education only and is not financial advice. Trading carries risk of loss. By using the site you agree to use it lawfully and not to misuse it or its content.</p>`);
@@ -93,12 +135,13 @@ export function registerChannelRoutes(app: Express, requireDeveloper: RequestHan
   app.get(["/terms", "/terms-of-service"], (_req, res) => res.type("html").send(TERMS));
   app.get("/api/admin/social/channels", requireDeveloper, async (_req, res) => {
     res.set("Cache-Control", "no-store"); const c = await readCh();
-    res.json({ ok: true, youtube: { clientSet: !!(c.ytClientId && c.ytClientSecret), connected: !!c.ytRefresh, channel: c.ytChannel || "" }, pinterest: { appSet: !!(c.pinAppId && c.pinAppSecret), connected: !!c.pinAccess, user: c.pinUser || "", board: c.pinBoard || "", boardName: c.pinBoardName || "", sandbox: !!c.pinSandbox } });
+    res.json({ ok: true, youtube: { clientSet: !!(c.ytClientId && c.ytClientSecret), connected: !!c.ytRefresh, channel: c.ytChannel || "" }, pinterest: { appSet: !!(c.pinAppId && c.pinAppSecret), connected: !!c.pinAccess, user: c.pinUser || "", board: c.pinBoard || "", boardName: c.pinBoardName || "", sandbox: !!c.pinSandbox }, tiktok: { appSet: !!(c.ttKey && c.ttSecret), connected: !!c.ttAccess, user: c.ttUser || "" } });
   });
   app.put("/api/admin/social/channels", requireDeveloper, async (req, res) => {
     const b = req.body || {}; const s = (v: any, n: number) => String(v ?? "").trim().slice(0, n); const p: Partial<Channels> = {};
     if (b.ytClientId !== undefined) { p.ytClientId = s(b.ytClientId, 300); ytTok = null; } if (b.ytClientSecret) p.ytClientSecret = s(b.ytClientSecret, 200);
     if (b.pinAppId !== undefined) p.pinAppId = s(b.pinAppId, 60); if (b.pinAppSecret) p.pinAppSecret = s(b.pinAppSecret, 200);
+    if (b.ttKey !== undefined) p.ttKey = s(b.ttKey, 80); if (b.ttSecret) p.ttSecret = s(b.ttSecret, 120);
     if (b.pinBoard !== undefined) { p.pinBoard = s(b.pinBoard, 60); p.pinBoardName = s(b.pinBoardName, 100); }
     try { await patchCh(p); res.json({ ok: true }); } catch { res.status(503).json({ ok: false, error: "Private storage is not available on the server yet" }); }
   });
@@ -114,6 +157,21 @@ export function registerChannelRoutes(app: Express, requireDeveloper: RequestHan
       const j: any = await r.json().catch(() => ({})); if (!r.ok || !j.refresh_token) throw new Error(j.error_description || j.error || "Google returned no long-lived key. Remove the app at myaccount.google.com/permissions and try again.");
       let name = ""; try { const ch = await fetch("https://www.googleapis.com/youtube/v3/channels?part=snippet&mine=true", { headers: { Authorization: `Bearer ${j.access_token}` } }); const cj: any = await ch.json(); name = cj.items?.[0]?.snippet?.title || ""; } catch { /* optional */ }
       await patchCh({ ytRefresh: j.refresh_token, ytChannel: name }); ytTok = null; res.send(page(true, name ? `YouTube channel “${name}” is connected. Recordings will now post automatically.` : "YouTube is connected. Recordings will now post automatically."));
+    } catch (e: any) { res.status(400).send(page(false, String(e?.message || e))); }
+  });
+  app.get("/api/admin/social/tt/auth-url", requireDeveloper, async (req, res) => {
+    const c = await readCh(); if (!c.ttKey || !c.ttSecret) return res.status(400).json({ ok: false, error: "Save the TikTok client key and secret first." });
+    const q = new URLSearchParams({ client_key: c.ttKey, scope: "user.info.basic,video.publish", response_type: "code", redirect_uri: `${baseOf(req)}/api/public/oauth/tiktok`, state: newState() });
+    res.json({ ok: true, url: `https://www.tiktok.com/v2/auth/authorize/?${q}`, redirect: `${baseOf(req)}/api/public/oauth/tiktok` });
+  });
+  app.get("/api/public/oauth/tiktok", async (req, res) => {
+    try {
+      if (req.query.error) throw new Error(String(req.query.error_description || req.query.error)); if (!okState(String(req.query.state || ""))) throw new Error("This sign-in link expired. Start again from the app."); const c = await readCh();
+      const r = await fetch(`${TT}/v2/oauth/token/`, { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" }, body: new URLSearchParams({ client_key: c.ttKey || "", client_secret: c.ttSecret || "", code: String(req.query.code || ""), grant_type: "authorization_code", redirect_uri: `${baseOf(req)}/api/public/oauth/tiktok` }), signal: AbortSignal.timeout(30_000) });
+      const j: any = await r.json().catch(() => ({})); if (!r.ok || !j.access_token) throw new Error(j.error_description || j.error || "TikTok did not accept the sign-in.");
+      await patchCh({ ttAccess: j.access_token, ttRefresh: j.refresh_token || "", ttExp: Date.now() + Number(j.expires_in || 86400) * 1000, ttOpenId: j.open_id || "" });
+      let user = ""; try { const u = await ttApi("/v2/user/info/?fields=display_name,username", undefined, "GET"); user = u.user?.display_name || u.user?.username || ""; await patchCh({ ttUser: user }); } catch { /* optional */ }
+      res.send(page(true, user ? `TikTok account “${user}” is connected. Recordings will now post to TikTok automatically.` : "TikTok is connected. Recordings will now post to TikTok automatically."));
     } catch (e: any) { res.status(400).send(page(false, String(e?.message || e))); }
   });
   app.get("/api/admin/social/pin/auth-url", requireDeveloper, async (req, res) => {
@@ -137,6 +195,6 @@ export function registerChannelRoutes(app: Express, requireDeveloper: RequestHan
     try { const name = String(req.body?.name || "").trim().slice(0, 100); if (!name) throw new Error("Give the board a name."); const b = await pinApi("POST", "/boards", { name, privacy: "PUBLIC" }); await patchCh({ pinBoard: b.id, pinBoardName: b.name }); res.json({ ok: true, id: b.id, name: b.name }); } catch (e: any) { res.status(400).json({ ok: false, error: String(e?.message || e) }); }
   });
   app.post("/api/admin/social/channels/disconnect", requireDeveloper, async (req, res) => {
-    const w = String(req.body?.which || ""); try { if (w === "youtube") { ytTok = null; await patchCh({ ytRefresh: "", ytChannel: "" }); } else if (w === "pinterest") await patchCh({ pinAccess: "", pinRefresh: "", pinUser: "", pinBoard: "", pinBoardName: "" }); res.json({ ok: true }); } catch { res.status(503).json({ ok: false }); }
+    const w = String(req.body?.which || ""); try { if (w === "youtube") { ytTok = null; await patchCh({ ytRefresh: "", ytChannel: "" }); } else if (w === "tiktok") await patchCh({ ttAccess: "", ttRefresh: "", ttExp: 0, ttOpenId: "", ttUser: "" }); else if (w === "pinterest") await patchCh({ pinAccess: "", pinRefresh: "", pinUser: "", pinBoard: "", pinBoardName: "" }); res.json({ ok: true }); } catch { res.status(503).json({ ok: false }); }
   });
 }

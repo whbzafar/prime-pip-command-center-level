@@ -53,12 +53,12 @@ export function guides(cfg: PubConfig): Guide[] {
       limit: 'New projects get 10,000 quota units a day and one upload costs about 1,600, so roughly 6 uploads a day. Uploads stay private until Google approves your project.',
     },
     {
-      id: 'tiktok', name: 'TikTok', status: 'manual', chip: 'Manual (10 seconds)',
+      id: 'tiktok', name: 'TikTok', status: 'manual', chip: 'Connect once, then automatic',
       need: ['A TikTok account.', 'Optional: a free TikTok developer account if you want to apply for automatic posting.'],
       steps: [
         { t: 'Record, then download', d: 'Press “Download video” in this panel. The cover image and the TikTok title with hashtags are ready on this page: press Copy.' },
         { t: 'Upload', d: 'On a computer open tiktok.com/upload, or use the phone app → + → Upload. Choose the video, paste the copied text, and choose the cover.', link: A('https://www.tiktok.com/upload', 'Open TikTok upload') },
-        { t: 'Optional: apply for automatic posting', d: 'developers.tiktok.com → Manage apps → Connect an app → add “Content Posting API” → submit for review. TikTok keeps posts from unaudited apps private (visible only to you) until the app passes its audit, which can take days to two weeks.', link: A('https://developers.tiktok.com/', 'Open TikTok for Developers') },
+        { t: 'Connect for automatic posting', d: 'Paste the client key and secret in Channels → TikTok and press Connect TikTok. Create the app first: developers.tiktok.com → Manage apps → Connect an app → add “Content Posting API” → submit for review. TikTok keeps posts from unaudited apps private (visible only to you) until the app passes its audit, which can take days to two weeks.', link: A('https://developers.tiktok.com/', 'Open TikTok for Developers') },
       ],
       find: [['Why manual?', 'TikTok only allows public automatic posts from apps that passed its audit. Until then, every API post would be private.']],
       limit: 'Once an audit passes, this app can post to TikTok too. Posts made while unaudited stay private.',

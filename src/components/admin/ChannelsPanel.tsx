@@ -6,7 +6,7 @@ const btn = 'rounded bg-slate-700 px-2 py-1 text-xs font-bold text-white disable
 /** One-time sign-in for YouTube and Pinterest. The server keeps the long-lived keys (admin only) and posts by itself afterwards. */
 export default function ChannelsPanel() {
   const [st, setSt] = useState<ChannelStatus | null>(null); const [msg, setMsg] = useState(''); const [busy, setBusy] = useState(false);
-  const [yid, setYid] = useState(''); const [ysec, setYsec] = useState(''); const [pid, setPid] = useState(''); const [psec, setPsec] = useState('');
+  const [yid, setYid] = useState(''); const [ysec, setYsec] = useState(''); const [pid, setPid] = useState(''); const [psec, setPsec] = useState(''); const [tkey, setTkey] = useState(''); const [tsec, setTsec] = useState('');
   const [boards, setBoards] = useState<{ id: string; name: string }[]>([]); const [nb, setNb] = useState('Prime Pip FX');
   const load = useCallback(async () => setSt(await fetchChannels()), []);
   useEffect(() => { void load(); const t = setInterval(() => void load(), 8000); return () => clearInterval(t); }, [load]);
@@ -14,10 +14,10 @@ export default function ChannelsPanel() {
   const connect = (path: string, save: Record<string, string>) => run(async () => { await chApi('/channels', 'PUT', save); const j = await chApi(path); window.open(j.url, '_blank', 'noopener'); setMsg('A sign-in window opened. Approve it, then return here: this page updates by itself.'); });
   useEffect(() => { if (st?.pinterest.connected) void chApi('/pin/boards').then((j) => setBoards(j.boards || [])).catch(() => undefined); }, [st?.pinterest.connected]);
   if (!st) return null;
-  const yt = st.youtube, pin = st.pinterest; const redirect = (p: string) => `${location.origin}/api/public/oauth/${p}`;
+  const yt = st.youtube, pin = st.pinterest, tt = st.tiktok; const redirect = (p: string) => `${location.origin}/api/public/oauth/${p}`;
   return (
-    <details className="rounded-xl border border-sky-500/30 bg-slate-950/70 p-3" open={!yt.connected || !pin.connected} data-testid="channels-panel">
-      <summary className="cursor-pointer text-sm font-semibold text-sky-200">🔗 Channels — YouTube {yt.connected ? '✅' : '⚪'} · Pinterest {pin.connected && pin.board ? '✅' : '⚪'}</summary>
+    <details className="rounded-xl border border-sky-500/30 bg-slate-950/70 p-3" open={!yt.connected || !pin.connected || !tt.connected} data-testid="channels-panel">
+      <summary className="cursor-pointer text-sm font-semibold text-sky-200">🔗 Channels — YouTube {yt.connected ? '✅' : '⚪'} · Pinterest {pin.connected && pin.board ? '✅' : '⚪'} · TikTok {tt.connected ? '✅' : '⚪'}</summary>
       <div className="mt-3 grid gap-3 md:grid-cols-2">
         <div className="space-y-2 rounded-lg bg-slate-900/60 p-2 text-[11px] text-slate-300">
           <div className="text-xs font-bold text-slate-100">YouTube Shorts</div>
@@ -40,6 +40,17 @@ export default function ChannelsPanel() {
             <select className={inp} value={pin.board} onChange={(e) => { const b = boards.find((x) => x.id === e.target.value); if (b) void run(async () => { await chApi('/channels', 'PUT', { pinBoard: b.id, pinBoardName: b.name }); await load(); }); }}><option value="">Choose a board…</option>{boards.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}</select>
             <div className="flex gap-1"><input className={inp} value={nb} onChange={(e) => setNb(e.target.value)} /><button type="button" className={btn} disabled={busy} onClick={() => void run(async () => { await chApi('/pin/board', 'POST', { name: nb }); await load(); })}>New board</button></div>
             <button type="button" className={btn} disabled={busy} onClick={() => void run(async () => { await chApi('/channels/disconnect', 'POST', { which: 'pinterest' }); await load(); })}>Disconnect</button></>}
+        </div>
+        <div className="space-y-2 rounded-lg bg-slate-900/60 p-2 text-[11px] text-slate-300 md:col-span-2" data-testid="tiktok-card">
+          <div className="text-xs font-bold text-slate-100">TikTok</div>
+          {tt.connected ? <>
+            <div>✅ Connected{tt.user ? `: ${tt.user}` : ''}. Every recording is uploaded to TikTok automatically.</div>
+            <div className="text-amber-200">Until TikTok audits the app, its API only allows private posts. After the audit they go public with no change here.</div>
+            <button type="button" className={btn} disabled={busy} onClick={() => void run(async () => { await chApi('/channels/disconnect', 'POST', { which: 'tiktok' }); await load(); })}>Disconnect</button></> : <>
+            <div>At developers.tiktok.com: create an app, add the products <b>Login Kit</b> and <b>Content Posting API</b> (turn on Direct Post), add the scopes <code className="text-amber-200">user.info.basic</code> and <code className="text-amber-200">video.publish</code>, and set this redirect URI: <code className="break-all text-amber-200">{redirect('tiktok')}</code></div>
+            <input className={inp} placeholder="Client key" value={tkey} onChange={(e) => setTkey(e.target.value.trim())} />
+            <input className={inp} type="password" placeholder="Client secret" value={tsec} onChange={(e) => setTsec(e.target.value.trim())} />
+            <button type="button" className={btn} disabled={busy || !tkey || (!tsec && !tt.appSet)} onClick={() => void connect('/tt/auth-url', { ttKey: tkey, ...(tsec ? { ttSecret: tsec } : {}) })}>Connect TikTok</button></>}
         </div>
       </div>
       {msg && <div className="mt-2 text-xs text-amber-100" role="status">{msg}</div>}

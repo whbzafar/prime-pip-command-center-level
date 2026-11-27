@@ -4,7 +4,7 @@ import { getStoredToken } from '../../utils/authClient';
 interface Metrics { views?: number; reach?: number; likes?: number; comments?: number; shares?: number; saves?: number; at: number; note?: string }
 interface Post { id: string; at: number; title: string; category: string; targets: string[]; status: 'pending' | 'done' | 'failed'; stage?: string; results: Record<string, { ok: boolean; id?: string; error?: string }>; metrics?: Record<string, Metrics> }
 interface Advice { posts: number; measured: number; confidence: string; bestSlots: { label: string; avg: number; posts: number }[]; categories: { category: string; avg: number; posts: number }[]; tips: string[] }
-const NAMES: Record<string, string> = { facebook: 'Facebook', instagram: 'Instagram' };
+const NAMES: Record<string, string> = { facebook: 'Facebook', instagram: 'Instagram', youtube: 'YouTube', pinterest: 'Pinterest', tiktok: 'TikTok' };
 const auth = () => { const t = getStoredToken(); return t ? { Authorization: `Bearer ${t}` } : {}; };
 const n = (v?: number) => (v === undefined ? '–' : v >= 1000 ? `${(v / 1000).toFixed(1)}k` : String(v));
 const when = (ms: number) => new Date(ms).toLocaleString('en-GB', { timeZone: 'Asia/Karachi', weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
@@ -43,7 +43,7 @@ export function PerformancePanel({ onDone }: { onDone?: (ok: boolean, text: stri
         {posts.length === 0 && !err && <div className="text-slate-400">No posts yet. After you record a video it appears here at once, with its progress.</div>}
         {posts.length > 0 && <div className="overflow-x-auto"><table className="w-full min-w-[34rem] text-left">
           <thead className="text-slate-400"><tr><th className="py-1 pr-2">Video</th><th className="pr-2">Status</th><th className="pr-2">Platform</th><th className="pr-2">Views</th><th className="pr-2">Likes</th><th className="pr-2">Comments</th><th className="pr-2">Shares</th><th>Saves</th></tr></thead>
-          <tbody>{posts.flatMap((p) => { const ks = (p.targets.length ? p.targets : Object.keys(p.results)).filter((k) => k === 'facebook' || k === 'instagram' || k === 'youtube' || k === 'pinterest'); return (ks.length ? ks : ['']).map((k, i) => { const r = p.results[k]; const m = p.metrics?.[k];
+          <tbody>{posts.flatMap((p) => { const ks = (p.targets.length ? p.targets : Object.keys(p.results)).filter((k) => k === 'facebook' || k === 'instagram' || k === 'youtube' || k === 'pinterest' || k === 'tiktok'); return (ks.length ? ks : ['']).map((k, i) => { const r = p.results[k]; const m = p.metrics?.[k];
             const st = p.status === 'pending' ? <span className="text-amber-300">⏳ {p.stage || 'Pending'}…</span> : r?.ok ? <span className="text-emerald-300">✅ Published</span> : <span className="text-rose-300" title={r?.error}>❌ {r?.error ? r.error.slice(0, 60) : 'Not posted'}</span>;
             return <tr key={`${p.id}-${k}`} className="border-t border-slate-800 align-top"><td className="py-1 pr-2">{i === 0 ? <><div className="font-semibold text-slate-100">{p.title}</div><div className="text-slate-500">{p.category} · {when(p.at)}</div></> : ''}</td><td className="pr-2">{st}</td><td className="pr-2">{NAMES[k] || '–'}</td>
               <td className="pr-2">{n(m?.views ?? m?.reach)}</td><td className="pr-2">{n(m?.likes)}</td><td className="pr-2">{n(m?.comments)}</td><td className="pr-2">{n(m?.shares)}</td><td>{n(m?.saves)}</td></tr>; }); })}</tbody></table></div>}
