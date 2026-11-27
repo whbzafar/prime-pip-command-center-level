@@ -6,6 +6,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { randomUUID } from "node:crypto";
 import { privateListGet, privateListUpdate, durableStatus } from "./durableStore.js";
+import { analyse, type Metrics, type PostEntry } from "./socialInsights.js";
 
 /* Publishing helpers. Credentials are NOT stored on the server: the admin's browser keeps them and sends them with each request.
    - /stage keeps the finished MP4 for 30 minutes at an unguessable public link (Instagram needs a URL it can download from).
@@ -21,6 +22,39 @@ async function graph(path: string, params: Record<string, string>, method: "GET"
   const j: any = await r.json().catch(() => ({})); if (!r.ok || j?.error) throw new Error(j?.error?.message || `Facebook returned HTTP ${r.status}`); return j;
 }
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+const HIST = "social_post_history";
+const histAdd = (e: PostEntry) => privateListUpdate(HIST, (l) => [e, ...l].slice(0, 300)).catch(() => []);
+const histPatch = (id: string, patch: Partial<PostEntry>) => privateListUpdate(HIST, (l) => l.map((e: PostEntry) => (e.id === id ? { ...e, ...patch } : e))).catch(() => []);
+const num = (v: any) => (typeof v === "number" && isFinite(v) ? v : undefined);
+
+/** Reads likes, comments and (when the app has the insights permission) views/reach/shares/saves for one live post. */
+async function readMetrics(platform: "facebook" | "instagram", id: string, token: string): Promise<Metrics> {
+  const m: Metrics = { at: Date.now() }; const notes: string[] = [];
+  if (platform === "instagram") {
+    try { const b = await graph(`/${id}`, { fields: "like_count,comments_count", access_token: token }, "GET"); m.likes = num(b.like_count); m.comments = num(b.comments_count); } catch (e: any) { notes.push(String(e?.message || e).slice(0, 140)); }
+    try { const ins = await graph(`/${id}/insights`, { metric: "views,reach,saved,shares", access_token: token }, "GET"); for (const d of ins.data || []) { const v = num(d.values?.[0]?.value ?? d.total_value?.value); if (d.name === "views") m.views = v; else if (d.name === "reach") m.reach = v; else if (d.name === "saved") m.saves = v; else if (d.name === "shares") m.shares = v; } } catch (e: any) { notes.push("Instagram views need the instagram_manage_insights permission"); }
+  } else {
+    try { const b = await graph(`/${id}`, { fields: "likes.summary(true).limit(0),comments.summary(true).limit(0)", access_token: token }, "GET"); m.likes = num(b.likes?.summary?.total_count); m.comments = num(b.comments?.summary?.total_count); } catch (e: any) { notes.push(String(e?.message || e).slice(0, 140)); }
+    try { const b = await graph(`/${id}`, { fields: "views", access_token: token }, "GET"); m.views = num(b.views); } catch { try { const ins = await graph(`/${id}/video_insights`, { metric: "total_video_views", access_token: token }, "GET"); m.views = num(ins.data?.[0]?.values?.[0]?.value); } catch { notes.push("Facebook views need the read_insights permission"); } }
+  }
+  if (notes.length) m.note = notes.join("; "); return m;
+}
+let refreshing = false;
+async function refreshAll(force = false): Promise<void> {
+  if (refreshing) return; refreshing = true;
+  try {
+    const cfg = (await privateListGet("social_publish_cfg"))?.[0]; const token = String(cfg?.metaPageToken || ""); if (!token) return;
+    const list: PostEntry[] = (await privateListGet(HIST)) || []; const now = Date.now(); const upd = new Map<string, Record<string, Metrics>>();
+    for (const e of list.filter((x) => x.status === "done" && now - x.at < 45 * 86400_000).slice(0, 40)) {
+      const last = Math.max(0, ...Object.values(e.metrics || {}).map((m) => m.at)); const age = now - e.at; const every = age < 2 * 86400_000 ? 20 * 60_000 : 6 * 3600_000;
+      if (!force && now - last < every) continue; const mm: Record<string, Metrics> = { ...(e.metrics || {}) };
+      for (const k of ["facebook", "instagram"] as const) { const r = e.results[k]; if (r?.ok && r.id) { try { mm[k] = await readMetrics(k, r.id, token); } catch { /* keep the old numbers */ } } }
+      upd.set(e.id, mm);
+    }
+    if (upd.size) await privateListUpdate(HIST, (l) => l.map((e: PostEntry) => (upd.has(e.id) ? { ...e, metrics: upd.get(e.id) } : e)));
+  } finally { refreshing = false; }
+}
 
 export function registerPublishRoutes(app: Express, requireDeveloper: RequestHandler) {
   /* Publishing settings (Page ID, permanent Page token, auto-post choices) live in the encrypted private store, so every
@@ -78,12 +112,12 @@ export function registerPublishRoutes(app: Express, requireDeveloper: RequestHan
     } catch (e: any) { res.status(400).json({ ok: false, error: String(e?.message || e) }); }
   });
   app.post("/api/admin/social/meta/publish", requireDeveloper, async (req, res) => {
-    const { id, coverId, pageId, pageToken, igUserId, title, description, caption, targets } = req.body || {}; const v = staged.get(String(id || "")); const cv = coverId ? staged.get(String(coverId)) : undefined;
+    const { id, coverId, pageId, pageToken, igUserId, title, description, caption, targets, category, videoTitle } = req.body || {}; const v = staged.get(String(id || "")); const cv = coverId ? staged.get(String(coverId)) : undefined;
     if (!v) return res.status(400).json({ ok: false, error: "The video expired. Record or stage it again." });
     const base = (process.env.PUBLIC_BASE_URL || `${req.headers["x-forwarded-proto"] || req.protocol}://${req.get("host")}`).replace(/\/$/, ""); const url = `${base}/api/public/staged/${id}.mp4`; const coverUrl = cv ? `${base}/api/public/staged/${coverId}.jpg` : "";
-    const out: Record<string, { ok: boolean; id?: string; error?: string }> = {}; const jobId = randomBytes(8).toString("hex"); jobs.set(jobId, { done: false, out, note: "Starting…", at: Date.now() }); const job = jobs.get(jobId)!; res.json({ ok: true, job: jobId }); void (async () => { try { await run(); } catch (e: any) { out.error = { ok: false, error: String(e?.message || e) }; } finally { job.done = true; job.note = ""; } })(); return;
+    const out: Record<string, { ok: boolean; id?: string; error?: string }> = {}; const jobId = randomBytes(8).toString("hex"); jobs.set(jobId, { done: false, out, note: "Starting…", at: Date.now() }); const job = jobs.get(jobId)!; res.json({ ok: true, job: jobId }); void histAdd({ id: jobId, at: Date.now(), title: String(videoTitle || title || "Video").slice(0, 120), category: String(category || "General").slice(0, 60), targets: Array.isArray(targets) ? targets.map(String) : [], status: "pending", stage: "Uploading", results: {} }); void (async () => { try { await run(); } catch (e: any) { out.error = { ok: false, error: String(e?.message || e) }; } finally { job.done = true; job.note = ""; const res: Record<string, { ok: boolean; id?: string; error?: string }> = {}; for (const k of ["facebook", "instagram"]) if (out[k]) res[k] = out[k]; if (out.error) res.error = out.error; const any = Object.entries(res).some(([k, v]) => k !== "error" && v.ok); await histPatch(jobId, { status: any ? "done" : "failed", stage: any ? "Published" : "Failed", results: res }); if (any) setTimeout(() => { void refreshAll(true); }, 90_000); } })(); return;
     async function run() {
-    const j0 = (n: string) => { job.note = n; };
+    const j0 = (n: string) => { job.note = n; void histPatch(jobId, { stage: /Instagram: sending/.test(n) ? "Processing on Instagram" : n.replace(/…$/, "") }); };
     const want: string[] = Array.isArray(targets) ? targets : [];
     if (want.includes("facebook")) {
       try {
@@ -110,5 +144,11 @@ export function registerPublishRoutes(app: Express, requireDeveloper: RequestHan
     }
     }
   });
+  app.get("/api/admin/social/insights", requireDeveloper, async (req, res) => {
+    res.set("Cache-Control", "no-store"); if (req.query.refresh === "1") await refreshAll(true).catch(() => {}); else void refreshAll(false).catch(() => {});
+    const list: PostEntry[] | null = await privateListGet(HIST); if (list === null) return res.json({ ok: false, error: "Private storage is not available on the server yet" });
+    res.json({ ok: true, posts: list.slice(0, 60), advice: analyse(list) });
+  });
+  setInterval(() => { void refreshAll(false).catch(() => {}); }, 3 * 3600_000).unref?.();
   app.get("/api/admin/social/meta/publish-status", requireDeveloper, (req, res) => { const j = jobs.get(String(req.query.job || "")); if (!j) return res.json({ ok: false, error: "Unknown or expired job." }); res.json({ ok: true, done: j.done, note: j.note, results: j.out }); });
 }

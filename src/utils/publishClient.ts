@@ -73,8 +73,8 @@ export async function stageVideo(video: Blob, ext: 'mp4' | 'jpg' | 'webm' = 'mp4
   }
   throw new Error('Empty video');
 }
-export async function publishMeta(id: string, cfg: PubConfig, fb: PlatformMeta, ig: PlatformMeta, targets: string[], coverId?: string, onNote?: (n: string) => void): Promise<Record<string, { ok: boolean; id?: string; error?: string }>> {
-  const r = await fetch('/api/admin/social/meta/publish', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json', ...auth() }, body: JSON.stringify({ id, coverId, pageId: cfg.metaPageId, pageToken: cfg.metaPageToken, igUserId: cfg.igUserId, title: fb.title, description: fb.description, caption: ig.description, targets }) });
+export async function publishMeta(id: string, cfg: PubConfig, fb: PlatformMeta, ig: PlatformMeta, targets: string[], coverId?: string, onNote?: (n: string) => void, info?: { category: string; title: string }): Promise<Record<string, { ok: boolean; id?: string; error?: string }>> {
+  const r = await fetch('/api/admin/social/meta/publish', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json', ...auth() }, body: JSON.stringify({ id, coverId, pageId: cfg.metaPageId, pageToken: cfg.metaPageToken, igUserId: cfg.igUserId, title: fb.title, description: fb.description, caption: ig.description, targets, category: info?.category, videoTitle: info?.title }) });
   const j = await r.json().catch(() => ({})); if (!j.job) throw new Error(j?.error || `HTTP ${r.status}`);
   // The server posts in the background (Instagram can take minutes); ask for progress until it is done.
   const end = Date.now() + 15 * 60_000; let lastNote = ''; let fails = 0;
