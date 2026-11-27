@@ -26,8 +26,8 @@ describe('login security', () => {
     expect(a.flags).toEqual(expect.arrayContaining(['many_networks', 'many_devices', 'datacenter_vpn']));
   });
   it('first ever login has no flags except VPN', () => { expect(assess([], { at: '2026-11-22T10:00:00Z', ip: '1.1.1.1', device: 'x', countryCode: 'PK', ...LAHORE, hosting: false }).flags).toEqual([]); });
-  it('summary ranks the riskiest account first and lists places', () => {
-    const s = summariseUsers([ev({ userId: 'a', username: 'a', at: new Date().toISOString(), risk: 80, flags: ['impossible_travel'] }), ev({ userId: 'b', username: 'b', at: new Date().toISOString(), risk: 0 })], []);
+  it('summary lists the newest sign-in first and lists places', () => {
+    const s = summariseUsers([ev({ userId: 'a', username: 'a', at: new Date(Date.now() + 1000).toISOString(), risk: 80, flags: ['impossible_travel'] }), ev({ userId: 'b', username: 'b', at: new Date().toISOString(), risk: 0 })], []);
     expect(s[0].userId).toBe('a'); expect(s[0].places[0].place).toBe('Lahore, Punjab, Pakistan'); expect(placeOf({})).toBe('Unknown location');
   });
   it('ip helpers', () => {

@@ -4032,10 +4032,11 @@ app.post('/api/admin/social-brain/tts', requireActiveMember, async (req, res) =>
   const text = String(req.body?.text || '').replace(/[\u0000-\u001f]/g, ' ').trim().slice(0, 600);
   const lang = req.body?.lang === 'en' ? 'en' : 'ur';
   if (text.length < 2) return res.status(400).json({ ok: false, error: 'Text required' });
-  const key = `${lang}:${text}`; const hit = ttsCache.get(key);
+  const gender = req.body?.gender === 'female' ? 'female' : 'male';
+  const key = `${gender}:${lang}:${text}`; const hit = ttsCache.get(key);
   if (hit) { res.set('Content-Type', 'audio/mpeg'); return res.send(hit); }
   const trace: string[] = [];
-  const audio = await urduSpeech(text, lang, trace);
+  const audio = await urduSpeech(text, lang, trace, gender);
   if (!audio) { console.warn('[voice] all engines failed:', trace.join(' | ')); return res.status(503).json({ ok: false, error: 'Voice service is not reachable right now.', trace }); }
   if (ttsCache.size > 400) ttsCache.delete(ttsCache.keys().next().value as string);
   ttsCache.set(key, audio); res.set('Content-Type', 'audio/mpeg'); return res.send(audio);

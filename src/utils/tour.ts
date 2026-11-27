@@ -101,7 +101,7 @@ async function voiceFor(ac: AudioContext, text: string, lang: 'ur' | 'en', note?
   if (!serverVoiceDown) {
     try {
       const t = getStoredToken();
-      const r = await fetch('/api/admin/social-brain/tts', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json', ...(t ? { Authorization: `Bearer ${t}` } : {}) }, body: JSON.stringify({ text, lang }) });
+      const r = await fetch('/api/admin/social-brain/tts', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json', ...(t ? { Authorization: `Bearer ${t}` } : {}) }, body: JSON.stringify({ text, lang, gender: (() => { try { return localStorage.getItem('ppfx_voice_gender') === 'female' ? 'female' : 'male'; } catch { return 'male'; } })() }) });
       if (r.ok) return await ac.decodeAudioData(await r.arrayBuffer());
       serverVoiceDown = true; // do not wait for the failing server again for every line
     } catch { serverVoiceDown = true; }
@@ -427,9 +427,20 @@ export async function recordTour(o: TourOpts, shared?: { video: HTMLVideoElement
 
     const music = beatTrack(ac, mix, total + 0.3, MUSIC_BPM[take % MUSIC_BPM.length]);
     const t0 = ac.currentTime + 0.05;
+    // voice polish so the synthetic voice sits like a studio-recorded human one: warmth, presence, soft top end, gentle compression and a hint of room
+    const voiceBus = (() => {
+      const inp = ac.createGain(); const hp = ac.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 70;
+      const warm = ac.createBiquadFilter(); warm.type = 'lowshelf'; warm.frequency.value = 180; warm.gain.value = 2.5;
+      const pres = ac.createBiquadFilter(); pres.type = 'peaking'; pres.frequency.value = 3200; pres.Q.value = 0.9; pres.gain.value = 1.8;
+      const soft = ac.createBiquadFilter(); soft.type = 'highshelf'; soft.frequency.value = 9000; soft.gain.value = -2.5;
+      const comp = ac.createDynamicsCompressor(); comp.threshold.value = -22; comp.ratio.value = 3; comp.attack.value = 0.006; comp.release.value = 0.18;
+      const out = ac.createGain(); out.gain.value = 1.1; inp.connect(hp); hp.connect(warm); warm.connect(pres); pres.connect(soft); soft.connect(comp); comp.connect(out); out.connect(mix);
+      try { const len = Math.floor(ac.sampleRate * 0.28); const ir = ac.createBuffer(2, len, ac.sampleRate); for (let ch = 0; ch < 2; ch++) { const d = ir.getChannelData(ch); for (let k = 0; k < len; k++) d[k] = (Math.random() * 2 - 1) * (1 - k / len) ** 3; } const cv = ac.createConvolver(); cv.buffer = ir; const wet = ac.createGain(); wet.gain.value = 0.07; comp.connect(cv); cv.connect(wet); wet.connect(mix); } catch { /* the dry voice is still fine */ }
+      return inp;
+    })();
     if (mode === 'ai') segs.forEach((s, i) => {
       if (!s.voice) return; const at = t0 + starts[i] + 0.2;
-      const src = ac.createBufferSource(); src.buffer = s.voice; src.playbackRate.value = rate; const vg = ac.createGain(); vg.gain.value = 1.15; src.connect(vg); vg.connect(mix); src.start(at);
+      const src = ac.createBufferSource(); src.buffer = s.voice; src.playbackRate.value = rate; const vg = ac.createGain(); vg.gain.value = 1.15; src.connect(vg); vg.connect(voiceBus); src.start(at);
       music.gain.setTargetAtTime(0.28, at - 0.1, 0.06); music.gain.setTargetAtTime(1, at + s.voice.duration / rate, 0.25);
     });
     if (browserSpeech) { try { const tg = ac.createGain(); tg.gain.value = 1.2; ac.createMediaStreamSource(new MediaStream(browserSpeech.tab)).connect(tg); tg.connect(mix); } catch { /* tab audio unavailable */ } }

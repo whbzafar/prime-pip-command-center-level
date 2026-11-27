@@ -14,8 +14,15 @@ export const VOICES = {
   en: { name: 'en-US-JennyNeural', lang: 'en-US', label: 'Jenny · English, female' },
 } as const;
 
-export function buildSsml(text: string, lang: 'ur' | 'en' = 'ur'): string {
-  const v = VOICES[lang];
+export const MALE_VOICES = {
+  ur: { name: 'ur-PK-AsadNeural', lang: 'ur-PK', label: 'Asad · Pakistani Urdu, male' },
+  en: { name: 'en-US-GuyNeural', lang: 'en-US', label: 'Guy · English, male' },
+} as const;
+export type Gender = 'male' | 'female';
+const pick = (lang: 'ur' | 'en', gender: Gender) => (gender === 'male' ? MALE_VOICES : VOICES)[lang];
+
+export function buildSsml(text: string, lang: 'ur' | 'en' = 'ur', gender: Gender = 'female'): string {
+  const v = pick(lang, gender);
   return `<speak version='1.0' xml:lang='${v.lang}'><voice xml:lang='${v.lang}' name='${v.name}'><prosody rate='-4%' pitch='+2%'>${escapeXml(text)}</prosody></voice></speak>`;
 }
 
@@ -26,12 +33,13 @@ export function voiceStatus() {
 
 /** Free Microsoft Edge online voices (same Uzma voice, no key) through the MIT-licensed node-edge-tts package. */
 export let lastEdgeError = "";
-export async function edgeSpeech(text: string, lang: "ur" | "en" = "ur"): Promise<Buffer | null> {
+export async function edgeSpeech(text: string, lang: "ur" | "en" = "ur", gender: Gender = "female"): Promise<Buffer | null> {
   const path = join(tmpdir(), `pp-tts-${randomUUID()}.mp3`);
   try {
     const { EdgeTTS } = await import("node-edge-tts");
-    const v = VOICES[lang];
-    const tts = new EdgeTTS({ voice: v.name, lang: v.lang, outputFormat: "audio-24khz-96kbitrate-mono-mp3" });
+    const v = pick(lang, gender);
+    // a touch faster than the default and slightly lower pitch for the male voice: closer to how people really speak
+    const tts = new EdgeTTS({ voice: v.name, lang: v.lang, outputFormat: "audio-24khz-96kbitrate-mono-mp3", rate: "+5%", pitch: gender === "male" ? "-3%" : "default" } as any);
     await timeout(tts.ttsPromise(text, path), 25000);
     const buf = await readFile(path);
     if (!buf.length) lastEdgeError = "empty audio"; else lastEdgeError = "";
@@ -87,7 +95,7 @@ export async function translateUrdu(text: string): Promise<string> {
   } catch { return t; }
 }
 
-export async function urduSpeech(text: string, lang: 'ur' | 'en' = 'ur', trace?: string[]): Promise<Buffer | null> {
+export async function urduSpeech(text: string, lang: 'ur' | 'en' = 'ur', trace?: string[], gender: Gender = 'female'): Promise<Buffer | null> {
   const note = (m: string) => { trace?.push(m); };
   const key = process.env.AZURE_SPEECH_KEY; const region = process.env.AZURE_SPEECH_REGION || 'eastus';
   if (key) {
@@ -95,13 +103,13 @@ export async function urduSpeech(text: string, lang: 'ur' | 'en' = 'ur', trace?:
       const r = await timeout(fetch(`https://${region}.tts.speech.microsoft.com/cognitiveservices/v1`, {
         method: 'POST',
         headers: { 'Ocp-Apim-Subscription-Key': key, 'Content-Type': 'application/ssml+xml', 'X-Microsoft-OutputFormat': 'audio-24khz-96kbitrate-mono-mp3', 'User-Agent': 'PrimePipFX' },
-        body: buildSsml(text, lang),
+        body: buildSsml(text, lang, gender),
       }), 20000);
       if (r.ok) return Buffer.from(await r.arrayBuffer());
       note(`azure: HTTP ${r.status}`);
     } catch (e: any) { note(`azure: ${String(e?.message || e).slice(0, 80)}`); }
   }
-  let edge = await edgeSpeech(text, lang); for (let k = 0; !edge && k < 3; k++) { await new Promise((r) => setTimeout(r, 700 * (k + 1))); edge = await edgeSpeech(text, lang); }
+  let edge = await edgeSpeech(text, lang, gender); for (let k = 0; !edge && k < 3; k++) { await new Promise((r) => setTimeout(r, 700 * (k + 1))); edge = await edgeSpeech(text, lang, gender); }
   if (edge) { note('edge: ok'); return edge; }
   note(`edge: failed (${lastEdgeError || 'no audio'})`);
   const goog = await googleSpeech(text, lang);
