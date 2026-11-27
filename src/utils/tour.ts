@@ -251,8 +251,7 @@ export async function scanOutline(tab: string, title: string, back: string, onP:
 /** Records one real tour of a section. With a shared screen (from openScreen), many tours can run after one permission click. */
 export async function recordTour(o: TourOpts, shared?: { video: HTMLVideoElement }): Promise<Blob> {
   if (typeof MediaRecorder === 'undefined') throw new Error('Video recording is not supported in this browser. Use desktop Chrome or Edge.');
-  // Only a real human voice is ever used: the speaker's own microphone, or music only. The synthetic voice is switched off for good.
-  const mode = ((o.audio ?? (o.voice ? 'mic' : 'none')) === 'none' ? 'none' : 'mic') as AudioMode;
+  const mode: AudioMode = o.audio || (o.voice ? 'ai' : 'none');
   const lang = o.voiceLang || 'ur';
   // microphone first, so the permission prompt appears before the agent leaves this screen
   let mic: MediaStream | null = null;
