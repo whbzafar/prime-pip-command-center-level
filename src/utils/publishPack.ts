@@ -14,11 +14,15 @@ export function metaFor(category: string, title: string): PlatformMeta[] {
   const tag = (extra: string[]) => [...new Set([...extra, ...BASE_TAGS])];
   const catTag = title.replace(/[^A-Za-z0-9]+/g, '');
   const cta = `Link bio mein hai: ${SITE}`;
+  // per-platform engagement prompts from short-form research: comments and saves are the strongest signals
+  const ask = `Aap ko ${feats[0] || title} sab se zyada kaisa laga? Comment mein likhein.`;
+  const save = 'Baad mein kaam aaye to is video ko SAVE kar lein.';
+  const few = (extra: string[], n: number) => tag(extra).slice(0, n);
   const yt: PlatformMeta = { platform: 'youtube', title: `${hook} | ${title} (Urdu) #Shorts`.slice(0, 98),
-    description: `${hook}\n\n${title} — PrimePipFX Command Center mein ye sab kuch milta hai:\n${bullets}\n\n${cta}\n\n${tag([catTag, 'Shorts']).map((t) => '#' + t).join(' ')}`, hashtags: tag([catTag, 'Shorts']) };
-  const tt: PlatformMeta = { platform: 'tiktok', title: hook.slice(0, 90), description: `${hook} ${feats.slice(0, 3).join(' • ')} 👉 ${SITE} ${tag([catTag, 'fyp', 'foryou']).slice(0, 7).map((t) => '#' + t).join(' ')}`.slice(0, 2150), hashtags: tag([catTag, 'fyp', 'foryou']) };
-  const ig: PlatformMeta = { platform: 'instagram', title: hook, description: `${hook}\n\n${feats.map((f) => '✅ ' + f).join('\n')}\n\n${cta} (link bio mein)\n\n${tag([catTag, 'Reels', 'Explore']).map((t) => '#' + t).join(' ')}`, hashtags: tag([catTag, 'Reels', 'Explore']) };
-  const fb: PlatformMeta = { platform: 'facebook', title: hook, description: `${hook}\n\n${bullets}\n\n${cta}\n\n${tag([catTag]).slice(0, 6).map((t) => '#' + t).join(' ')}`, hashtags: tag([catTag]) };
+    description: `${hook}\n\n${title} — PrimePipFX Command Center mein ye sab kuch milta hai:\n${bullets}\n\n${ask}\n${cta}\n\n${few([catTag, 'Shorts'], 3).map((t) => '#' + t).join(' ')}`, hashtags: few([catTag, 'Shorts'], 3) };
+  const tt: PlatformMeta = { platform: 'tiktok', title: hook.slice(0, 90), description: `${hook} ${feats.slice(0, 3).join(' • ')} 👉 ${SITE} ${ask} ${few([catTag, 'fyp', 'foryou'], 5).map((t) => '#' + t).join(' ')}`.slice(0, 2150), hashtags: few([catTag, 'fyp', 'foryou'], 5) };
+  const ig: PlatformMeta = { platform: 'instagram', title: hook, description: `${hook}\n\n${feats.map((f) => '✅ ' + f).join('\n')}\n\n${ask}\n${save}\n${cta} (link bio mein)\n\n${few([catTag, 'Reels', 'Explore'], 5).map((t) => '#' + t).join(' ')}`, hashtags: few([catTag, 'Reels', 'Explore'], 5) };
+  const fb: PlatformMeta = { platform: 'facebook', title: hook, description: `${hook}\n\n${bullets}\n\n${ask}\n${cta}\n\n${tag([catTag]).slice(0, 4).map((t) => '#' + t).join(' ')}`, hashtags: tag([catTag]) };
   return [yt, tt, ig, fb];
 }
 
