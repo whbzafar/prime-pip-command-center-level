@@ -14,6 +14,7 @@
  * Students' indicators run on the server (RemotePineEngine) — their browser never receives the
  * code. The administrator's scripts and drafts run locally in a worker.
  */
+import { ShareChartButton } from '../ShareChartButton';
 import { IND_CATS, indCategory } from '../../utils/indicatorCategories';
 import { pineCompat } from '../../utils/pineCompat';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -165,7 +166,11 @@ const fmtPrice = (p: number, digits: number) => (Number.isFinite(p) ? p.toLocale
 export const PineMainChart: React.FC<{
   symbol: string; interval: string; height?: number | string;
   onSymbolChange?: (sym: string) => void; onIntervalChange?: (iv: string) => void; onToggleFullscreen?: () => void;
-}> = ({ symbol, interval, height = '100%', onSymbolChange, onIntervalChange, onToggleFullscreen }) => {
+  /** Shared-link viewing: show this drawings document instead of the viewer's own and never write anything back. */
+  sharedDoc?: any; viewOnly?: boolean;
+}> = ({ symbol, interval, height = '100%', onSymbolChange, onIntervalChange, onToggleFullscreen, sharedDoc, viewOnly }) => {
+  const sharedRef = useRef<any>(sharedDoc); sharedRef.current = sharedDoc;
+  const viewOnlyRef = useRef(!!viewOnly); viewOnlyRef.current = !!viewOnly;
   const wrap = useRef<HTMLDivElement>(null);
   const host = useRef<HTMLDivElement>(null);
   const ws = useRef<VelaWorkspace | null>(null);
@@ -210,6 +215,7 @@ export const PineMainChart: React.FC<{
   const saveDrawings = useCallback(() => {
     const chart: any = ws.current?.chart;
     const t = tickerRef.current;
+    if (viewOnlyRef.current) return;
     if (!chart?.drawings || !t || loadedFor.current !== t) return;
     try {
       const all = chart.drawings.all?.() || [];
@@ -230,7 +236,7 @@ export const PineMainChart: React.FC<{
     const chart: any = ws.current?.chart;
     if (!chart?.drawings) return;
     try {
-      const raw = localStorage.getItem(DRAW_KEY(t));
+      const raw = sharedRef.current ? JSON.stringify(sharedRef.current) : localStorage.getItem(DRAW_KEY(t));
       chart.drawings.fromJSON(raw ? JSON.parse(raw) : null);
       savedJson.current = JSON.stringify(chart.drawings.toJSON());
       lastGood.current = { t, json: savedJson.current, n: (chart.drawings.all?.() || []).length };
@@ -533,7 +539,11 @@ export const PineMainChart: React.FC<{
           </div>
         </>
       )}
-      {ready && (
+      {ready && !viewOnly && (
+        <div className="absolute right-2 top-2 z-30"><ShareChartButton symbol={symbol} interval={interval} engine="pro" compact getDrawings={() => ws.current?.chart?.drawings?.toJSON?.()} /></div>
+      )}
+      {ready && viewOnly && <div className="pointer-events-none absolute bottom-1.5 right-20 z-20 rounded px-1.5 py-0.5 text-[10px] font-semibold text-cyan-300">Shared chart · view only</div>}
+      {ready && !viewOnly && (
         <div data-testid="pro-autosave" title="Drawings, tool settings, favourites and chart look are saved automatically in this browser" className="pointer-events-none absolute bottom-1.5 right-20 z-20 rounded px-1.5 py-0.5 text-[10px] font-semibold text-emerald-600 bg-white/80">
           ● Auto-save on{savedAt ? ` · saved ${new Date(savedAt).toLocaleTimeString()}` : ''}
         </div>
