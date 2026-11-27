@@ -56,8 +56,20 @@ export async function verifyMeta(pageId: string, pageToken: string): Promise<{ o
   const r = await fetch('/api/admin/social/meta/verify', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json', ...auth() }, body: JSON.stringify({ pageId, pageToken }) }); return await r.json().catch(() => ({ ok: false, error: `HTTP ${r.status}` }));
 }
 export async function stageVideo(video: Blob, ext: 'mp4' | 'jpg' = 'mp4'): Promise<string> {
-  const r = await fetch(`/api/admin/social/stage?ext=${ext}`, { method: 'POST', credentials: 'include', headers: { 'Content-Type': ext === 'jpg' ? 'image/jpeg' : 'video/mp4', ...auth() }, body: video }); const j = await r.json().catch(() => ({}));
-  if (!r.ok || !j.id) throw new Error(j?.error || `Could not prepare the video (HTTP ${r.status})`); return j.id;
+  // sent in 8 MB pieces so no single request is too large for the host; each piece is retried once
+  const uid = (crypto.randomUUID?.() || String(Date.now()) + Math.random().toString(16).slice(2)).replace(/-/g, ''); const SIZE = 8 * 1024 * 1024; const n = Math.max(1, Math.ceil(video.size / SIZE));
+  for (let i = 0; i < n; i++) {
+    const piece = video.slice(i * SIZE, (i + 1) * SIZE); let lastErr = '';
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        const r = await fetch(`/api/admin/social/stage-chunk?uid=${uid}&i=${i}&n=${n}&ext=${ext}`, { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/octet-stream', ...auth() }, body: piece, signal: AbortSignal.timeout(120_000) });
+        const j = await r.json().catch(() => ({})); if (!r.ok || !j.ok) throw new Error(j?.error || `HTTP ${r.status}`);
+        if (i === n - 1) { if (!j.done || !j.id) throw new Error('The server did not finish the upload'); return j.id; } lastErr = ''; break;
+      } catch (e: any) { lastErr = String(e?.message || e); }
+    }
+    if (lastErr) throw new Error(`Could not upload the video (piece ${i + 1}/${n}): ${lastErr}`);
+  }
+  throw new Error('Empty video');
 }
 export async function publishMeta(id: string, cfg: PubConfig, fb: PlatformMeta, ig: PlatformMeta, targets: string[], coverId?: string): Promise<Record<string, { ok: boolean; id?: string; error?: string }>> {
   const r = await fetch('/api/admin/social/meta/publish', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json', ...auth() }, body: JSON.stringify({ id, coverId, pageId: cfg.metaPageId, pageToken: cfg.metaPageToken, igUserId: cfg.igUserId, title: fb.title, description: fb.description, caption: ig.description, targets }) });

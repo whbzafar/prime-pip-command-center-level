@@ -1,6 +1,6 @@
 import type { Express, RequestHandler } from "express";
 import express from "express";
-import { mkdir, writeFile, unlink, stat } from "node:fs/promises";
+import { mkdir, writeFile, appendFile, unlink, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { randomUUID } from "node:crypto";
@@ -39,6 +39,19 @@ export function registerPublishRoutes(app: Express, requireDeveloper: RequestHan
     await sweep(); await mkdir(DIR, { recursive: true }); const ext = String(req.query.ext || "mp4") === "jpg" ? "jpg" : "mp4"; const id = randomUUID().replace(/-/g, ""); const path = join(DIR, `${id}.${ext}`); await writeFile(path, body); staged.set(id, { path, at: Date.now(), ext });
     const base = (process.env.PUBLIC_BASE_URL || `${req.headers["x-forwarded-proto"] || req.protocol}://${req.get("host")}`).replace(/\/$/, "");
     res.json({ ok: true, id, url: `${base}/api/public/staged/${id}.${ext}` });
+  });
+  /* Large videos arrive in small pieces (the host rejects single uploads over ~100 MB). Pieces are appended in order, the last one finishes the file. */
+  const parts = new Map<string, { path: string; next: number; at: number; ext: string }>();
+  app.post("/api/admin/social/stage-chunk", requireDeveloper, express.raw({ type: () => true, limit: "20mb" }), async (req, res) => {
+    const uid = String(req.query.uid || "").replace(/[^a-z0-9]/gi, "").slice(0, 40); const i = Number(req.query.i), n = Number(req.query.n); const ext = String(req.query.ext || "mp4") === "jpg" ? "jpg" : "mp4"; const body = req.body as Buffer;
+    if (!uid || !Number.isInteger(i) || !Number.isInteger(n) || n < 1 || n > 80 || !Buffer.isBuffer(body) || !body.length) return res.status(400).json({ ok: false, error: "Bad upload piece" });
+    try {
+      await mkdir(DIR, { recursive: true }); let p = parts.get(uid);
+      if (i === 0) { p = { path: join(DIR, `${uid}.${ext}`), next: 0, at: Date.now(), ext }; await writeFile(p.path, body); parts.set(uid, p); p.next = 1; }
+      else { if (!p || p.next !== i) return res.status(409).json({ ok: false, error: "Upload piece out of order" }); await appendFile(p.path, body); p.next = i + 1; p.at = Date.now(); }
+      if (i === n - 1) { parts.delete(uid); await sweep(); staged.set(uid, { path: p!.path, at: Date.now(), ext }); const base = (process.env.PUBLIC_BASE_URL || `${req.headers["x-forwarded-proto"] || req.protocol}://${req.get("host")}`).replace(/\/$/, ""); return res.json({ ok: true, done: true, id: uid, url: `${base}/api/public/staged/${uid}.${ext}` }); }
+      res.json({ ok: true, done: false });
+    } catch (e: any) { res.status(500).json({ ok: false, error: String(e?.message || e) }); }
   });
   app.get("/api/public/staged/:file", async (req, res) => {
     const id = String(req.params.file).replace(/\.(mp4|jpg)$/, ""); const v = staged.get(id); if (!v || Date.now() - v.at > TTL) return res.status(404).end();
