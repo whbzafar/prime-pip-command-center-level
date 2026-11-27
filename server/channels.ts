@@ -64,25 +64,19 @@ export async function ytStats(ids: string[]): Promise<Record<string, { views: nu
 const pinHost = (c: Channels) => (c.pinSandbox ? "https://api-sandbox.pinterest.com" : "https://api.pinterest.com");
 async function pinRefresh(c: Channels): Promise<Channels> {
   if (!c.pinRefresh || !c.pinAppId || !c.pinAppSecret) return c;
-  const r = await fetch("https://api.pinterest.com/v5/oauth/token", { method: "POST", headers: { Authorization: `Basic ${Buffer.from(`${c.pinAppId}:${c.pinAppSecret}`).toString("base64")}`, "Content-Type": "application/x-www-form-urlencoded" }, body: new URLSearchParams({ grant_type: "refresh_token", refresh_token: c.pinRefresh }), signal: AbortSignal.timeout(30_000) });
+  const r = await fetch(`${pinHost(c)}/v5/oauth/token`, { method: "POST", headers: { Authorization: `Basic ${Buffer.from(`${c.pinAppId}:${c.pinAppSecret}`).toString("base64")}`, "Content-Type": "application/x-www-form-urlencoded" }, body: new URLSearchParams({ grant_type: "refresh_token", refresh_token: c.pinRefresh }), signal: AbortSignal.timeout(30_000) });
   const j: any = await r.json().catch(() => ({})); if (!r.ok || !j.access_token) throw new Error(`Pinterest sign-in failed: ${j.message || r.status}`);
   const n = { ...c, pinAccess: j.access_token, pinRefresh: j.refresh_token || c.pinRefresh }; await patchCh({ pinAccess: n.pinAccess, pinRefresh: n.pinRefresh }); return n;
 }
 async function pinApi(method: string, path: string, body?: any, retried = false): Promise<any> {
   let c = await readCh(); if (!c.pinAccess) throw new Error("Pinterest is not connected yet. Open Social Agent → Channels and press Connect Pinterest.");
-  const call = (host: string, tok: string) => fetch(`${host}/v5${path}`, { method, headers: { Authorization: `Bearer ${tok}`, ...(body ? { "Content-Type": "application/json" } : {}) }, body: body ? JSON.stringify(body) : undefined, signal: AbortSignal.timeout(60_000) });
-  let r = await call(pinHost(c), c.pinAccess); let j: any = await r.json().catch(() => ({}));
-  if (r.status === 401 && !retried) {
-    try { c = await pinRefresh(c); } catch { /* refresh not possible: still try the sandbox host below */ }
-    r = await call(pinHost(c), c.pinAccess!); j = await r.json().catch(() => ({}));
-    // Trial-access apps only work on the sandbox host and standard ones only on the live host, so if one answers 401/403 the other is tried and remembered.
-    if (r.status === 401 || r.status === 403) {
-      const other = !c.pinSandbox; const r2 = await call(other ? "https://api-sandbox.pinterest.com" : "https://api.pinterest.com", c.pinAccess!); const j2: any = await r2.json().catch(() => ({}));
-      if (r2.ok) { await patchCh({ pinSandbox: other }); return j2; }
-    }
-  } else if (!r.ok && r.status === 403 && /trial|sandbox/i.test(String(j.message || "")) && !c.pinSandbox) { await patchCh({ pinSandbox: true }); return pinApi(method, path, body, true); }
-  if (!r.ok) throw new Error(j.message || `Pinterest HTTP ${r.status}`);
-  return j;
+  // Pinterest sandbox and live tokens are not interchangeable, so the saved mode decides the host.
+  const call = (tok: string) => fetch(`${pinHost(c)}/v5${path}`, { method, headers: { Authorization: `Bearer ${tok}`, ...(body ? { "Content-Type": "application/json" } : {}) }, body: body ? JSON.stringify(body) : undefined, signal: AbortSignal.timeout(60_000) });
+  let r = await call(c.pinAccess); let j: any = await r.json().catch(() => ({}));
+  if (r.status === 401 && !retried) { try { c = await pinRefresh(c); r = await call(c.pinAccess!); j = await r.json().catch(() => ({})); } catch { /* refresh not possible */ } }
+  if (r.ok) return j;
+  if (r.status === 403 && /trial|sandbox/i.test(String(j.message || "")) && !c.pinSandbox) throw new Error("Pinterest has this app on trial access, which only works in its sandbox. Press Connect Pinterest once to switch.");
+  throw new Error(j.message || `Pinterest HTTP ${r.status}`);
 }
 export async function pinStats(id: string): Promise<{ views: number; saves: number; clicks: number }> {
   const d = new Date(); const e = d.toISOString().slice(0, 10); const st = new Date(Date.now() - 80 * 864e5).toISOString().slice(0, 10);
@@ -227,8 +221,12 @@ export function registerChannelRoutes(app: Express, requireDeveloper: RequestHan
   app.get("/api/public/oauth/pinterest", async (req, res) => {
     try {
       if (req.query.error) throw new Error(String(req.query.error_description || req.query.error)); if (!okState(String(req.query.state || ""))) throw new Error("This sign-in link expired. Start again from the app."); const c = await readCh();
-      const r = await fetch("https://api.pinterest.com/v5/oauth/token", { method: "POST", headers: { Authorization: `Basic ${Buffer.from(`${c.pinAppId}:${c.pinAppSecret}`).toString("base64")}`, "Content-Type": "application/x-www-form-urlencoded" }, body: new URLSearchParams({ grant_type: "authorization_code", code: String(req.query.code || ""), redirect_uri: `${baseOf(req)}/api/public/oauth/pinterest` }), signal: AbortSignal.timeout(30_000) });
-      const j: any = await r.json().catch(() => ({})); if (!r.ok || !j.access_token) throw new Error(j.message || "Pinterest did not accept the sign-in.");
+      // Trial-access apps only get working tokens from the sandbox host; standard apps from the live one. Try sandbox first, then live.
+      const ex = (host: string) => fetch(`${host}/v5/oauth/token`, { method: "POST", headers: { Authorization: `Basic ${Buffer.from(`${c.pinAppId}:${c.pinAppSecret}`).toString("base64")}`, "Content-Type": "application/x-www-form-urlencoded" }, body: new URLSearchParams({ grant_type: "authorization_code", code: String(req.query.code || ""), redirect_uri: `${baseOf(req)}/api/public/oauth/pinterest` }), signal: AbortSignal.timeout(30_000) });
+      let sandbox = true; let r = await ex("https://api-sandbox.pinterest.com"); let j: any = await r.json().catch(() => ({}));
+      if (!r.ok || !j.access_token) { sandbox = false; r = await ex("https://api.pinterest.com"); j = await r.json().catch(() => ({})); }
+      if (!r.ok || !j.access_token) throw new Error(j.message || "Pinterest did not accept the sign-in.");
+      await patchCh({ pinSandbox: sandbox });
       await patchCh({ pinAccess: j.access_token, pinRefresh: j.refresh_token || "" }); let user = ""; try { const u = await pinApi("GET", "/user_account"); user = u.username || ""; await patchCh({ pinUser: user }); } catch { /* optional */ }
       res.send(page(true, user ? `Pinterest account “${user}” is connected. Now choose a board in the app.` : "Pinterest is connected. Now choose a board in the app."));
     } catch (e: any) { res.status(400).send(page(false, String(e?.message || e))); }
