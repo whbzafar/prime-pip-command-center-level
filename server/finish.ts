@@ -26,8 +26,8 @@ export function ffmpegArgs(input: string, output: string, srt?: string, width = 
   // reference frame keep the encoder around 100–150 MB, and the picture is capped at 1080 wide (the most Instagram/Facebook show).
   const vf = [`scale='min(${width},trunc(iw/2)*2)':-2`, "format=yuv420p"];
   if (srt) vf.unshift(`subtitles=${srt.replace(/\\/g, "/").replace(/:/g, "\\:")}:force_style='Fontsize=22,PrimaryColour=&H0000FFFF,Outline=2'`);
-  return ["-y", "-hide_banner", "-loglevel", "error", "-threads", "1", "-filter_threads", "1", "-i", input, "-vf", vf.join(","), "-r", "30", "-c:v", "libx264", "-preset", "veryfast", "-crf", "21", "-profile:v", "high", "-level", "4.1",
-    "-x264-params", "threads=1:rc-lookahead=8:bframes=0:ref=1:sync-lookahead=0", "-maxrate", "9M", "-bufsize", "9M",
+  return ["-y", "-hide_banner", "-loglevel", "error", "-threads", "1", "-filter_threads", "1", "-i", input, "-vf", vf.join(","), "-r", "30", "-c:v", "libx264", "-preset", "ultrafast", "-tune", "zerolatency", "-crf", "23", "-profile:v", "high", "-level", "4.1",
+    "-x264-params", "threads=1:rc-lookahead=0:bframes=0:ref=1:sync-lookahead=0", "-maxrate", "9M", "-bufsize", "9M",
     "-af", "loudnorm=I=-14:TP=-1.5:LRA=11", "-ar", "48000", "-c:a", "aac", "-b:a", "160k", "-movflags", "+faststart", "-max_muxing_queue_size", "256", output];
 }
 
