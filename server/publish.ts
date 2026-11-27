@@ -161,7 +161,7 @@ export function registerPublishRoutes(app: Express, requireDeveloper: RequestHan
       try {
         j0("Pinterest: pinning the video…"); if (!cv) throw new Error("Pinterest needs a cover image; none was staged."); const r = await pinPost(v.path, coverUrl, { title: String(title || videoTitle || "Prime Pip"), description: String(description || caption || ""), link: "https://primepipfx.site" });
         out.pinterest = { ok: true, id: r.id }; if (r.sandbox) out.pinterest.error = "Pinterest has this app in trial access: pins are saved in its sandbox and are not public yet. Apply for Standard access to go public.";
-      } catch (e: any) { const m = String(e?.message || e); out.pinterest = { ok: false, error: /authenticat|unauthori|401/i.test(m) ? "Pinterest sign-in expired. Open Channels and press Connect Pinterest once." : m }; }
+      } catch (e: any) { const m = String(e?.message || e); out.pinterest = { ok: false, error: /authenticat|unauthori|401/i.test(m) ? `Pinterest refused the saved sign-in (${m.slice(0, 140)}). Open Channels and press Connect Pinterest once.` : m }; }
     }
     if (want.includes("instagram")) {
       try {

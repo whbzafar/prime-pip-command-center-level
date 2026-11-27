@@ -75,10 +75,10 @@ async function pinApi(method: string, path: string, body?: any, retried = false)
   if (r.status === 401 && !retried) {
     try { c = await pinRefresh(c); } catch { /* refresh not possible: still try the sandbox host below */ }
     r = await call(pinHost(c), c.pinAccess!); j = await r.json().catch(() => ({}));
-    // Trial-access apps only work on the sandbox host; it answers 401/403 on the live one.
-    if ((r.status === 401 || r.status === 403) && !c.pinSandbox) {
-      const r2 = await call("https://api-sandbox.pinterest.com", c.pinAccess!); const j2: any = await r2.json().catch(() => ({}));
-      if (r2.ok) { await patchCh({ pinSandbox: true }); return j2; }
+    // Trial-access apps only work on the sandbox host and standard ones only on the live host, so if one answers 401/403 the other is tried and remembered.
+    if (r.status === 401 || r.status === 403) {
+      const other = !c.pinSandbox; const r2 = await call(other ? "https://api-sandbox.pinterest.com" : "https://api.pinterest.com", c.pinAccess!); const j2: any = await r2.json().catch(() => ({}));
+      if (r2.ok) { await patchCh({ pinSandbox: other }); return j2; }
     }
   } else if (!r.ok && r.status === 403 && /trial|sandbox/i.test(String(j.message || "")) && !c.pinSandbox) { await patchCh({ pinSandbox: true }); return pinApi(method, path, body, true); }
   if (!r.ok) throw new Error(j.message || `Pinterest HTTP ${r.status}`);
