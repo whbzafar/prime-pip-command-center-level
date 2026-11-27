@@ -154,7 +154,7 @@ export function registerPublishRoutes(app: Express, requireDeveloper: RequestHan
     if (want.includes("tiktok")) {
       try {
         j0("TikTok: uploading the video…"); const sz = (await stat(v.path)).size; const r = await ttPost(v.path, sz, { title: String(caption || description || title || videoTitle || "Prime Pip").replace(/\s+\n/g, "\n") });
-        out.tiktok = { ok: true, id: r.id }; if (r.privacy !== "PUBLIC_TO_EVERYONE") out.tiktok.error = `Posted to TikTok as “${r.privacy.toLowerCase().replace(/_/g, " ")}”: TikTok keeps posts from apps it has not audited private. Submit the app for audit to go public.`;
+        out.tiktok = { ok: true, id: r.id }; if (r.privacy === "DRAFT") out.tiktok.error = "Sent to your TikTok drafts (TikTok has not audited the app, so it cannot publish for you yet). Open TikTok → Inbox/Drafts and tap Post."; else if (r.privacy !== "PUBLIC_TO_EVERYONE") out.tiktok.error = `Posted to TikTok as “${r.privacy.toLowerCase().replace(/_/g, " ")}”: TikTok keeps posts from apps it has not audited private. Submit the app for audit to go public.`;
       } catch (e: any) { out.tiktok = { ok: false, error: String(e?.message || e) }; }
     }
     if (want.includes("pinterest")) {

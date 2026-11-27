@@ -65,10 +65,18 @@ async function pinRefresh(c: Channels): Promise<Channels> {
 }
 async function pinApi(method: string, path: string, body?: any, retried = false): Promise<any> {
   let c = await readCh(); if (!c.pinAccess) throw new Error("Pinterest is not connected yet. Open Social Agent → Channels and press Connect Pinterest.");
-  const r = await fetch(`${pinHost(c)}/v5${path}`, { method, headers: { Authorization: `Bearer ${c.pinAccess}`, ...(body ? { "Content-Type": "application/json" } : {}) }, body: body ? JSON.stringify(body) : undefined, signal: AbortSignal.timeout(60_000) });
-  const j: any = await r.json().catch(() => ({}));
-  if (r.status === 401 && !retried) { c = await pinRefresh(c); return pinApi(method, path, body, true); }
-  if (!r.ok) { if (r.status === 403 && /trial|sandbox/i.test(String(j.message || "")) && !c.pinSandbox) { await patchCh({ pinSandbox: true }); return pinApi(method, path, body, true); } throw new Error(j.message || `Pinterest HTTP ${r.status}`); }
+  const call = (host: string, tok: string) => fetch(`${host}/v5${path}`, { method, headers: { Authorization: `Bearer ${tok}`, ...(body ? { "Content-Type": "application/json" } : {}) }, body: body ? JSON.stringify(body) : undefined, signal: AbortSignal.timeout(60_000) });
+  let r = await call(pinHost(c), c.pinAccess); let j: any = await r.json().catch(() => ({}));
+  if (r.status === 401 && !retried) {
+    try { c = await pinRefresh(c); } catch { /* refresh not possible: still try the sandbox host below */ }
+    r = await call(pinHost(c), c.pinAccess!); j = await r.json().catch(() => ({}));
+    // Trial-access apps only work on the sandbox host; it answers 401/403 on the live one.
+    if ((r.status === 401 || r.status === 403) && !c.pinSandbox) {
+      const r2 = await call("https://api-sandbox.pinterest.com", c.pinAccess!); const j2: any = await r2.json().catch(() => ({}));
+      if (r2.ok) { await patchCh({ pinSandbox: true }); return j2; }
+    }
+  } else if (!r.ok && r.status === 403 && /trial|sandbox/i.test(String(j.message || "")) && !c.pinSandbox) { await patchCh({ pinSandbox: true }); return pinApi(method, path, body, true); }
+  if (!r.ok) throw new Error(j.message || `Pinterest HTTP ${r.status}`);
   return j;
 }
 export async function pinStats(id: string): Promise<{ views: number; saves: number; clicks: number }> {
@@ -98,14 +106,23 @@ async function ttToken(force = false): Promise<string> {
 }
 async function ttApi(path: string, body?: any, method = "POST"): Promise<any> {
   const tok = await ttToken(); const r = await fetch(`${TT}${path}`, { method, headers: { Authorization: `Bearer ${tok}`, "Content-Type": "application/json; charset=UTF-8" }, body: body ? JSON.stringify(body) : undefined, signal: AbortSignal.timeout(60_000) });
-  const j: any = await r.json().catch(() => ({})); const code = j?.error?.code; if (!r.ok || (code && code !== "ok")) throw new Error(j?.error?.message || `TikTok HTTP ${r.status}`); return j.data || {};
+  const j: any = await r.json().catch(() => ({})); const code = j?.error?.code; if (!r.ok || (code && code !== "ok")) { const e: any = new Error(j?.error?.message || `TikTok HTTP ${r.status}`); e.ttCode = code || ""; throw e; } return j.data || {};
 }
 /** Posts the finished MP4 straight to the connected TikTok account. Apps TikTok has not audited yet can only post privately; the result says so. */
-export async function ttPost(path: string, size: number, o: { title: string }): Promise<{ id: string; privacy: string }> {
+export async function ttPost(path: string, size: number, o: { title: string }): Promise<{ id: string; privacy: string; draft?: boolean }> {
   const info = await ttApi("/v2/post/publish/creator_info/query/"); const opts: string[] = info.privacy_level_options || ["SELF_ONLY"];
   const privacy = ["PUBLIC_TO_EVERYONE", "MUTUAL_FOLLOW_FRIENDS", "FOLLOWER_OF_CREATOR", "SELF_ONLY"].find((x) => opts.includes(x)) || opts[0];
   const MB = 1024 * 1024; const chunk = size <= 64 * MB ? size : 32 * MB; const total = Math.max(1, Math.floor(size / chunk));
-  const init = await ttApi("/v2/post/publish/video/init/", { post_info: { title: o.title.slice(0, 2200), privacy_level: privacy, disable_duet: false, disable_comment: false, disable_stitch: false, video_cover_timestamp_ms: 1000 }, source_info: { source: "FILE_UPLOAD", video_size: size, chunk_size: chunk, total_chunk_count: total } });
+  const srcInfo = { source: "FILE_UPLOAD", video_size: size, chunk_size: chunk, total_chunk_count: total };
+  let init: any; let draft = false;
+  try { init = await ttApi("/v2/post/publish/video/init/", { post_info: { title: o.title.slice(0, 2200), privacy_level: privacy, disable_duet: false, disable_comment: false, disable_stitch: false, video_cover_timestamp_ms: 1000 }, source_info: srcInfo }); }
+  catch (e: any) {
+    const m = String(e?.message || ""); const blocked = /unaudited|integration guidelines|private account|url_ownership|spam_risk|not_authorized|scope/i.test(`${e?.ttCode || ""} ${m}`);
+    if (!blocked) throw e;
+    // TikTok has not audited this app, so direct posting is refused. Send it to the account's TikTok drafts instead; one tap there publishes it.
+    try { init = await ttApi("/v2/post/publish/inbox/video/init/", { source_info: srcInfo }); draft = true; }
+    catch (e2: any) { throw new Error(/scope|authori/i.test(String(e2?.message || "")) ? "TikTok needs one more approval. Open Social Agent → Channels and press Connect TikTok once." : "TikTok blocks direct posting until the app passes its audit. Make the TikTok account private once, or press Connect TikTok again to enable drafts."); }
+  }
   if (!init.upload_url || !init.publish_id) throw new Error("TikTok gave no upload address.");
   const fh = await openP(path, "r");
   try {
@@ -121,6 +138,7 @@ export async function ttPost(path: string, size: number, o: { title: string }): 
   } finally { await fh.close(); }
   for (let i = 0; i < 60; i++) {
     await sleep(4000); const st = await ttApi("/v2/post/publish/status/fetch/", { publish_id: init.publish_id });
+    if (draft && (st.status === "SEND_TO_USER_INBOX" || st.status === "PUBLISH_COMPLETE")) return { id: String(init.publish_id), privacy: "DRAFT", draft: true };
     if (st.status === "PUBLISH_COMPLETE") return { id: String((st.publicaly_available_post_id || st.publicly_available_post_id || [init.publish_id])[0] || init.publish_id), privacy };
     if (st.status === "FAILED") throw new Error(`TikTok rejected the video: ${st.fail_reason || "unknown reason"}`);
   }
@@ -161,7 +179,7 @@ export function registerChannelRoutes(app: Express, requireDeveloper: RequestHan
   });
   app.get("/api/admin/social/tt/auth-url", requireDeveloper, async (req, res) => {
     const c = await readCh(); if (!c.ttKey || !c.ttSecret) return res.status(400).json({ ok: false, error: "Save the TikTok client key and secret first." });
-    const q = new URLSearchParams({ client_key: c.ttKey, scope: "user.info.basic,video.publish", response_type: "code", redirect_uri: `${baseOf(req)}/api/public/oauth/tiktok`, state: newState() });
+    const q = new URLSearchParams({ client_key: c.ttKey, scope: "user.info.basic,video.publish,video.upload", response_type: "code", redirect_uri: `${baseOf(req)}/api/public/oauth/tiktok`, state: newState() });
     res.json({ ok: true, url: `https://www.tiktok.com/v2/auth/authorize/?${q}`, redirect: `${baseOf(req)}/api/public/oauth/tiktok` });
   });
   app.get("/api/public/oauth/tiktok", async (req, res) => {
@@ -184,7 +202,7 @@ export function registerChannelRoutes(app: Express, requireDeveloper: RequestHan
       if (req.query.error) throw new Error(String(req.query.error_description || req.query.error)); if (!okState(String(req.query.state || ""))) throw new Error("This sign-in link expired. Start again from the app."); const c = await readCh();
       const r = await fetch("https://api.pinterest.com/v5/oauth/token", { method: "POST", headers: { Authorization: `Basic ${Buffer.from(`${c.pinAppId}:${c.pinAppSecret}`).toString("base64")}`, "Content-Type": "application/x-www-form-urlencoded" }, body: new URLSearchParams({ grant_type: "authorization_code", code: String(req.query.code || ""), redirect_uri: `${baseOf(req)}/api/public/oauth/pinterest` }), signal: AbortSignal.timeout(30_000) });
       const j: any = await r.json().catch(() => ({})); if (!r.ok || !j.access_token) throw new Error(j.message || "Pinterest did not accept the sign-in.");
-      await patchCh({ pinAccess: j.access_token, pinRefresh: j.refresh_token || "", pinSandbox: false }); let user = ""; try { const u = await pinApi("GET", "/user_account"); user = u.username || ""; await patchCh({ pinUser: user }); } catch { /* optional */ }
+      await patchCh({ pinAccess: j.access_token, pinRefresh: j.refresh_token || "" }); let user = ""; try { const u = await pinApi("GET", "/user_account"); user = u.username || ""; await patchCh({ pinUser: user }); } catch { /* optional */ }
       res.send(page(true, user ? `Pinterest account “${user}” is connected. Now choose a board in the app.` : "Pinterest is connected. Now choose a board in the app."));
     } catch (e: any) { res.status(400).send(page(false, String(e?.message || e))); }
   });
