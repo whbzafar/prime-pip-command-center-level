@@ -24,8 +24,8 @@ export function PerformancePanel({ onDone }: { onDone?: (ok: boolean, text: stri
     } catch (e: any) { setErr(String(e?.message || e)); } finally { setBusy(false); }
   }, [onDone]);
   const pending = posts.some((p) => p.status === 'pending');
-  useEffect(() => { void load(); }, [load]);
-  useEffect(() => { const t = setInterval(() => void load(), pending ? 6000 : 120_000); return () => clearInterval(t); }, [load, pending]);
+  useEffect(() => { void load(); const f = () => { void load(); setTimeout(() => void load(), 2500); }; window.addEventListener('ppfx-post-refresh', f); return () => window.removeEventListener('ppfx-post-refresh', f); }, [load]);
+  useEffect(() => { const t = setInterval(() => void load(), pending ? 4000 : 20_000); return () => clearInterval(t); }, [load, pending]);
   const missing = posts.some((p) => (Object.values(p.metrics || {}) as Metrics[]).some((m) => m.note && /permission/.test(m.note)));
   return (
     <details open className="rounded-xl border border-sky-500/30 bg-slate-950/70 p-3" data-testid="performance-panel">
