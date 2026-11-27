@@ -187,6 +187,30 @@ async function openPath(path: string[]) {
   }
   return true;
 }
+
+const RISKY = /delete|remove|clear|reset|log ?out|sign ?out|disconnect|post|publish|send|submit|save|pay|buy|upgrade|subscribe|confirm|record|stop|download|export|import|upload|connect|invite|ban|block|approve|reject|withdraw|deposit|new trade|enter|place|order|edit|add |create|apply|generate|admin|account|password|delete|cancel/i;
+/** Operates the screen like a person would: toggles, tabs, chips and drop-downs that only change what is shown. Never anything that saves, sends, pays, deletes or posts. The action lens draws each click on the video. */
+async function safeInteract(alive: () => boolean, max = 3) {
+  const root = (document.querySelector('main') as HTMLElement) || document.body; let done = 0; const used = new Set<HTMLElement>();
+  const pool = () => Array.from(root.querySelectorAll<HTMLElement>('button, [role=tab], [role=radio], [role=switch], summary, select')).filter((el) => {
+    if (used.has(el) || el.closest('[role=dialog], form, [data-testid^="student-record"], [data-testid^="studio"], .fixed')) return false;
+    const r = el.getBoundingClientRect(); if (r.width < 24 || r.height < 16 || r.bottom < 80 || r.top > window.innerHeight - 40) return false;
+    if ((el as HTMLButtonElement).disabled || el.getAttribute('aria-disabled') === 'true' || (el as HTMLButtonElement).type === 'submit') return false;
+    const txt = ((el.getAttribute('aria-label') || el.innerText || '') + '').trim(); if (el.tagName !== 'SELECT' && (!txt || txt.length > 26 || RISKY.test(txt))) return false;
+    if (el.tagName === 'SELECT') return (el as HTMLSelectElement).options.length > 1 && !RISKY.test((el as HTMLSelectElement).name || '');
+    const role = el.getAttribute('role'); const pressed = el.hasAttribute('aria-pressed') || el.hasAttribute('aria-expanded'); const chip = /rounded-full|chip|pill|tab/i.test(el.className?.toString?.() || '');
+    return role === 'tab' || role === 'radio' || role === 'switch' || pressed || el.tagName === 'SUMMARY' || chip;
+  });
+  while (done < max && alive()) {
+    const el = pool().find((e) => e.getAttribute('aria-selected') !== 'true'); if (!el) break; used.add(el);
+    try {
+      el.scrollIntoView({ block: 'center', behavior: 'smooth' }); await sleep(450); if (!alive()) break;
+      if (el.tagName === 'SELECT') { const sel = el as HTMLSelectElement; const i = sel.selectedIndex; const next = (i + 1) % sel.options.length; const setter = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value')?.set; const r = sel.getBoundingClientRect(); sel.dispatchEvent(new MouseEvent('click', { bubbles: true, clientX: r.left + r.width / 2, clientY: r.top + r.height / 2 })); if (setter) setter.call(sel, sel.options[next].value); else sel.selectedIndex = next; sel.dispatchEvent(new Event('input', { bubbles: true })); sel.dispatchEvent(new Event('change', { bubbles: true })); }
+      else el.click();
+    } catch { /* a control that cannot be used is skipped */ }
+    done++; await sleep(1300);
+  }
+}
 type SubTabLike = { el: HTMLElement; label: string; hint: string };
 /** Walks every tab and nested tab of the open category and reads what is really on each screen. */
 async function walkViews(v: HTMLVideoElement | null, title: string, onP: (m: string) => void): Promise<View[]> {
@@ -431,6 +455,7 @@ export async function recordTour(o: TourOpts, shared?: { video: HTMLVideoElement
             const ok = await openPath(bt.path!); if (!ok || segIdx !== mine) return; const sc = findScroller();
             if (bt.focus) { const f = findByText(new RegExp(esc(bt.focus), 'i')); if (f) { bt.el = (f.el.closest('section, article, [class*="rounded"]') as HTMLElement | null) || f.el; bringIntoView(sc, bt.el); } return; }
             scrollToTop(sc);
+            if (grand) window.setTimeout(() => { void safeInteract(() => segIdx === mine, 2); }, 1500);
             // a tall screen is scrolled once, so the options further down are shown too
             window.setTimeout(() => { try { if (segIdx === mine && sc.scrollHeight > sc.clientHeight * 1.25) sc.scrollBy({ top: sc.clientHeight * 0.75, behavior: 'smooth' }); } catch { /* ignore */ } }, Math.max(2600, s.seconds * 520));
           })();
