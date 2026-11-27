@@ -72,6 +72,17 @@ const visible = (el: HTMLElement) => {
 const outside = (el: HTMLElement) => !!el.closest('[role="dialog"], nav, header, aside, footer, [data-tour-skip]');
 
 /** Lists the parts of the open section in reading order: every heading's card, plus up to three safe inner tabs. */
+/** Every inner tab (sub-category) of the open section, so a recording can show each one — never anything that could trade, pay or delete. */
+export function discoverTabBeats(max = 8): Beat[] {
+  const root = (document.querySelector('main') as HTMLElement | null) || document.body; const seen = new Set<string>(); const out: Beat[] = [];
+  root.querySelectorAll<HTMLElement>('[role="tab"]').forEach((t) => {
+    if (out.length >= max || outside(t) || !visible(t) || DANGEROUS.test(t.textContent || '')) return;
+    const label = clean(t.textContent); if (label.length < 2 || label.length > 40 || seen.has(label.toLowerCase())) return; seen.add(label.toLowerCase());
+    out.push({ el: (t.closest('[role="tablist"]') as HTMLElement | null)?.parentElement || t, label, click: t });
+  });
+  return out;
+}
+
 export function discoverBeats(scroller: HTMLElement, sectionTitle: string, max = 9): Beat[] {
   const root = (document.querySelector('main') as HTMLElement | null) || document.body;
   const sTop = scroller === document.scrollingElement || scroller === document.documentElement ? 0 : scroller.getBoundingClientRect().top;

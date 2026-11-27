@@ -1,7 +1,7 @@
 import { FONT, fitText, rr, THEMES } from './postVisuals';
 import { go, grab, lockedNotice, openScreen, shotStore, sleep, SLOW, waitCalm } from './agentCapture';
 import { getStoredToken } from './authClient';
-import { type Beat, type Box, bringIntoView, discoverBeats, findByText, findScroller, fitCrop, fullCrop, panCrop, scrollToTop, toVideo } from './sectionDirector';
+import { type Beat, type Box, bringIntoView, discoverBeats, discoverTabBeats, findByText, findScroller, fitCrop, fullCrop, panCrop, scrollToTop, toVideo } from './sectionDirector';
 import { startLiveCaptions, toSrt, type LiveCaptions } from './liveCaptions';
 import { loadClipBuffer } from './voiceClips';
 import { HOOK_OPENERS, MUSIC_BPM, OUTRO_VARIANTS, OVERVIEW_VARIANTS, PACKS } from '../data/urduPack';
@@ -214,6 +214,9 @@ export async function recordTour(o: TourOpts, shared?: { video: HTMLVideoElement
         // each line is paired with the part of the screen it describes (by name where known), the rest in reading order
         const free = beats.slice(); const taken: HTMLElement[] = []; const pick: (Beat | undefined)[] = pack.parts.map((pt) => { const k = pt[3] ? free.findIndex((b) => pt[3]!.test(b.label)) : -1; if (k >= 0) { const b = free.splice(k, 1)[0]; taken.push(b.el); return b; } const f = pt[3] ? findByText(pt[3], taken) : null; if (f) taken.push(f.el); return f || undefined; });
         const order = pack.parts.map((_, i) => i); const rot = take % Math.max(1, order.length); const seq = [...order.slice(rot), ...order.slice(0, rot)]; seq.forEach((i) => { const pt = pack.parts[i]; src.push({ kind: 'part', headline: pt[0], label: pt[0], en: pt[1], rm: pt[1], urdu: pt[2], beat: pick[i] || free.shift() }); });
+        // every sub-category (inner tab) of this section gets its own shot, so nothing inside the category is left out
+        const shownTabs = new Set(src.filter((x) => x.beat?.click).map((x) => x.label.toLowerCase())); const TAB_LINES: [string, string][] = [['Now the next sub-section: ', 'اب اگلا سب سیکشن دیکھیں۔'], ['Also inside: ', 'اس کے اندر یہ بھی موجود ہے۔'], ['Next up: ', 'اور یہ بھی دیکھیے۔']];
+        discoverTabBeats(8).forEach((tb, i) => { if (shownTabs.has(tb.label.toLowerCase())) return; const tl = TAB_LINES[(i + take) % TAB_LINES.length]; src.push({ kind: 'part', headline: tb.label, label: tb.label, en: `${tl[0]}${tb.label}.`, rm: `${tl[0]}${tb.label}.`, urdu: tl[1], beat: tb }); });
         src.push({ kind: 'outro', headline: o.script.cta, label: 'primepipfx.site', en: ou[0], rm: ou[0], urdu: ou[1] });
       } else {
       src.push({ kind: 'intro', headline: o.script.hook, label: o.title, en: o.script.hook, urdu: o.script.hookUrdu });
@@ -247,7 +250,7 @@ export async function recordTour(o: TourOpts, shared?: { video: HTMLVideoElement
         }
       }
       const items: Item[] = src.map((x, i) => ({ kind: x.kind, voice: voices[i]?.duration ?? null, base: Math.max(x.kind === 'overview' ? 5 : 3, wordsOf(x.en).length / 2.6 + 0.9) }));
-      const plan = planTimeline(items, 35, 75, 1.15); rate = plan.rate;
+      const plan = planTimeline(items, 35, 90, 1.15); rate = plan.rate;
       src.forEach((x, i) => { if (!plan.keep[i]) return; const ur = undefined as string | undefined; segs.push({ spoken: browserSpeech ? (browserSpeech.lang === 'ur' ? (urdu[i] && /[\u0600-\u06FF]/.test(urdu[i]) ? urdu[i] : x.en) : x.en) : undefined, spokenLang: browserSpeech ? (browserSpeech.lang === 'ur' && urdu[i] && /[\u0600-\u06FF]/.test(urdu[i]) ? 'ur' : 'en') : undefined, kind: x.kind, beat: x.beat, headline: x.headline, label: x.label, say: x.rm || x.en, ur, chunks: ur ? chunkCaption(ur, 6) : undefined, feats: x.feats, voice: voices[i], seconds: plan.seconds[i] }); });
     }
     const total = segs.reduce((a, s) => a + s.seconds, 0); const starts: number[] = []; segs.reduce((a, s) => { starts.push(a); return a + s.seconds; }, 0);
