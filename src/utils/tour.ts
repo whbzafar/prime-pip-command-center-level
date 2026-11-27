@@ -1,6 +1,7 @@
 import { FONT, fitText, rr, THEMES } from './postVisuals';
 import { go, grab, lockedNotice, openScreen, shotStore, sleep, SLOW, waitCalm } from './agentCapture';
 import { getStoredToken } from './authClient';
+import { startLens, drawLens, stopActiveLens, type Lens } from './actionLens';
 import { type Beat, type Box, bringIntoView, describePart, discoverBeats, discoverTabBeats, findByText, primaryTabs, setSkipTablists, tablists, findScroller, fitCrop, fullCrop, panCrop, scrollToTop, toVideo } from './sectionDirector';
 import { startLiveCaptions, toSrt, type LiveCaptions } from './liveCaptions';
 import { loadClipBuffer } from './voiceClips';
@@ -416,6 +417,7 @@ export async function recordTour(o: TourOpts, shared?: { video: HTMLVideoElement
     // 4. live render loop; the director moves the real page while the camera follows
     const vw = () => v.videoWidth || 1280; const vh = () => v.videoHeight || 720;
     let cam = fullCrop(aspect, vw(), vh()); let segIdx = -1; let segAt = 0; let lastT = 0; let spot: Box | null = null;
+    const lens: Lens = startLens(); const stopLens = () => lens.stop();
     rec.start(250); if (mode === 'mic') captions = startLiveCaptions(lang === 'ur' ? 'ur-PK' : 'en-US');
     const start = performance.now();
     const enter = (i: number) => {
@@ -478,6 +480,7 @@ export async function recordTour(o: TourOpts, shared?: { video: HTMLVideoElement
         ctx.save(); ctx.shadowColor = th.a + '99'; ctx.shadowBlur = 60 * U; ctx.fillStyle = '#0b1220'; rr(ctx, BOX.x - 8 * U, BOX.y - 8 * U, BOX.w + 16 * U, BOX.h + 16 * U, 34 * U); ctx.fill(); ctx.restore();
         ctx.save(); rr(ctx, BOX.x, BOX.y, BOX.w, BOX.h, 28 * U); ctx.clip();
         ctx.drawImage(v, shot.x, shot.y, shot.w, shot.h, BOX.x, BOX.y, BOX.w, BOX.h);
+        try { drawLens(ctx, lens, performance.now(), { shot, box: BOX, vw: vw(), vh: vh(), U, accent: th.a, font: FONT }); } catch { /* the lens never stops a recording */ }
         if (since < 0.22 && i > 0) { const off = (1 - since / 0.22) * BOX.w * 0.08; ctx.globalAlpha = 0.28; ctx.drawImage(v, shot.x, shot.y, shot.w, shot.h, BOX.x - off, BOX.y, BOX.w, BOX.h); ctx.drawImage(v, shot.x, shot.y, shot.w, shot.h, BOX.x + off, BOX.y, BOX.w, BOX.h); ctx.globalAlpha = 1; }
         // spotlight on the real part, with its real name
         if (spot && s.kind === 'part') {
@@ -591,6 +594,7 @@ export async function recordTour(o: TourOpts, shared?: { video: HTMLVideoElement
       tick();
     });
     try { window.speechSynthesis?.cancel(); } catch { /* ignore */ }
+    stopLens();
     rec.stop(); let blob = await finished;
     if (o.finish !== false) { o.onProgress?.(1, 'Finishing the video (MP4, loudness)'); blob = await finishOnServer(blob); }
     if (captions) { captions.stop(); tourStore.lastSrt = toSrt(captions.lines()); } else tourStore.lastSrt = '';
@@ -599,7 +603,7 @@ export async function recordTour(o: TourOpts, shared?: { video: HTMLVideoElement
     if (mode === 'ai' && silent) o.onProgress?.(1, `${silent} line(s) had no Urdu voice: those use captions only`);
     return blob;
   } finally {
-    captions?.stop(); mic?.getTracks().forEach((t) => t.stop()); setSkipTablists([]);
+    stopActiveLens(); captions?.stop(); mic?.getTracks().forEach((t) => t.stop()); setSkipTablists([]);
     tourStore.running = false; window.scrollTo(0, 0);
     if (own) { own.stream.getTracks().forEach((t) => t.stop()); go(o.returnTab || 'ADMIN'); if ((o.returnTab || 'ADMIN') === 'ADMIN') reopenStudio(); }
   }
