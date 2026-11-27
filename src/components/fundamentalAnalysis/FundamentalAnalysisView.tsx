@@ -1,8 +1,10 @@
+import { isUserAdmin, getCurrentUser } from '../../utils/authClient';
+const Arcade = React.lazy(() => import('../arcade/Arcade'));
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { BriefButton } from './Brief';
 import {
   Activity, BarChart3, Bitcoin, Building2, CalendarClock, Coins, Gem, GitCompareArrows, Grid3x3, Info, Radio, RefreshCw,
-  Crown, Newspaper, Search, ShieldCheck, TrendingUp, Trophy, Users, WifiOff, X, Zap,
+  Crown, Lock, Newspaper, Search, ShieldCheck, TrendingUp, Trophy, Users, WifiOff, X, Zap,
 } from 'lucide-react';
 import { RankingsView } from './RankingsView';
 import { SentimentBoard } from './SentimentBoard';
@@ -381,24 +383,37 @@ export const FundamentalAnalysisView: React.FC = () => {
   );
 };
 
-const SourcesPanel: React.FC<{ ov: Overview }> = ({ ov }) => (
+const LockedCard: React.FC<{ title: string }> = ({ title }) => (
+  <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-6 text-center" data-testid="sources-locked"><Lock className="mx-auto mb-2 w-6 h-6 text-amber-300" /><div className="text-sm font-bold text-white">{title}</div><div className="mt-1 text-[12px] text-slate-400">This section is available to the administrator only.</div></div>
+);
+
+const SourcesPanel: React.FC<{ ov: Overview }> = ({ ov }) => {
+  const admin = (() => { try { return isUserAdmin(getCurrentUser()); } catch { return false; } })();
+  return (
   <div className="grid grid-cols-[minmax(0,1fr)] lg:grid-cols-2 gap-4">
+  {!admin ? <LockedCard title="Data sources &amp; method" /> : (
     <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-4 space-y-2">
       <div className="flex items-center gap-2 mb-1"><Activity className="w-4 h-4 text-cyan-400" /><span className="text-[11px] font-mono-code uppercase tracking-widest text-cyan-300">Live data sources (all free, no paid subscriptions)</span></div>
-      {ov.sources.map((s) => (
+      <div className="text-[10.5px] text-slate-500 leading-relaxed">Working = fresh data · Partly working = some of it missing · Out of date / Not available = that provider is not answering, so the indicators that depend on it are left out of the score (never guessed) · Needs setup = an optional source that is not connected.</div>
+      {ov.sources.map((s) => {
+        const st = String(s.status); const label = ({ ok: 'Working', live: 'Working', degraded: 'Partly working', stale: 'Out of date', down: 'Not available', not_configured: 'Needs setup', missing: 'No data' } as Record<string, string>)[st] || st.replace('_', ' ');
+        const err = s.lastError ? Array.from(new Set(String(s.lastError).split(/\s*[|·]\s*/).map((x) => x.trim()).filter(Boolean))).join(' · ').slice(0, 160) : '';
+        return (
         <div key={s.id} className="rounded-xl bg-slate-900/60 border border-slate-800 px-3 py-2">
           <div className="flex items-center gap-2">
             <StatusDot status={s.status} />
             <a href={s.url} target="_blank" rel="noopener noreferrer" className="text-[12.5px] text-slate-100 font-semibold hover:text-cyan-300">{s.name}</a>
-            <span className="ml-auto text-[10px] font-mono-code uppercase text-slate-500">{s.status.replace('_', ' ')}</span>
+            <span className="ml-auto text-[10px] font-mono-code uppercase text-slate-400">{label}</span>
           </div>
           <div className="text-[10.5px] font-mono-code text-slate-500 mt-0.5">
-            Last success {timeAgo(s.lastSuccess)}{s.itemCount ? ` · ${s.itemCount} items` : ''}{s.lastError ? ` · last error: ${s.lastError}` : ''}
+            {s.lastSuccess ? `Last updated ${timeAgo(s.lastSuccess)}` : 'No update received yet'}{s.itemCount ? ` · ${s.itemCount.toLocaleString()} records` : ''}
           </div>
+          {err && <div className="text-[10.5px] text-amber-300/80 mt-0.5">Problem: {err}</div>}
           {s.note && <div className="text-[10.5px] text-slate-400 mt-0.5">{s.note}</div>}
-        </div>
-      ))}
-    </div>
+        </div>); })}
+    </div>)}
+    <div className="space-y-4 min-w-0">
+  {!admin ? null : (
     <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-4 space-y-3 text-[12px] text-slate-300 leading-relaxed">
       <div className="flex items-center gap-2"><Info className="w-4 h-4 text-cyan-400" /><span className="text-[11px] font-mono-code uppercase tracking-widest text-cyan-300">How the score works</span></div>
       <p><b className="text-white">Sub-indicator score (−100…+100).</b> Each release is compared with its forecast (surprise, 45%), its previous value (momentum, 30%) and, where meaningful, an anchor such as the central bank’s inflation target or the PMI 50 line (level, 25%). Each part is normalized by that indicator’s typical surprise size, then signed by how it affects the asset (e.g. higher unemployment is bearish for the currency).</p>
@@ -407,9 +422,13 @@ const SourcesPanel: React.FC<{ ov: Overview }> = ({ ov }) => (
       <p><b className="text-white">Bullish % = (score + 100) ÷ 2.</b> It expresses the balance of fundamental evidence, <i>not</i> a probability that price will rise. Fundamentals set the medium-term bias; timing still comes from your technical plan and risk management.</p>
       <p><b className="text-white">Confidence</b> is the share of the model’s weight backed by live, fresh data. Below 50% the reading is provisional.</p>
       <p className="text-slate-500 text-[11px]">Every number links to its source. If a provider is down the affected indicators show “No live data” and drop out of the score instead of being guessed. Model {ov.methodologyVersion}.</p>
+    </div>)}
+    <React.Suspense fallback={null}><Arcade /></React.Suspense>
     </div>
   </div>
-);
+  );
+};
+
 
 
 // Warm every Fundamentals screen shortly after the app's idle prefetch pulls this module in, so categories open instantly.
