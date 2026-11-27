@@ -1,6 +1,7 @@
 import { FONT, fitText, rr, THEMES } from './postVisuals';
 import { go, grab, lockedNotice, openScreen, shotStore, sleep, SLOW, waitCalm } from './agentCapture';
 import { getStoredToken } from './authClient';
+import { fxBack, fxFront, fxScreen, fxShake, pickSkills, type FxState } from './videoFx';
 import { startLens, drawLens, stopActiveLens, type Lens } from './actionLens';
 import { type Beat, type Box, bringIntoView, describePart, discoverBeats, discoverTabBeats, findByText, primaryTabs, setSkipTablists, tablists, findScroller, fitCrop, fullCrop, panCrop, scrollToTop, toVideo } from './sectionDirector';
 import { startLiveCaptions, toSrt, type LiveCaptions } from './liveCaptions';
@@ -38,7 +39,7 @@ export interface TourOpts {
   grandPart?: number;
   format?: VideoFormatId; voiceLang?: 'ur' | 'en'; returnTab?: string; onProgress?: (p: number, label: string) => void;
 }
-export const tourStore: { videos: Record<string, { blob: Blob; title: string; at: number }>; running: boolean; lastSrt: string; finished: { blob: Blob; category: string; title: string; headline: string; at: number } | null; handled: Set<number>; uploading?: boolean; lastParts?: number; viewsCache?: Record<string, { at: number; views: any[] }> } = { videos: {}, running: false, lastSrt: '', finished: null, handled: new Set() };
+export const tourStore: { videos: Record<string, { blob: Blob; title: string; at: number }>; running: boolean; lastSrt: string; finished: { blob: Blob; category: string; title: string; headline: string; at: number } | null; handled: Set<number>; uploading?: boolean; lastParts?: number; lastSkills?: string[]; viewsCache?: Record<string, { at: number; views: any[] }> } = { videos: {}, running: false, lastSrt: '', finished: null, handled: new Set() };
 /** After the tour returns to the admin page, reopen the Social Agent tab so the studio (and the publish panel) is on screen again. */
 export function reopenStudio() { let n = 0; const t = window.setInterval(() => { const el = document.querySelector('[data-testid="admin-tab-social-agent"]') as HTMLElement | null; if (el) { el.click(); window.clearInterval(t); } else if (++n > 40) window.clearInterval(t); }, 250); }
 
@@ -407,6 +408,7 @@ export async function recordTour(o: TourOpts, shared?: { video: HTMLVideoElement
     const fmt = VIDEO_FORMATS[o.format ?? '9:16']; const W = fmt.w; const H = fmt.h; const land = W > H;
     const U = Math.min(W, H) / 1080; // type scale
     const out = document.createElement('canvas'); out.width = W; out.height = H; const ctx = out.getContext('2d')!; const th = THEMES[(o.theme + take) % THEMES.length];
+    const fxPick = pickSkills(take); o.onProgress?.(0, `Skills for this video: ${fxPick.labels.join(' · ')}`); tourStore.lastSkills = fxPick.labels;
     const small = document.createElement('canvas'); small.width = 64; small.height = 36; const sctx = small.getContext('2d')!;
     const stream = out.captureStream(30); stream.addTrack(adest.stream.getAudioTracks()[0]);
     const mime = ['video/mp4;codecs=avc1.640028,mp4a.40.2', 'video/mp4;codecs=avc1.42E01E,mp4a.40.2', 'video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm'].find((m) => MediaRecorder.isTypeSupported(m)) || '';
@@ -490,6 +492,7 @@ export async function recordTour(o: TourOpts, shared?: { video: HTMLVideoElement
         // backdrop: blurred live screen + brand gradient
         const g = ctx.createLinearGradient(0, 0, W, H); g.addColorStop(0, th.bg0); g.addColorStop(1, th.bg1); ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
         sctx.drawImage(v, 0, 0, 64, 36); ctx.globalAlpha = 0.4; ctx.imageSmoothingQuality = 'low'; ctx.drawImage(small, 0, 0, W, H); ctx.globalAlpha = 1; ctx.imageSmoothingQuality = 'high';
+        const fxs: FxState = { W, H, U, accent: th.a, t, since, i, kind: s.kind, box: BOX, v, shot, take, skills: fxPick.skills, grade: fxPick.grade }; try { fxBack(ctx, fxs); } catch { /* effects never stop a recording */ }
         ctx.fillStyle = 'rgba(2,6,23,.58)'; ctx.fillRect(0, 0, W, H);
         const glow = ctx.createRadialGradient(W * 0.5, BOX.y, 0, W * 0.5, BOX.y, W * 0.8); glow.addColorStop(0, th.a + '33'); glow.addColorStop(1, 'transparent'); ctx.fillStyle = glow; ctx.fillRect(0, 0, W, H);
 
@@ -501,13 +504,14 @@ export async function recordTour(o: TourOpts, shared?: { video: HTMLVideoElement
 
         // live screen: transition punch + whip on every cut, then the camera shot
         const punch = Math.max(0, 1 - since / 0.45); const sc = 1 + 0.06 * punch * punch;
-        ctx.save(); ctx.translate(BOX.x + BOX.w / 2, BOX.y + BOX.h / 2); ctx.scale(sc, sc); ctx.translate(-(BOX.x + BOX.w / 2), -(BOX.y + BOX.h / 2));
+        ctx.save(); ctx.translate(BOX.x + BOX.w / 2, BOX.y + BOX.h / 2); ctx.scale(sc, sc); ctx.translate(-(BOX.x + BOX.w / 2), -(BOX.y + BOX.h / 2)); { const sk = fxShake(fxs); ctx.translate(sk.x, sk.y); }
         ctx.save(); ctx.shadowColor = th.a + '99'; ctx.shadowBlur = 60 * U; ctx.fillStyle = '#0b1220'; rr(ctx, BOX.x - 8 * U, BOX.y - 8 * U, BOX.w + 16 * U, BOX.h + 16 * U, 34 * U); ctx.fill(); ctx.restore();
         ctx.save(); rr(ctx, BOX.x, BOX.y, BOX.w, BOX.h, 28 * U); ctx.clip();
         ctx.drawImage(v, shot.x, shot.y, shot.w, shot.h, BOX.x, BOX.y, BOX.w, BOX.h);
         // retention bar: a thin animated progress line that keeps viewers watching, plus a quick light flash on every cut
         { ctx.save(); ctx.globalAlpha = 0.9; ctx.fillStyle = 'rgba(255,255,255,.14)'; ctx.fillRect(BOX.x, BOX.y + BOX.h - 7 * U, BOX.w, 7 * U); ctx.fillStyle = th.a; ctx.fillRect(BOX.x, BOX.y + BOX.h - 7 * U, BOX.w * clamp01(t / total), 7 * U); if (since < 0.18 && i > 0) { ctx.globalAlpha = 0.22 * (1 - since / 0.18); ctx.fillStyle = '#fff'; ctx.fillRect(BOX.x, BOX.y, BOX.w, BOX.h); } ctx.restore(); }
         try { drawLens(ctx, lens, performance.now(), { shot, box: BOX, vw: vw(), vh: vh(), U, accent: th.a, font: FONT }); } catch { /* the lens never stops a recording */ }
+        try { fxScreen(ctx, fxs); } catch { /* effects never stop a recording */ }
         if (since < 0.22 && i > 0) { const off = (1 - since / 0.22) * BOX.w * 0.08; ctx.globalAlpha = 0.28; ctx.drawImage(v, shot.x, shot.y, shot.w, shot.h, BOX.x - off, BOX.y, BOX.w, BOX.h); ctx.drawImage(v, shot.x, shot.y, shot.w, shot.h, BOX.x + off, BOX.y, BOX.w, BOX.h); ctx.globalAlpha = 1; }
         // spotlight on the real part, with its real name
         if (spot && s.kind === 'part') {
@@ -535,6 +539,7 @@ export async function recordTour(o: TourOpts, shared?: { video: HTMLVideoElement
         }
         ctx.restore(); ctx.restore();
 
+        try { fxFront(ctx, fxs); } catch { /* effects never stop a recording */ }
         // headline (kinetic): hook, part caption, call to action
         const pop = easeBack(since / 0.4); const big = s.kind !== 'part';
         const head = latin(s.headline) ? s.headline.toUpperCase() : s.headline;
