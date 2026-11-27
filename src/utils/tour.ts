@@ -679,7 +679,7 @@ export async function streamTours(items: StreamItem[], opts: StreamOpts): Promis
   } finally { scr.stream.getTracks().forEach((t) => t.stop()); go('ADMIN'); }
 }
 
-export interface SeriesOpts { tab: string; title: string; theme: number; features?: string[]; script: () => Promise<TourScript>; voice: boolean; audio?: AudioMode; secondsPerPart?: number; voiceLang: 'ur' | 'en'; format?: VideoFormatId; stop: { stop: boolean }; returnTab?: string; onVideo: (blob: Blob, meta: { label: string; index: number; total: number }) => void | Promise<void>; onStatus: (s: string) => void }
+export interface SeriesOpts { finish?: boolean; tab: string; title: string; theme: number; features?: string[]; script: () => Promise<TourScript>; voice: boolean; audio?: AudioMode; secondsPerPart?: number; voiceLang: 'ur' | 'en'; format?: VideoFormatId; stop: { stop: boolean }; returnTab?: string; onVideo: (blob: Blob, meta: { label: string; index: number; total: number }) => void | Promise<void>; onStatus: (s: string) => void }
 export interface Leaf { path: string[]; label: string }
 /** Every sub-category of a category, down to the last level of tabs, read from the live screen. Empty when it has none. */
 export async function listSubTabs(tab: string): Promise<Leaf[]> {
@@ -702,7 +702,7 @@ export async function recordSeries(o: SeriesOpts): Promise<number> {
     for (let part = 0, parts = 1; part < parts && !o.stop.stop; part++) {
       o.onStatus(parts > 1 ? `Recording ${o.title} · part ${part + 1}/${parts}…` : `Recording ${o.title}: opening every sub-category and option…`);
       try {
-        const blob = await recordTour({ tab: o.tab, title: o.title, script: await o.script(), theme: (o.theme + part) % THEMES.length, voice: o.voice, audio: o.audio, secondsPerPart: o.secondsPerPart, features: o.features, voiceLang: o.voiceLang, format: o.format, grandPart: part, onProgress: (_p, m) => o.onStatus(m) }, scr);
+        const blob = await recordTour({ tab: o.tab, title: o.title, script: await o.script(), theme: (o.theme + part) % THEMES.length, voice: o.voice, audio: o.audio, secondsPerPart: o.secondsPerPart, features: o.features, voiceLang: o.voiceLang, format: o.format, finish: o.finish, grandPart: part, onProgress: (_p, m) => o.onStatus(m) }, scr);
         parts = Math.max(1, tourStore.lastParts || 1);
         await o.onVideo(blob, { label: parts > 1 ? `Part ${part + 1} of ${parts}` : 'Complete tour', index: part + 1, total: parts }); made++;
         await sleep(1500); for (let k = 0; k < 200 && tourStore.uploading; k++) await sleep(3000);

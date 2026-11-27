@@ -18,12 +18,14 @@ export function startLiveCaptions(lang = 'ur-PK'): LiveCaptions {
   const now = () => (performance.now() - t0) / 1000;
   const done: CaptionLine[] = [];
   let interim = ''; let interimStart = 0; let stopped = false; let lastFinalAt = -10;
+  // Speakers mix Urdu and English: if a listening round hears nothing, the next round tries the other language, and a round that heard text keeps its language
+  const langs = [lang, lang.startsWith('ur') ? 'en-IN' : 'ur-PK']; let li = 0; let heard = false;
   const rec = new SR();
-  rec.lang = lang; rec.continuous = true; rec.interimResults = true; rec.maxAlternatives = 1;
+  rec.lang = langs[li]; rec.continuous = true; rec.interimResults = true; rec.maxAlternatives = 3;
   rec.onresult = (e: any) => {
     let live = '';
     for (let i = e.resultIndex; i < e.results.length; i++) {
-      const r = e.results[i]; const text = String(r[0]?.transcript || '').trim();
+      const r = e.results[i]; let best = r[0]; for (let k = 1; k < r.length; k++) if ((r[k]?.confidence || 0) > (best?.confidence || 0) + 0.12) best = r[k]; const text = String(best?.transcript || '').trim(); if (text) heard = true;
       if (!text) continue;
       if (r.isFinal) { done.push({ start: interim ? interimStart : Math.max(0, now() - 2), end: now(), text }); lastFinalAt = now(); interim = ''; }
       else live += (live ? ' ' : '') + text;
@@ -32,7 +34,7 @@ export function startLiveCaptions(lang = 'ur-PK'): LiveCaptions {
     interim = live;
   };
   // Chrome ends recognition after a pause; keep it going until we stop
-  rec.onend = () => { if (!stopped) { try { rec.start(); } catch { /* already running */ } } };
+  rec.onend = () => { if (stopped) return; if (!heard) { li = (li + 1) % langs.length; rec.lang = langs[li]; } heard = false; try { rec.start(); } catch { /* already running */ } };
   rec.onerror = () => { /* "no-speech" and network blips: onend restarts */ };
   try { rec.start(); } catch { /* ignore */ }
   return {

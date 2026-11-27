@@ -51,12 +51,12 @@ export const StudentRecorder: React.FC = () => {
     try {
       setStep('In the pop-up choose “This tab” and click Share once. Everything else is automatic.');
       const n = await recordSeries({
-        tab: topic.tab, title: topic.title, theme: Math.floor(Math.random() * 6), features: topic.features, script: () => script(topic, seed + Math.floor(Math.random() * 1000)), voice: true, audio: 'ai', secondsPerPart: 6, voiceLang: 'ur', format: '9:16', stop: stopRef.current, returnTab: 'DASHBOARD', onStatus: (m) => setStep(m),
+        tab: topic.tab, title: topic.title, theme: Math.floor(Math.random() * 6), features: topic.features, script: () => script(topic, seed + Math.floor(Math.random() * 1000)), finish: false, voice: true, audio: 'ai', secondsPerPart: 6, voiceLang: 'ur', format: '9:16', stop: stopRef.current, returnTab: 'DASHBOARD', onStatus: (m) => setStep(m),
         onVideo: async (blob, meta) => {
           const title = `${topic.title} — ${meta.label}`; setClips((c) => [...c, { title, url: URL.createObjectURL(blob), bytes: blob.size, ext: blob.type.includes('mp4') ? 'mp4' : 'webm' }]); const m = metaFor(topic.id, title).map((x) => ({ ...x, title: noFree(x.title), description: noFree(x.description) }));
           setStep(`Sending “${meta.label}” to the academy channels…`); tourStore.uploading = true; let id: string; let coverId: string | undefined;
           try { const cover = makeThumbnail(blob, `${topic.title}: ${meta.label}`).then((th) => stageVideo(th, 'jpg')).catch(() => undefined); [id, coverId] = await Promise.all([stageVideo(blob), cover]); } finally { tourStore.uploading = false; }
-          const job = startPublish(id, defaultCfg(), m.find((x) => x.platform === 'facebook')!, m.find((x) => x.platform === 'instagram')!, [], coverId, undefined, { category: topic.id, title, student: true });
+          const job = startPublish(id, defaultCfg(), m.find((x) => x.platform === 'facebook')!, m.find((x) => x.platform === 'instagram')!, [], coverId, undefined, { category: topic.id, title, student: true, finishFirst: !blob.type.includes('mp4') });
           jobs.push(job);
           waits.push(job.then((j) => waitPublish(j)).then((r) => { const okN = Object.entries(r).filter(([, v]) => v.ok).length; const bad = Object.entries(r).filter(([, v]) => !v.ok).length; return { ok: okN > 0, text: bad && !okN ? 'not posted' : `${okN} platform${okN === 1 ? '' : 's'}` }; }).catch((e: any) => ({ ok: false, text: String(e?.message || e) })));
         },

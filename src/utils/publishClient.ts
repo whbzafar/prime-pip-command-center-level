@@ -76,9 +76,9 @@ export async function stageVideo(video: Blob, ext: 'mp4' | 'jpg' | 'webm' = 'mp4
   }
   throw new Error('Empty video');
 }
-export async function startPublish(id: string, cfg: PubConfig, fb: PlatformMeta, ig: PlatformMeta, targets: string[], coverId?: string, onNote?: (n: string) => void, info?: { category: string; title: string; student?: boolean }): Promise<string> {
+export async function startPublish(id: string, cfg: PubConfig, fb: PlatformMeta, ig: PlatformMeta, targets: string[], coverId?: string, onNote?: (n: string) => void, info?: { category: string; title: string; student?: boolean; finishFirst?: boolean }): Promise<string> {
   // Students send only the video and its text: every key, token and page is added on the server.
-  const body = info?.student ? { id, coverId, title: fb.title, description: fb.description, caption: ig.description, category: info?.category, videoTitle: info?.title } : { id, coverId, pageId: cfg.metaPageId, pageToken: cfg.metaPageToken, igUserId: cfg.igUserId, title: fb.title, description: fb.description, caption: ig.description, targets, category: info?.category, videoTitle: info?.title };
+  const body = info?.student ? { id, coverId, title: fb.title, description: fb.description, caption: ig.description, category: info?.category, videoTitle: info?.title, finishFirst: info?.finishFirst === true } : { id, coverId, pageId: cfg.metaPageId, pageToken: cfg.metaPageToken, igUserId: cfg.igUserId, title: fb.title, description: fb.description, caption: ig.description, targets, category: info?.category, videoTitle: info?.title };
   const r = await fetch(info?.student ? '/api/student/social/publish' : '/api/admin/social/meta/publish', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json', ...auth() }, body: JSON.stringify(body) });
   const j = await r.json().catch(() => ({})); if (!j.job) throw new Error(j?.error || `HTTP ${r.status}`); return j.job as string;
 }

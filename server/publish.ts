@@ -122,12 +122,14 @@ export function registerPublishRoutes(app: Express, requireDeveloper: RequestHan
     } catch (e: any) { res.status(400).json({ ok: false, error: String(e?.message || e) }); }
   });
   const publishH: RequestHandler = async (req, res) => {
-    const { id, coverId, pageId, pageToken, igUserId, title, description, caption, targets, category, videoTitle } = req.body || {}; const v = staged.get(String(id || "")); const cv = coverId ? staged.get(String(coverId)) : undefined;
+    const { id, coverId, pageId, pageToken, igUserId, title, description, caption, targets, category, videoTitle, finishFirst } = req.body || {}; let v = staged.get(String(id || "")); const cv = coverId ? staged.get(String(coverId)) : undefined;
     if (!v) return res.status(400).json({ ok: false, error: "The video expired. Record or stage it again." });
-    const base = (process.env.PUBLIC_BASE_URL || `${req.headers["x-forwarded-proto"] || req.protocol}://${req.get("host")}`).replace(/\/$/, ""); const url = `${base}/api/public/staged/${id}.mp4`; const coverUrl = cv ? `${base}/api/public/staged/${coverId}.jpg` : "";
+    const base = (process.env.PUBLIC_BASE_URL || `${req.headers["x-forwarded-proto"] || req.protocol}://${req.get("host")}`).replace(/\/$/, ""); let url = `${base}/api/public/staged/${id}.mp4`; const coverUrl = cv ? `${base}/api/public/staged/${coverId}.jpg` : "";
     const out: Record<string, { ok: boolean; id?: string; error?: string }> = {}; const jobId = randomBytes(8).toString("hex"); jobs.set(jobId, { done: false, out, note: "Starting…", at: Date.now() }); const job = jobs.get(jobId)!; res.json({ ok: true, job: jobId }); void histAdd({ by: String((req as any).currentUser?.username || "").slice(0, 60), id: jobId, at: Date.now(), title: String(videoTitle || title || "Video").slice(0, 120), category: String(category || "General").slice(0, 60), targets: Array.isArray(targets) ? targets.map(String) : [], status: "pending", stage: "Uploading", results: {} }); void (async () => { try { await gate(job, () => run()); } catch (e: any) { out.error = { ok: false, error: String(e?.message || e) }; } finally { job.done = true; job.note = ""; const res: Record<string, { ok: boolean; id?: string; error?: string }> = {}; for (const k of ["facebook", "instagram", "youtube", "pinterest", "tiktok"]) if (out[k]) res[k] = out[k]; if (out.error) res.error = out.error; const any = Object.entries(res).some(([k, v]) => k !== "error" && v.ok); await histPatch(jobId, { status: any ? "done" : "failed", stage: any ? "Published" : "Failed", results: res }); if (any) setTimeout(() => { void refreshAll(true); }, 90_000); } })(); return;
     async function run() {
     const j0 = (n: string) => { job.note = n; void histPatch(jobId, { stage: /Instagram: sending/.test(n) ? "Processing on Instagram" : n.replace(/…$/, "") }); };
+    // the raw recording was uploaded once; the MP4 (H.264 + AAC, loudness) is made here, in the background, so the student is already free
+    if (finishFirst === true && v && v.ext !== "mp4") { j0("Converting to MP4…"); const nid = randomBytes(8).toString("hex"); const np = join(DIR, `${nid}.mp4`); const { finishFile } = await import("./finish.js"); await finishFile(v.path, np); staged.set(nid, { path: np, at: Date.now(), ext: "mp4" }); v = staged.get(nid)!; url = `${base}/api/public/staged/${nid}.mp4`; }
     const want: string[] = Array.isArray(targets) ? targets : [];
     if (want.includes("facebook")) {
       try {
@@ -187,7 +189,7 @@ export function registerPublishRoutes(app: Express, requireDeveloper: RequestHan
       if (fbOk) targets.push("facebook"); if (fbOk && c.igUserId) targets.push("instagram"); if (ch.ytRefresh) targets.push("youtube"); if (ch.pinAccess && ch.pinBoard) targets.push("pinterest"); if (ch.ttAccess) targets.push("tiktok");
       if (!targets.length) return res.status(503).json({ ok: false, error: "Posting is not set up yet. Please tell the admin." });
       const clean = (v: any, n: number) => String(v || "").replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g, "").slice(0, n);
-      req.body = { id: clean(b.id, 60), coverId: clean(b.coverId, 60), pageId: c.metaPageId, pageToken: c.metaPageToken, igUserId: c.igUserId, title: clean(b.title, 100), description: clean(b.description, 5000), caption: clean(b.caption, 2200), targets, category: clean(b.category, 60), videoTitle: clean(b.videoTitle, 120) };
+      req.body = { id: clean(b.id, 60), coverId: clean(b.coverId, 60), pageId: c.metaPageId, pageToken: c.metaPageToken, igUserId: c.igUserId, title: clean(b.title, 100), description: clean(b.description, 5000), caption: clean(b.caption, 2200), targets, category: clean(b.category, 60), videoTitle: clean(b.videoTitle, 120), finishFirst: b.finishFirst === true };
       next();
     } catch { res.status(500).json({ ok: false, error: "Could not start posting. Try again." }); }
   };
