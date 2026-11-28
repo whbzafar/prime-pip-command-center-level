@@ -215,7 +215,7 @@ export function startGexWarmer(): void {
 }
 
 export function registerGexRoutes(app: Express): void {
-  app.get("/api/gex/symbols", (_req, res) => { res.set("Cache-Control", "public, max-age=3600"); res.json({ ok: true, symbols: SYMBOLS.map(({ sym, name, group, feed, native, note }) => ({ sym, name, group, feed, native, note })) }); });
+  app.get("/api/gex/symbols", (_req, res) => { res.set("Cache-Control", "public, max-age=300"); res.json({ ok: true, symbols: SYMBOLS.map(({ sym, name, group, feed, native, note }) => ({ sym, name, group, feed, native, note })) }); });
   app.get("/api/gex/:symbol", async (req, res) => {
     try { const d = await gexFor(String(req.params.symbol), req.query.fresh === "1"); res.set("Cache-Control", "public, max-age=30, stale-while-revalidate=90"); res.json(d); }
     catch (e: any) { res.set("Cache-Control", "no-store"); res.status(502).json({ ok: false, error: String(e?.message || e).slice(0, 200), hint: "The free options source did not answer. Nothing is shown rather than made-up numbers; try again in a minute." }); }

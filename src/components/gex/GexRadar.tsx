@@ -34,7 +34,7 @@ const GexRadar: React.FC = () => {
   const [, tick] = useState(0);
   const req = useRef(0); const abort = useRef<AbortController | null>(null); const factorFor = useRef<{ at: number; f: number } | null>(null); const fails = useRef(0); const retry = useRef<number | undefined>(undefined);
 
-  useEffect(() => { fetch('/api/gex/symbols').then((r) => r.json()).then((j) => { if (j?.ok && Array.isArray(j.symbols)) setSyms(j.symbols); }).catch(() => {}); }, []);
+  useEffect(() => { fetch('/api/gex/symbols', { cache: 'no-cache' }).then((r) => r.json()).then((j) => { if (j?.ok && Array.isArray(j.symbols)) setSyms(j.symbols); }).catch(() => {}); }, []);
 
   const load = useCallback(async (fresh = false) => {
     const id = ++req.current; abort.current?.abort(); const ac = new AbortController(); abort.current = ac; window.clearTimeout(retry.current);
