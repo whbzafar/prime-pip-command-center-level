@@ -57,7 +57,9 @@ export default function IqbalSplash({ onDone, ready }: { onDone?: () => void; re
   useEffect(() => {
     const cv = ref.current; if (!cv) return; const ctx = cv.getContext("2d"); if (!ctx) return;
     const still = typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
-    let W = 0, H = 0, M = 0, dpr = 1, raf = 0, last = 0, px = 0, py = 0, tx = 0, ty = 0, nextComet = 3000;
+    let W = 0, H = 0, M = 0, dpr = 1, raf = 0, last = 0, px = 0, py = 0, tx = 0, ty = 0, nextComet = 3000, nextNova = 4300;
+    type Sh = { x: number; y: number; vx: number; vy: number; a: number; va: number; s: number; h: number; life: number; max: number; spark: boolean };
+    const shards: Sh[] = [];
     const rnd = (a: number, b: number) => a + Math.random() * (b - a);
     const sm = (a: number, b: number, x: number) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
     type S = { x: number; y: number; z: number; r: number; h: number };
@@ -176,6 +178,29 @@ export default function IqbalSplash({ onDone, ready }: { onDone?: () => void; re
       ctx.globalCompositeOperation = "lighter";
       for (let i = comets.length - 1; i >= 0; i--) { const c = comets[i]; c.x += (c.vx * dt) / 16; c.y += (c.vy * dt) / 16; if (c.x < -300 || c.x > W + 300 || c.y > H + 100) { comets.splice(i, 1); continue; } const tl = Math.hypot(c.vx, c.vy), ex = c.x - (c.vx / tl) * c.len, ey = c.y - (c.vy / tl) * c.len; const g = ctx.createLinearGradient(c.x, c.y, ex, ey); g.addColorStop(0, `hsla(${c.h},90%,88%,0.95)`); g.addColorStop(0.3, `hsla(${c.h},90%,62%,0.4)`); g.addColorStop(1, `hsla(${c.h},90%,60%,0)`); ctx.strokeStyle = g; ctx.lineWidth = 2.2; ctx.beginPath(); ctx.moveTo(c.x, c.y); ctx.lineTo(ex, ey); ctx.stroke(); ctx.fillStyle = `hsla(${c.h},100%,92%,0.9)`; ctx.beginPath(); ctx.arc(c.x, c.y, 2.6, 0, 6.283); ctx.fill(); }
       ctx.globalCompositeOperation = "source-over";
+
+      // the climb turns violent: novas burst, rocks shatter into shards, and a black hole opens where the stars converge
+      if (!still && t > nextNova && t < BURST - 150) {
+        nextNova = t + rnd(520, 900) * (1 - w * 0.55); const nx = rnd(W * 0.12, W * 0.88), ny = rnd(H * 0.12, H * 0.78), nh = [200, 30, 320, 55][Math.floor(Math.random() * 4)];
+        shards.push({ x: nx, y: ny, vx: 0, vy: 0, a: 0, va: 0, s: M * rnd(0.05, 0.1), h: nh, life: 0.7, max: 0.7, spark: false });
+        for (let i = 0; i < 26; i++) { const an = rnd(0, 6.283), v = rnd(80, 420) * (0.8 + w); shards.push({ x: nx, y: ny, vx: Math.cos(an) * v, vy: Math.sin(an) * v, a: rnd(0, 6.283), va: rnd(-9, 9), s: i < 16 ? rnd(2, 5) : rnd(5, 11), h: nh + rnd(-14, 14), life: rnd(0.6, 1.3), max: 1.3, spark: i < 16 }); }
+      }
+      ctx.globalCompositeOperation = "lighter";
+      for (let i = shards.length - 1; i >= 0; i--) {
+        const q = shards[i]; q.life -= dt / 1000; if (q.life <= 0) { shards.splice(i, 1); continue; }
+        const k = q.life / q.max; q.x += (q.vx * dt) / 1000; q.y += (q.vy * dt) / 1000; q.vx *= 0.985; q.vy *= 0.985; q.a += (q.va * dt) / 1000;
+        if (q.vx === 0 && q.vy === 0) { const rg = ctx.createRadialGradient(q.x, q.y, 0, q.x, q.y, q.s * (2 - k)); rg.addColorStop(0, `hsla(${q.h},100%,92%,${0.9 * k})`); rg.addColorStop(0.4, `hsla(${q.h},100%,62%,${0.4 * k})`); rg.addColorStop(1, `hsla(${q.h},100%,50%,0)`); ctx.fillStyle = rg; ctx.fillRect(q.x - q.s * 2, q.y - q.s * 2, q.s * 4, q.s * 4); continue; }
+        if (q.spark) { ctx.strokeStyle = `hsla(${q.h},100%,78%,${k})`; ctx.lineWidth = 1.6; ctx.beginPath(); ctx.moveTo(q.x, q.y); ctx.lineTo(q.x - q.vx * 0.04, q.y - q.vy * 0.04); ctx.stroke(); }
+        else { ctx.save(); ctx.translate(q.x, q.y); ctx.rotate(q.a); ctx.fillStyle = `hsla(${q.h},70%,70%,${0.85 * k})`; ctx.beginPath(); ctx.moveTo(q.s, 0); ctx.lineTo(-q.s * 0.6, q.s * 0.7); ctx.lineTo(-q.s * 0.3, -q.s * 0.8); ctx.closePath(); ctx.fill(); ctx.restore(); }
+      }
+      ctx.globalCompositeOperation = "source-over";
+      const bh = sm(4600, 6500, t) * (1 - sm(6800, 7050, t));
+      if (bh > 0.01) {
+        const br = M * 0.075 * bh, spin = t * 0.004; ctx.save(); ctx.translate(cx, cy); ctx.globalCompositeOperation = "lighter";
+        for (let i = 0; i < 5; i++) { ctx.save(); ctx.rotate(spin * (1 + i * 0.25) + i); ctx.scale(1, 0.28); ctx.strokeStyle = `hsla(${28 + i * 10},100%,${62 + i * 6}%,${(0.7 - i * 0.1) * bh})`; ctx.lineWidth = br * (0.22 - i * 0.03); ctx.beginPath(); ctx.arc(0, 0, br * (1.5 + i * 0.5), 0, 6.283); ctx.stroke(); ctx.restore(); }
+        const lens = ctx.createRadialGradient(0, 0, br * 0.9, 0, 0, br * 2.6); lens.addColorStop(0, `rgba(255,220,160,${0.6 * bh})`); lens.addColorStop(1, "rgba(255,120,60,0)"); ctx.fillStyle = lens; ctx.beginPath(); ctx.arc(0, 0, br * 2.6, 0, 6.283); ctx.fill();
+        ctx.globalCompositeOperation = "source-over"; ctx.fillStyle = "#000"; ctx.shadowColor = "rgba(255,200,120,.9)"; ctx.shadowBlur = br * 0.8; ctx.beginPath(); ctx.arc(0, 0, br, 0, 6.283); ctx.fill(); ctx.restore();
+      }
 
       // the new world comes over the horizon
       const portrait = W < 700, R = portrait ? W * 0.95 : M * 0.54, wx = W * (portrait ? 0.7 : 0.74), wy = H * (portrait ? 1.2 : 1.14) + (1 - rise) * R * 1.3;
