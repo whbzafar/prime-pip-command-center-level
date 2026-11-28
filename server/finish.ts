@@ -31,6 +31,45 @@ export function ffmpegArgs(input: string, output: string, srt?: string, width = 
     "-af", "loudnorm=I=-14:TP=-1.5:LRA=11", "-ar", "48000", "-c:a", "aac", "-b:a", "160k", "-movflags", "+faststart", "-max_muxing_queue_size", "256", output];
 }
 
+/** Reads the first video/audio stream of a file from ffmpeg's own banner (ffprobe is not shipped with ffmpeg-static). */
+export function parseProbe(banner: string): { vcodec?: string; acodec?: string; w?: number; h?: number; fps?: number } {
+  const v = /Stream #\S+.*?Video: (\w+)[^\n]*?, (\d{2,5})x(\d{2,5})[^\n]*/.exec(banner); const a = /Stream #\S+.*?Audio: (\w+)/.exec(banner);
+  const fps = v ? /(\d+(?:\.\d+)?) fps/.exec(v[0]) : null;
+  return { vcodec: v?.[1], acodec: a?.[1], w: v ? Number(v[2]) : undefined, h: v ? Number(v[3]) : undefined, fps: fps ? Number(fps[1]) : undefined };
+}
+/** True when the picture is already H.264 at a size every platform takes: then only the sound is processed and the picture is copied, which is
+ *  seconds instead of minutes, uses almost no memory and keeps the recorder's full-quality frames instead of re-compressing them. */
+export function canCopyVideo(p: ReturnType<typeof parseProbe>): boolean {
+  return p.vcodec === "h264" && !!p.w && !!p.h && p.w <= 1920 && p.h <= 1920 && (p.fps === undefined || (p.fps >= 20 && p.fps <= 61));
+}
+export function copyArgs(input: string, output: string): string[] {
+  return ["-y", "-hide_banner", "-loglevel", "error", "-threads", "1", "-i", input, "-map", "0:v:0", "-map", "0:a:0?", "-c:v", "copy", "-af", "loudnorm=I=-14:TP=-1.5:LRA=11", "-ar", "48000", "-c:a", "aac", "-b:a", "192k", "-movflags", "+faststart", output];
+}
+async function probe(bin: string, file: string): Promise<ReturnType<typeof parseProbe>> {
+  return new Promise((resolve) => {
+    let err = ""; const p = spawn(bin, ["-hide_banner", "-i", file], { stdio: ["ignore", "ignore", "pipe"] });
+    const t = setTimeout(() => { p.kill("SIGKILL"); resolve({}); }, 15_000);
+    p.stderr.on("data", (d) => { err += String(d).slice(0, 6000); }); p.on("error", () => { clearTimeout(t); resolve({}); });
+    p.on("close", () => { clearTimeout(t); resolve(parseProbe(err)); });
+  });
+}
+function run(bin: string, args: string[], ms: number): Promise<void> {
+  return new Promise<void>((resolve, reject) => {
+    const p = spawn(bin, args, { stdio: ["ignore", "ignore", "pipe"] }); let err = "";
+    const t = setTimeout(() => { p.kill("SIGKILL"); reject(new Error("ffmpeg timed out")); }, ms);
+    p.stderr.on("data", (d) => { err += String(d).slice(0, 2000); });
+    p.on("error", (e) => { clearTimeout(t); reject(e); });
+    p.on("close", (c) => { clearTimeout(t); c === 0 ? resolve() : reject(new Error(err.trim().slice(-300) || `ffmpeg exited ${c}`)); });
+  });
+}
+/** Fast path first (copy the picture, fix the sound), full re-encode only when the picture needs it or the fast path fails. */
+async function convert(inp: string, out: string, ms: number): Promise<void> {
+  const bin = await ffmpegPath();
+  const info = await probe(bin, inp);
+  if (canCopyVideo(info)) { try { await run(bin, copyArgs(inp, out), ms); return; } catch { await unlink(out).catch(() => {}); } }
+  await run(bin, ffmpegArgs(inp, out), ms);
+}
+
 /** Only one conversion at a time, so two recordings can never double the memory use. */
 let encodeQueue: Promise<unknown> = Promise.resolve();
 export const oneAtATime = <T>(fn: () => Promise<T>): Promise<T> => { const p = encodeQueue.then(fn, fn); encodeQueue = p.catch(() => undefined); return p; };
@@ -46,30 +85,12 @@ export async function finishVideo(data: Buffer, ext = "webm"): Promise<Buffer> {
 async function finishVideoNow(data: Buffer, ext: string): Promise<Buffer> {
   const id = randomUUID(); const inp = join(tmpdir(), `pp-in-${id}.${ext === "mp4" ? "mp4" : "webm"}`); const out = join(tmpdir(), `pp-out-${id}.mp4`);
   await writeFile(inp, data);
-  try {
-    const bin = await ffmpegPath();
-    await new Promise<void>((resolve, reject) => {
-      const p = spawn(bin, ffmpegArgs(inp, out), { stdio: ["ignore", "ignore", "pipe"] }); let err = "";
-      const t = setTimeout(() => { p.kill("SIGKILL"); reject(new Error("ffmpeg timed out")); }, 240_000);
-      p.stderr.on("data", (d) => { err += String(d).slice(0, 2000); });
-      p.on("error", (e) => { clearTimeout(t); reject(e); });
-      p.on("close", (c) => { clearTimeout(t); c === 0 ? resolve() : reject(new Error(err.trim().slice(-300) || `ffmpeg exited ${c}`)); });
-    });
-    return await readFile(out);
-  } finally { unlink(inp).catch(() => {}); unlink(out).catch(() => {}); }
+  try { await convert(inp, out, 240_000); return await readFile(out); }
+  finally { unlink(inp).catch(() => {}); unlink(out).catch(() => {}); }
 }
 
 /** Same conversion working on files (no big buffers in memory). */
 export async function finishFile(inp: string, out: string): Promise<void> {
   return oneAtATime(() => runFinish(inp, out));
 }
-async function runFinish(inp: string, out: string): Promise<void> {
-  const bin = await ffmpegPath();
-  await new Promise<void>((resolve, reject) => {
-    const p = spawn(bin, ffmpegArgs(inp, out), { stdio: ["ignore", "ignore", "pipe"] }); let err = "";
-    const t = setTimeout(() => { p.kill("SIGKILL"); reject(new Error("ffmpeg timed out")); }, 600_000);
-    p.stderr.on("data", (d) => { err += String(d).slice(0, 2000); });
-    p.on("error", (e) => { clearTimeout(t); reject(e); });
-    p.on("close", (c) => { clearTimeout(t); c === 0 ? resolve() : reject(new Error(err.trim().slice(-300) || `ffmpeg exited ${c}`)); });
-  });
-}
+async function runFinish(inp: string, out: string): Promise<void> { await convert(inp, out, 600_000); }
