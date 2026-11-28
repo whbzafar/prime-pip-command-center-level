@@ -91,9 +91,12 @@ export function parseCboe(list: any[]): Contract[] {
   return out;
 }
 async function getJson(url: string, headers: Record<string, string>, ms = 25_000): Promise<any> {
-  const r = await fetch(url, { headers, signal: AbortSignal.timeout(ms) });
-  if (!r.ok) throw new Error(`${new URL(url).hostname} answered ${r.status}`);
-  return r.json();
+  let last: unknown;
+  for (let k = 0; k < 2; k++) { // one quiet retry: these free endpoints drop a connection now and then
+    try { const r = await fetch(url, { headers, signal: AbortSignal.timeout(ms) }); if (!r.ok) { if (r.status >= 500 && k === 0) { await new Promise((x) => setTimeout(x, 700)); continue; } throw new Error(`${new URL(url).hostname} answered ${r.status}`); } return await r.json(); }
+    catch (e: any) { last = e; if (k === 1 || /answered 4\d\d/.test(String(e?.message))) break; await new Promise((x) => setTimeout(x, 700)); }
+  }
+  throw last instanceof Error ? last : new Error("request failed");
 }
 const isoDay = (ms: number) => new Date(ms).toISOString().slice(0, 10);
 
@@ -177,8 +180,9 @@ async function build(def: SymbolDef): Promise<GexPayload> {
     return { ok: true, symbol: def.sym, name: def.name, note: def.note, group: def.group, spot: base.spot, spotAt: base.at, marketOpen: base.open, source: `${label("nasdaq")}: ${ok.map((o) => o.sym).join(" + ")}`, model, fetchedAt: now, convert: def.feed ? { to: def.feed } : null, parts: ok.map((o) => ({ sym: o.sym, spot: o.spot })), result: merged, read: readout(merged) };
   }
   let r: Awaited<ReturnType<typeof one>> | undefined; let src: Provider = def.src; const notes: string[] = [];
-  const attempts: { src: Provider; q: string; cls: "etf" | "stocks"; fb?: boolean }[] = [{ src: def.src, q: def.q, cls: def.cls || clsOf(def.q) }];
+  const attempts: { src: Provider; q: string; cls: "etf" | "stocks"; fb?: boolean }[] = []; // Cboe answers from the server reliably; Yahoo often rate-limits data-centre addresses, so it goes second
   if (def.cboe) attempts.push({ src: "cboe", q: def.cboe, cls: "etf" });
+  attempts.push({ src: def.src, q: def.q, cls: def.cls || clsOf(def.q) });
   if (def.fallback && def.fallback !== def.q) attempts.push({ src: "nasdaq", q: def.fallback, cls: clsOf(def.fallback), fb: true });
   for (const a of attempts) { try { r = await one(a.src, a.q, a.cls, now); src = a.src; if (a.fb) usedFallback = a.q; break; } catch (e: any) { notes.push(`${a.src}: ${String(e?.message || e).slice(0, 90)}`); } }
   if (!r) throw new Error(notes.join(" | ") || "Options source unavailable");
