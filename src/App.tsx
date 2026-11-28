@@ -60,6 +60,7 @@ import {
 } from './utils/db';
 import { googleDriveService } from './services/googleDriveService';
 import { Loader2, Shield, AlertTriangle, X, Lock } from 'lucide-react';
+import IqbalSplash from './components/IqbalSplash';
 import { playDisciplineAlert } from './utils/audioAlerts';
 import { getKarachiDate, getKarachiTime } from './utils/time';
 import { AppearanceControls } from './components/AppearanceControls';
@@ -358,6 +359,19 @@ export default function App() {
   const [goals, setGoals] = useState<TradingGoal[]>([]);
   const [selectedInstrument, setSelectedInstrument] = useState<string>('XAUUSD');
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  // Opening verse: shown once per visit, held long enough to be read, skippable by tap/key once loading is done.
+  const isLoadingRef = useRef(true);
+  const [splashHold, setSplashHold] = useState<boolean>(() => { try { return !sessionStorage.getItem('pp_iqbal_seen'); } catch { return true; } });
+  const [splashMin, setSplashMin] = useState<boolean>(true);
+  useEffect(() => {
+    if (!splashHold) return;
+    const done = () => { try { sessionStorage.setItem('pp_iqbal_seen', '1'); } catch { /* private mode */ } setSplashHold(false); };
+    const hold = setTimeout(done, 6400); const min = setTimeout(() => setSplashMin(false), 1500);
+    const key = () => { if (!isLoadingRef.current) done(); };
+    window.addEventListener('keydown', key);
+    return () => { clearTimeout(hold); clearTimeout(min); window.removeEventListener('keydown', key); };
+  }, [splashHold]);
+
   const [lastSavedTime, setLastSavedTime] = useState<string>('');
 
   // Load account data helper
@@ -1274,19 +1288,9 @@ export default function App() {
   }, [metrics.accountBalance, metrics.currentEquity, activeAccount?.id]);
 
   // App Loading Spinner
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-[#020617] text-slate-100 flex flex-col items-center justify-center p-6 font-mono-code">
-        <div className="w-12 h-12 rounded-xl bg-blue-500/10 border border-blue-500/30 flex items-center justify-center text-cyan-400 mb-4 animate-pulse">
-          <Shield className="w-6 h-6" />
-        </div>
-        <div className="flex items-center gap-2 text-slate-300 font-bold font-military tracking-widest text-sm">
-          <Loader2 className="w-4 h-4 animate-spin text-cyan-400" />
-          <span>PRIMEPIPFX SYSTEM INITIALIZING...</span>
-        </div>
-        <p className="text-xs text-slate-500 mt-2">Connecting to offline local IndexedDB vault</p>
-      </div>
-    );
+  isLoadingRef.current = isLoading;
+  if (isLoading || splashHold) {
+    return <IqbalSplash ready={!isLoading} onSkip={() => { if (!isLoading && !splashMin) { try { sessionStorage.setItem('pp_iqbal_seen', '1'); } catch { /* private mode */ } setSplashHold(false); } }} />;
   }
 
   const handleLogout = () => {
