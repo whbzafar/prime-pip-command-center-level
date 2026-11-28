@@ -366,7 +366,7 @@ export default function App() {
   useEffect(() => {
     if (!splashHold) return;
     const done = () => { try { sessionStorage.setItem('pp_iqbal_seen', '1'); } catch { /* private mode */ } setSplashHold(false); };
-    const hold = setTimeout(done, 6400); const min = setTimeout(() => setSplashMin(false), 1500);
+    const hold = setTimeout(done, 9000); const min = setTimeout(() => setSplashMin(false), 1500);
     const key = () => { if (!isLoadingRef.current) done(); };
     window.addEventListener('keydown', key);
     return () => { clearTimeout(hold); clearTimeout(min); window.removeEventListener('keydown', key); };
