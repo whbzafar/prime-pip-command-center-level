@@ -27,6 +27,7 @@ export type Score = { start: () => Promise<boolean>; stop: (fade?: number) => vo
 export function createScore(): Score {
   const AC: typeof AudioContext | undefined = typeof window !== "undefined" ? (window.AudioContext || (window as any).webkitAudioContext) : undefined;
   void loadTheme();
+  let pending: Promise<boolean> | null = null;
   let ctx: AudioContext | null = null; let master: GainNode | null = null; let muted = false; let live = false; let ender: ReturnType<typeof setTimeout> | undefined;
 
   const noiseBuf = (c: AudioContext, sec: number) => { const b = c.createBuffer(1, Math.ceil(c.sampleRate * sec), c.sampleRate), d = b.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1; return b; };
@@ -97,7 +98,7 @@ export function createScore(): Score {
   return {
     canPlay: () => !!AC,
     running: () => live,
-    start: async () => {
+    start: (): Promise<boolean> => (pending ||= (async () => {
       if (!AC || live) return live;
       try {
         const c = new AC();
@@ -108,7 +109,7 @@ export function createScore(): Score {
         ctx = c; build(c, c.currentTime + 0.06, theme); live = true; clearTimeout(ender);
         ender = setTimeout(() => { try { void c.close(); } catch { /* closed */ } live = false; }, (SCORE_LENGTH + 1) * 1000); return true;
       } catch { live = false; return false; }
-    },
+    })().finally(() => { pending = null; })),
     stop: (fade = 0.25) => { if (!ctx) return; clearTimeout(ender); try { master?.gain.cancelScheduledValues(ctx.currentTime); master?.gain.setValueAtTime(master.gain.value, ctx.currentTime); master?.gain.linearRampToValueAtTime(0, ctx.currentTime + fade); const c = ctx; setTimeout(() => { try { void c.close(); } catch { /* closed */ } }, fade * 1000 + 60); } catch { /* closed */ } live = false; ctx = null; },
     setMuted: (m) => { muted = m; if (ctx && master) { master.gain.cancelScheduledValues(ctx.currentTime); master.gain.setValueAtTime(master.gain.value, ctx.currentTime); master.gain.linearRampToValueAtTime(m ? 0 : 0.85, ctx.currentTime + 0.12); } },
   };
