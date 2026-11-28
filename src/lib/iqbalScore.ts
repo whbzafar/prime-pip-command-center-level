@@ -22,19 +22,20 @@ const loadTheme = () => (themeP ||= (async () => {
 const hz = (n: number) => 440 * Math.pow(2, (n - 69) / 12); // MIDI note -> Hz
 const D = { d2: 38, a2: 45, d3: 50, a3: 57, d4: 62, e4: 64, fs4: 66, a4: 69, b4: 71, d5: 74, e5: 76, fs5: 78, a5: 81, b5: 83, d6: 86, a6: 93 };
 
-export type Score = { start: () => Promise<boolean>; stop: (fade?: number) => void; setMuted: (m: boolean) => void; canPlay: () => boolean; running: () => boolean };
+export type Score = { start: () => Promise<boolean>; stop: (fade?: number) => void; setMuted: (m: boolean) => void; canPlay: () => boolean; running: () => boolean; spectrum: (out: Uint8Array) => boolean };
 
 export function createScore(): Score {
   const AC: typeof AudioContext | undefined = typeof window !== "undefined" ? (window.AudioContext || (window as any).webkitAudioContext) : undefined;
   void loadTheme();
   let pending: Promise<boolean> | null = null;
-  let ctx: AudioContext | null = null; let master: GainNode | null = null; let muted = false; let live = false; let ender: ReturnType<typeof setTimeout> | undefined;
+  let ctx: AudioContext | null = null; let master: GainNode | null = null; let muted = false; let live = false; let ender: ReturnType<typeof setTimeout> | undefined; let an: AnalyserNode | null = null;
 
   const noiseBuf = (c: AudioContext, sec: number) => { const b = c.createBuffer(1, Math.ceil(c.sampleRate * sec), c.sampleRate), d = b.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1; return b; };
 
   function build(c: AudioContext, t0: number, theme: AudioBuffer | null) {
     const comp = c.createDynamicsCompressor(); comp.threshold.value = -16; comp.ratio.value = 4; comp.attack.value = 0.005; comp.release.value = 0.25;
     master = c.createGain(); master.gain.value = muted ? 0 : 0.85; comp.connect(master); master.connect(c.destination);
+    an = c.createAnalyser(); an.fftSize = 1024; an.smoothingTimeConstant = 0.55; comp.connect(an); // live spectrum for the picture
     // space: a short synthetic reverb plus a gentle echo
     const rv = c.createConvolver(); const ir = c.createBuffer(2, Math.ceil(c.sampleRate * 2.4), c.sampleRate); for (let ch = 0; ch < 2; ch++) { const d = ir.getChannelData(ch); for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / d.length, 2.6); } rv.buffer = ir;
     const wet = c.createGain(); wet.gain.value = 0.42; rv.connect(wet); wet.connect(comp);
@@ -98,6 +99,7 @@ export function createScore(): Score {
   return {
     canPlay: () => !!AC,
     running: () => live,
+    spectrum: (out) => { if (!an || !live) return false; try { an.getByteFrequencyData(out as Uint8Array<ArrayBuffer>); return true; } catch { return false; } },
     start: (): Promise<boolean> => (pending ||= (async () => {
       if (!AC || live) return live;
       try {

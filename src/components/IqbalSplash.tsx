@@ -60,7 +60,7 @@ export default function IqbalSplash({ onDone, ready }: { onDone?: () => void; re
     const still = typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
     let W = 0, H = 0, M = 0, dpr = 1, raf = 0, last = 0, px = 0, py = 0, tx = 0, ty = 0, nextComet = 3000, nextNova = 4300;
     type Sh = { x: number; y: number; vx: number; vy: number; a: number; va: number; s: number; h: number; life: number; max: number; spark: boolean };
-    const shards: Sh[] = [];
+    const shards: Sh[] = []; const waves: number[] = []; const spec = new Uint8Array(512); let bass = 0, lastBeat = -1;
     const rnd = (a: number, b: number) => a + Math.random() * (b - a);
     const sm = (a: number, b: number, x: number) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
     type S = { x: number; y: number; z: number; r: number; h: number };
@@ -146,8 +146,11 @@ export default function IqbalSplash({ onDone, ready }: { onDone?: () => void; re
       const rise = sm(BURST, 10300, t), reveal = sm(BURST, 9000, t);
       px += (tx - px) * 0.05; py += (ty - py) * 0.05;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      // the real music, read live: low end drives the pulse, the whole spectrum drives the bars around the new world
+      const liveAudio = !still && !!score.current?.spectrum(spec); let bsum = 0; if (liveAudio) { for (let i = 1; i <= 4; i++) bsum += spec[i]; bsum /= 4 * 255; }
+      bass += (bsum - bass) * (bsum > bass ? 0.6 : 0.12);
       const bp = t > BURST && t < ENDED - 380 ? (t - BURST) / BEATMS : -1, kick = bp >= 0 ? Math.exp(-(bp % 1) * 5.5) : 0, preKick = t > 2600 && t < BURST ? Math.exp(-(((t - 2600) / (480 - 260 * sm(2600, BURST, t))) % 1) * 5) * (0.25 + w) : 0;
-      const shake = (w > 0.3 ? (w - 0.3) * 2.6 : 0) + kick * 3.2 + preKick * 1.6; ctx.translate((Math.random() - 0.5) * shake - px * 8, (Math.random() - 0.5) * shake - py * 8);
+      const shake = (w > 0.3 ? (w - 0.3) * 2.6 : 0) + kick * 3.2 + preKick * 1.6 + (liveAudio ? bass * bass * 3 : 0), pulse = liveAudio ? Math.max(bass, kick * 0.6) : kick; ctx.translate((Math.random() - 0.5) * shake - px * 8, (Math.random() - 0.5) * shake - py * 8);
       const bg = ctx.createLinearGradient(0, 0, 0, H); bg.addColorStop(0, "#02030a"); bg.addColorStop(0.55, "#070a1c"); bg.addColorStop(1, "#0b0620"); ctx.fillStyle = bg; ctx.fillRect(-20, -20, W + 40, H + 40);
       const dx = Math.sin(t * 0.00012) * 18, dy = Math.cos(t * 0.00009) * 12; ctx.globalCompositeOperation = "lighter";
       nebula(W * 0.2 + dx, H * 0.28 + dy, Math.max(W, H) * 0.5, 262, 0.2); nebula(W * 0.85 - dx, H * 0.7 - dy, Math.max(W, H) * 0.55, 322, 0.14); nebula(W * 0.55 + dy, H * 0.12, Math.max(W, H) * 0.4, 196, 0.12);
@@ -159,7 +162,7 @@ export default function IqbalSplash({ onDone, ready }: { onDone?: () => void; re
       for (const m of motes) { m.x += (m.vx * dt) / 1000 * (1 + w * 14); m.y += (m.vy * dt) / 1000 * (1 + w * 14); if (m.x < -5) m.x = W + 5; if (m.x > W + 5) m.x = -5; if (m.y < -5) m.y = H + 5; if (m.y > H + 5) m.y = -5; ctx.fillStyle = `rgba(190,215,255,${0.1 + 0.12 * Math.abs(Math.sin(t * 0.001 + m.ph))})`; ctx.beginPath(); ctx.arc(m.x, m.y, m.r, 0, 6.283); ctx.fill(); }
 
       // stars: calm points that stretch into light as the rush builds
-      const f = M * 0.5, cx = W / 2 + px * 10, cy = H * 0.5 + py * 10, sp = (0.00012 + w * 0.0034) * dt; ctx.lineCap = "round";
+      const f = M * 0.5, cx = W / 2 + px * 10, cy = H * 0.5 + py * 10, sp = (0.00012 + w * 0.0034 + (t < BURST ? bass * 0.0009 * (0.3 + w) : 0)) * dt; ctx.lineCap = "round";
       for (const s of stars) {
         s.z -= sp * (0.4 + s.z); if (s.z < 0.02) { Object.assign(s, seedStar(1)); continue; }
         const x1 = cx + (s.x / s.z) * f * 0.5, y1 = cy + (s.y / s.z) * f * 0.5; if (x1 < -80 || x1 > W + 80 || y1 < -80 || y1 > H + 80) { Object.assign(s, seedStar(1)); continue; }
@@ -206,12 +209,25 @@ export default function IqbalSplash({ onDone, ready }: { onDone?: () => void; re
 
       // the new world comes over the horizon
       const portrait = W < 700, R = portrait ? W * 0.95 : M * 0.54, wx = W * (portrait ? 0.7 : 0.74), wy = H * (portrait ? 1.2 : 1.14) + (1 - rise) * R * 1.3;
-      if (rise > 0.001) world(wx, wy, R, t, sm(BURST, BURST + 1400, t) * (1 - 0.5 * sm(9600, 10200, t)) * (0.92 + 0.08 * Math.sin(t * 0.004) + kick * 0.3));
+      if (rise > 0.001) world(wx, wy, R, t, sm(BURST, BURST + 1400, t) * (1 - 0.5 * sm(9600, 10200, t)) * (0.92 + 0.08 * Math.sin(t * 0.004) + pulse * 0.35));
       if (t > BURST) { // shockwave from the burst, then slow discovery pulses
         ctx.globalCompositeOperation = "lighter"; const sw = sm(BURST, BURST + 1500, t); if (sw < 1) { ctx.strokeStyle = `rgba(210,235,255,${0.7 * (1 - sw)})`; ctx.lineWidth = 3 + (1 - sw) * 6; ctx.beginPath(); ctx.arc(cx, cy, sw * Math.max(W, H) * 0.8, 0, 6.283); ctx.stroke(); }
         if (t > 8300) for (let i = 0; i < 3; i++) { const q = t - 8300 - i * 900; if (q < 0) continue; const ph = (q % 2700) / 2700; ctx.strokeStyle = `rgba(140,235,255,${0.45 * (1 - ph)})`; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(wx - R * 0.45, wy - R * 0.9, ph * M * 0.7, 0, 6.283); ctx.stroke(); }
         ctx.globalCompositeOperation = "source-over";
       }
+      if (!still && t > BURST - 80 && t < ENDED - 300) {
+        const bi = Math.floor((t - BURST) / BEATMS); if (bi > lastBeat && t >= BURST) { lastBeat = bi; waves.push(t); const nA = bi % 4 === 0 ? 30 : 16; for (let i = 0; i < nA; i++) { const a = rnd(-3.3, 0.15), v = rnd(140, 460); shards.push({ x: wx + Math.cos(a) * R, y: wy + Math.sin(a) * R, vx: Math.cos(a) * v, vy: Math.sin(a) * v, a: 0, va: 0, s: 2, h: rnd(165, 205), life: rnd(0.7, 1.4), max: 1.4, spark: true }); } }
+        ctx.globalCompositeOperation = "lighter";
+        for (let i = waves.length - 1; i >= 0; i--) { const p = (t - waves[i]) / 1100; if (p >= 1) { waves.splice(i, 1); continue; } ctx.strokeStyle = `rgba(170,225,255,${0.4 * (1 - p)})`; ctx.lineWidth = 1.5 + (1 - p) * 5; ctx.beginPath(); ctx.arc(wx - R * 0.35, wy - R * 0.9, p * Math.max(W, H) * 0.95, 0, 6.283); ctx.stroke(); }
+        if (rise > 0.15) {
+          const fx = wx + Math.cos(-2.2) * R, fy = wy + Math.sin(-2.2) * R, L = Math.max(W, H) * 1.15, ra = (0.05 + 0.2 * pulse) * Math.min(1, rise * 2);
+          for (let i = 0; i < 11; i++) { const an = -0.25 + i * 0.36 + Math.sin(t * 0.0003 + i) * 0.06, hw = 0.03 + 0.02 * ((i * 7) % 3); const g = ctx.createLinearGradient(fx, fy, fx + Math.cos(an) * L, fy + Math.sin(an) * L); g.addColorStop(0, `rgba(255,236,190,${ra})`); g.addColorStop(1, "rgba(255,236,190,0)"); ctx.fillStyle = g; ctx.beginPath(); ctx.moveTo(fx, fy); ctx.lineTo(fx + Math.cos(an - hw) * L, fy + Math.sin(an - hw) * L); ctx.lineTo(fx + Math.cos(an + hw) * L, fy + Math.sin(an + hw) * L); ctx.closePath(); ctx.fill(); }
+          const nb = portrait ? 44 : 64; ctx.lineCap = "round";
+          for (let i = 0; i < nb; i++) { const a = -3.45 + (i / (nb - 1)) * 3.75, idx = 2 + Math.floor(Math.pow(i / nb, 1.55) * 170), v = liveAudio ? spec[idx] / 255 : kick * (0.5 + 0.5 * Math.sin(i * 0.8 + t * 0.012)), c0 = Math.cos(a), s0 = Math.sin(a), r0 = R * 1.045, l = (R * 0.012 + v * R * 0.3) * Math.min(1, rise * 1.5);
+            ctx.strokeStyle = `hsla(${175 + (i / nb) * 120},100%,${62 + v * 25}%,${0.3 + 0.65 * v})`; ctx.lineWidth = portrait ? 2.4 : 3.6; ctx.beginPath(); ctx.moveTo(wx + c0 * r0, wy + s0 * r0); ctx.lineTo(wx + c0 * (r0 + l), wy + s0 * (r0 + l)); ctx.stroke(); }
+        }
+        ctx.globalCompositeOperation = "source-over";
+      } else if (t < BURST) { lastBeat = -1; waves.length = 0; }
       astronaut(W * (portrait ? 0.2 : 0.17), H * (portrait ? 0.8 : 0.64), M * 0.034, t, w * 2.4);
       const vg = ctx.createRadialGradient(W / 2, H / 2, M * 0.35, W / 2, H / 2, Math.max(W, H) * 0.78); vg.addColorStop(0, "rgba(2,3,10,0)"); vg.addColorStop(1, `rgba(2,3,10,${0.7 - w * 0.2})`); ctx.fillStyle = vg; ctx.fillRect(-20, -20, W + 40, H + 40);
       if (kick > 0.02 && !still) { ctx.fillStyle = `rgba(160,215,255,${0.1 * kick})`; ctx.fillRect(-20, -20, W + 40, H + 40); }
