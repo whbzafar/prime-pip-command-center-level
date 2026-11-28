@@ -1,0 +1,18 @@
+# PRIMEPIPFX Trading Command Center
+
+> A single trading application by founder Wahab Zafar: which currency pair to trade, fundamental data, backtesting tools, unlimited charts, premium TradingView, a freehand canvas, the Prime Pip SBT Indicator, community and a Psychological Command Center.
+
+## Pages
+
+- [Home / terminal](https://primepipfx.site/): sign in or create an account to use the terminal
+- [About the founder and features](https://primepipfx.site/about.html): the full story of Wahab Zafar and everything the app offers
+
+## Links
+
+- [YouTube](https://www.youtube.com/@primepipfx)
+- [X](https://x.com/primepipfx)
+- [Facebook](https://www.facebook.com/profile.php?id=61584926081390)
+
+## Notes
+
+Trading carries risk. Nothing here is financial advice.
