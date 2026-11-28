@@ -359,18 +359,10 @@ export default function App() {
   const [goals, setGoals] = useState<TradingGoal[]>([]);
   const [selectedInstrument, setSelectedInstrument] = useState<string>('XAUUSD');
   const [isLoading, setIsLoading] = useState<boolean>(true);
-  // Opening verse: shown once per visit, held long enough to be read, skippable by tap/key once loading is done.
-  const isLoadingRef = useRef(true);
+  // Opening film: shown once per visit. It ends itself (finale, then onDone); the timer is only a safety net.
   const [splashHold, setSplashHold] = useState<boolean>(() => { try { return !sessionStorage.getItem('pp_iqbal_seen'); } catch { return true; } });
-  const [splashMin, setSplashMin] = useState<boolean>(true);
-  useEffect(() => {
-    if (!splashHold) return;
-    const done = () => { try { sessionStorage.setItem('pp_iqbal_seen', '1'); } catch { /* private mode */ } setSplashHold(false); };
-    const hold = setTimeout(done, 9000); const min = setTimeout(() => setSplashMin(false), 1500);
-    const key = () => { if (!isLoadingRef.current) done(); };
-    window.addEventListener('keydown', key);
-    return () => { clearTimeout(hold); clearTimeout(min); window.removeEventListener('keydown', key); };
-  }, [splashHold]);
+  const endSplash = useCallback(() => { try { sessionStorage.setItem('pp_iqbal_seen', '1'); } catch { /* private mode */ } setSplashHold(false); }, []);
+  useEffect(() => { if (!splashHold) return; const safety = setTimeout(endSplash, 20000); return () => clearTimeout(safety); }, [splashHold, endSplash]);
 
   const [lastSavedTime, setLastSavedTime] = useState<string>('');
 
@@ -1288,9 +1280,9 @@ export default function App() {
   }, [metrics.accountBalance, metrics.currentEquity, activeAccount?.id]);
 
   // App Loading Spinner
-  isLoadingRef.current = isLoading;
-  if (isLoading || splashHold) {
-    return <IqbalSplash ready={!isLoading} onSkip={() => { if (!isLoading && !splashMin) { try { sessionStorage.setItem('pp_iqbal_seen', '1'); } catch { /* private mode */ } setSplashHold(false); } }} />;
+  if (splashHold) return <IqbalSplash ready={!isLoading} onDone={endSplash} />;
+  if (isLoading) {
+    return <div className="min-h-screen bg-[#02030a] flex items-center justify-center"><Loader2 className="w-6 h-6 animate-spin text-cyan-400" aria-label="Loading" /></div>;
   }
 
   const handleLogout = () => {
