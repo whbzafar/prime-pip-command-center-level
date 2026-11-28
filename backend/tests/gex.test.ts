@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { bsPrice, bsGamma, impliedVol, computeGex, readout, type Contract } from '../../server/gexEngine';
-import { parseChain, closeOf } from '../../server/gexService';
+import { bsPrice, bsGamma, impliedVol, computeGex, mergeGex, readout, type Contract } from '../../server/gexEngine';
+import { parseChain, parseYahoo, closeOf, usMarketOpen, SYMBOLS } from '../../server/gexService';
 
 const now = Date.UTC(2026, 10, 27, 15, 0, 0); const day = 86400_000;
 function chain(S: number, iv: number, oiFn: (k: number, t: 'C' | 'P') => number, days = [2, 9, 30]): Contract[] {
@@ -58,4 +58,25 @@ describe('Nasdaq chain parser', () => {
     expect(c[2]).toMatchObject({ strike: 700, type: 'P', oi: 40 }); expect(c[0].exp).toBe(closeOf(2026, 10, 30)); expect(c[2].exp).toBe(closeOf(2026, 11, 18));
   });
   it('close time follows New York daylight saving', () => { expect(closeOf(2026, 6, 1)).toBe(Date.UTC(2026, 6, 1, 20)); expect(closeOf(2026, 0, 15)).toBe(Date.UTC(2026, 0, 15, 21)); });
+});
+
+describe('Yahoo parser, market clock, composites', () => {
+  it('reads Yahoo contracts and skips ones without open interest', () => {
+    const exp = Date.UTC(2026, 11, 18) / 1000;
+    const c = parseYahoo([{ strike: 7300, openInterest: 700, bid: 10, ask: 11, lastPrice: 10.5, expiration: exp, volume: 4 }, { strike: 7310, openInterest: 0, expiration: exp }], 'C');
+    expect(c.length).toBe(1); expect(c[0]).toMatchObject({ strike: 7300, type: 'C', oi: 700 }); expect(c[0].exp).toBe(closeOf(2026, 11, 18));
+  });
+  it('knows when the US cash session is open', () => {
+    expect(usMarketOpen(Date.UTC(2026, 10, 27, 15, 0))).toBe(true);   // Friday 10:00 New York
+    expect(usMarketOpen(Date.UTC(2026, 10, 28, 15, 0))).toBe(false);  // Saturday
+    expect(usMarketOpen(Date.UTC(2026, 10, 27, 22, 0))).toBe(false);  // Friday 17:00 New York
+  });
+  it('merges two chains of the same market into one picture in the base price terms', () => {
+    const a = computeGex(chain(400, 0.18, (k, t) => (t === 'C' && k === 420 ? 40000 : 2000)), 400, now);
+    const b = computeGex(chain(200, 0.18, (k, t) => (t === 'C' && k === 210 ? 40000 : 2000)), 200, now); // half-price twin: 210 is the same 5% above spot as 420
+    const m = mergeGex([a, b], 400);
+    expect(m.spot).toBe(400); expect(m.callWall).toBe(420); expect(m.totalNet).toBeCloseTo(a.totalNet + b.totalNet, 0);
+    expect(m.profile.length).toBe(a.profile.length); expect(m.used).toBe(a.used + b.used);
+  });
+  it('every symbol with a feed or fallback is well formed', () => { for (const s of SYMBOLS) { expect(s.sym).toMatch(/^[A-Z]{1,5}$/); expect(['yahoo', 'nasdaq']).toContain(s.src); if (s.native) expect(s.src).toBe('yahoo'); } });
 });

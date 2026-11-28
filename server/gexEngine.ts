@@ -136,3 +136,33 @@ export function readout(g: GexResult): { headline: string; bias: string; lines: 
   lines.push("A level is a place to watch, not an entry. Wait for your own confirmation (structure break, rejection, retest) before acting.");
   return { headline, bias, lines };
 }
+
+/** Combine several chains that track the same market (for example GLD + IAU for gold) into one picture in the base instrument's price terms.
+ *  Each part's strikes are rescaled by base spot / its own spot. Dollar gamma per 1% move is scale-free, so the parts simply add. */
+export function mergeGex(parts: GexResult[], base: number): GexResult {
+  const grid = new Map<number, Row>(); const f = (r: GexResult) => base / r.spot;
+  for (const r of parts) for (const row of r.rows) {
+    const k = Math.round(row.strike * f(r) * 2) / 2; const a = grid.get(k) || { strike: k, call: 0, put: 0, net: 0, abs: 0, callOi: 0, putOi: 0 };
+    a.call += row.call; a.put += row.put; a.callOi += row.callOi; a.putOi += row.putOi; a.net = a.call + a.put; a.abs = a.call - a.put; grid.set(k, a);
+  }
+  const rows = [...grid.values()].sort((a, b) => a.strike - b.strike);
+  const n = Math.min(...parts.map((p) => p.profile.length));
+  const profile = Array.from({ length: n }, (_, i) => ({ spot: base * (1 + (i - 40) * 0.0025), net: parts.reduce((a, p) => a + p.profile[i].net, 0) }));
+  let flip: number | null = null; let best = Infinity;
+  for (let i = 1; i < profile.length; i++) { const a = profile[i - 1], b = profile[i]; if ((a.net <= 0 && b.net > 0) || (a.net >= 0 && b.net < 0)) { const x = a.spot + (b.spot - a.spot) * (0 - a.net) / (b.net - a.net); if (Math.abs(x - base) < best) { best = Math.abs(x - base); flip = x; } } }
+  const near = rows.filter((r) => Math.abs(r.strike / base - 1) <= 0.1);
+  const up = near.filter((r) => r.strike >= base * 0.9995), dn = near.filter((r) => r.strike <= base * 1.0005);
+  const callWall = up.length ? up.reduce((m, r) => (r.call > m.call ? r : m)).strike : null; const putWall = dn.length ? dn.reduce((m, r) => (r.put < m.put ? r : m)).strike : null;
+  const magnet = near.length ? near.reduce((m, r) => (r.abs > m.abs ? r : m)).strike : null;
+  let maxPain: number | null = null; let pain = Infinity;
+  for (const r of rows) { let t = 0; for (const o of rows) t += o.callOi * Math.max(0, r.strike - o.strike) + o.putOi * Math.max(0, o.strike - r.strike); if (t < pain) { pain = t; maxPain = r.strike; } }
+  const exp = new Map<number, { exp: number; dte: number; net: number; abs: number; oi: number }>();
+  for (const r of parts) for (const e of r.expiries) { const a = exp.get(e.exp) || { exp: e.exp, dte: e.dte, net: 0, abs: 0, oi: 0 }; a.net += e.net; a.abs += e.abs; a.oi += e.oi; exp.set(e.exp, a); }
+  const expiries = [...exp.values()].sort((a, b) => a.exp - b.exp);
+  const totalNet = parts.reduce((a, p) => a + p.totalNet, 0), totalAbs = parts.reduce((a, p) => a + p.totalAbs, 0);
+  const lead = [...parts].sort((a, b) => b.callOi + b.putOi - (a.callOi + a.putOi))[0];
+  const em = lead.expectedMove ? { pct: lead.expectedMove.pct, abs: lead.expectedMove.pct * base, dte: lead.expectedMove.dte } : null;
+  const callOi = parts.reduce((a, p) => a + p.callOi, 0), putOi = parts.reduce((a, p) => a + p.putOi, 0);
+  const nearAbs = expiries.filter((e) => e.dte <= 2).reduce((a, e) => a + e.abs, 0); const atSpot = profile[40]?.net ?? totalNet;
+  return { spot: base, asOf: Math.max(...parts.map((p) => p.asOf)), contracts: parts.reduce((a, p) => a + p.contracts, 0), used: parts.reduce((a, p) => a + p.used, 0), expiries, totalNet, totalAbs, callGex: parts.reduce((a, p) => a + p.callGex, 0), putGex: parts.reduce((a, p) => a + p.putGex, 0), rows, profile, callWall, putWall, flip, magnet, maxPain, pcrOi: callOi ? putOi / callOi : 0, callOi, putOi, expectedMove: em, nearTermShare: totalAbs ? nearAbs / totalAbs : 0, regime: Math.abs(atSpot) < 0.04 * totalAbs ? "neutral" : atSpot > 0 ? "positive" : "negative", ivAtm: lead.ivAtm };
+}
