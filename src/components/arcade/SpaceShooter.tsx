@@ -18,7 +18,7 @@ const goalOf = (s: number) => 14 + s * 3;
 const THEME = [265, 205, 150, 330, 20, 190, 285, 45, 230, 340, 170, 300];
 
 export interface SpaceResult { win: boolean; score: number; stage: number; stars: number; credits: number }
-interface Handle { stop: () => void; pause: (v: boolean) => void; bomb: () => void }
+interface Handle { stop: () => void; pause: (v: boolean) => void; bomb: () => void; gift: () => void }
 interface Cfg { stage: number; up: Record<string, number>; onEnd: (r: SpaceResult) => void; onUi: (u: { paused?: boolean }) => void }
 
 export const SpaceShooter: React.FC = () => {
@@ -178,6 +178,8 @@ function run(canvas: HTMLCanvasElement, sfx: Sfx, cfg: Cfg): Handle {
   let bullets: Bul[] = [], eb: Bul[] = [], en: Ene[] = [], pw: Pow[] = [], pa: Par[] = [];
   let score = 0, kills = 0, spawnT = 1, banner = 2.4, shake = 0, time = 0, combo = 0, comboT = 0, flash = 0, dead = false, paused = false, ended = false, raf = 0, last = performance.now(), acc = 0, lostLife = false, endT = -1, touchSeen = false, bossSpawned = false, spiral = 0;
   let stars: { x: number; y: number; s: number; v: number }[][] = [];
+  // Wahab's gift: appears once per stage when the player is about to lose; double-click / double-tap / Enter clears the screen
+  let giftState: 'idle' | 'offer' | 'used' = 'idle', giftT = 0, giftMsg = 0, calmFor = 0, lastTapAt = -1, lastTapX = 0, lastTapY = 0;
   const keys = new Set<string>(); let moveId: number | null = null, lx = 0, ly = 0;
   const music = sfx.startMusic([110, 110, 87.3, 98], 90 + S * 3); void music; sfx.setIntensity(Math.min(1, S / 12));
   const bombBtn = () => ({ x: W - 46, y: HH - 70, r: 30 });
@@ -234,6 +236,12 @@ function run(canvas: HTMLCanvasElement, sfx: Sfx, cfg: Cfg): Handle {
     if (p.shield <= 0) { lostLife = true; p.lives--; burst(p.x, p.y, 50, 20, 340, 4); ring(p.x, p.y, 30); sfx.boom(2); if (p.lives <= 0) { dead = true; sfx.over(); endT = time + 1.2; } else { p.shield = maxShield; p.inv = 2.4; p.wpn = Math.max(1, p.wpn - 1); eb = []; } }
   };
   const bomb = () => { if (p.bombs <= 0 || dead || paused || ended) return; p.bombs--; sfx.bomb(); flash = 0.6; shake = 16; ring(p.x, p.y, 200); eb = []; for (const e of en) { if (e.kind === 'boss') { e.hp -= 30; e.flash = 0.2; } else e.hp = 0; } burst(p.x, p.y, 70, 200, 500, 3); };
+  const useGift = () => {
+    if (giftState !== 'offer' || dead || paused || ended) return; giftState = 'used'; giftMsg = 4;
+    eb = []; for (const e of en) { if (e.kind === 'boss') { e.hp -= e.max * 0.35; e.flash = 0.3; } else { e.r = Math.min(e.r, 20); e.hp = 0; } }
+    p.shield = Math.min(maxShield, p.shield + maxShield * 0.5); p.inv = Math.max(p.inv, 2.5); p.calm = 0; flash = 1; shake = 26; sfx.bomb(); sfx.power();
+    for (let i = 0; i < 4; i++) fxQ.push({ at: time + i * 0.12, fn: () => { ring(p.x, p.y, 40 + i * 25); burst(p.x, p.y, 60, 40 + i * 30, 620, 4); sfx.boom(2); } });
+  };
   const shoot = () => {
     const w = p.wpn; const dmg = dmgMul; const add = (dx: number, vx: number, hue = 185) => bullets.push({ x: p.x + dx, y: p.y - 22, vx, vy: -780, dmg, r: 3.2, hue });
     add(0, 0); if (w >= 2) { add(-9, -30); add(9, 30); } if (w >= 3) { add(-16, -120, 300); add(16, 120, 300); } if (w >= 4) { add(-4, -60, 60); add(4, 60, 60); } if (w >= 5) { add(-24, -210, 330); add(24, 210, 330); }
@@ -247,7 +255,8 @@ function run(canvas: HTMLCanvasElement, sfx: Sfx, cfg: Cfg): Handle {
     if (paused || ended) return; const w = toWorld(e);
     if (e.pointerType === 'touch' || e.pointerType === 'pen') touchSeen = true;
     if (e.button === 2) { bomb(); return; }
-    const b = bombBtn(); if (touchSeen && Math.hypot(w.x - b.x, w.y - b.y) < b.r + 10) { bomb(); return; }
+    const b = bombBtn();
+    if (giftState === 'offer') { const nowT = performance.now(); if (lastTapAt > 0 && nowT - lastTapAt < 380 && Math.hypot(e.clientX - lastTapX, e.clientY - lastTapY) < 70) { lastTapAt = -1; useGift(); return; } lastTapAt = nowT; lastTapX = e.clientX; lastTapY = e.clientY; } if (touchSeen && Math.hypot(w.x - b.x, w.y - b.y) < b.r + 10) { bomb(); return; }
     if (moveId === null) { moveId = e.pointerId; lx = e.clientX; ly = e.clientY; try { canvas.setPointerCapture(e.pointerId); } catch { /* ignore */ } if (e.pointerType === 'mouse') { p.tx = w.x; p.ty = w.y; } }
   };
   const onMove = (e: PointerEvent) => {
@@ -261,7 +270,7 @@ function run(canvas: HTMLCanvasElement, sfx: Sfx, cfg: Cfg): Handle {
     const t = e.target as HTMLElement | null; if (t && /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName)) return;
     if (e.type === 'keyup') { keys.delete(e.code); return; }
     if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) e.preventDefault();
-    if (e.code === 'Space' || e.code === 'KeyB') { if (!e.repeat) bomb(); } else if (e.code === 'KeyP' || e.code === 'Escape') { if (!e.repeat) setPaused(!paused); } else keys.add(e.code);
+    if (e.code === 'Enter' || e.code === 'KeyG') { if (!e.repeat) useGift(); } else if (e.code === 'Space' || e.code === 'KeyB') { if (!e.repeat) bomb(); } else if (e.code === 'KeyP' || e.code === 'Escape') { if (!e.repeat) setPaused(!paused); } else keys.add(e.code);
   };
   const onVis = () => { if (document.hidden) setPaused(true); };
   const onBlur = () => setPaused(true);
@@ -277,6 +286,14 @@ function run(canvas: HTMLCanvasElement, sfx: Sfx, cfg: Cfg): Handle {
     p.inv = Math.max(0, p.inv - dt); p.rapid = Math.max(0, p.rapid - dt); p.calm += dt; comboT -= dt; if (comboT <= 0) combo = 0;
     if (regen && p.calm > 3 && !dead) p.shield = Math.min(maxShield, p.shield + regen * dt);
     p.fire -= dt; if (!dead && p.fire <= 0) { shoot(); p.fire = p.rapid > 0 ? fireIv * 0.55 : fireIv; }
+    giftMsg = Math.max(0, giftMsg - dt);
+    if (giftState === 'offer') { giftT -= dt; if (giftT <= 0) giftState = 'used'; }
+    else if (giftState === 'idle' && !dead && time > 6) {
+      let near = 0; for (const b of eb) if (Math.hypot(b.x - p.x, b.y - p.y) < 170) near++; for (const e of en) if (Math.hypot(e.x - p.x, e.y - p.y) < 190) near++;
+      const lowShield = p.shield < maxShield * 0.4, lastLife = p.lives <= 1, crowded = near >= 9 && p.shield < maxShield * 0.7;
+      calmFor = (lowShield && lastLife) || crowded || (lowShield && near >= 4) ? calmFor + dt : 0;
+      if (calmFor > 0.6) { giftState = 'offer'; giftT = 10; sfx.power(); }
+    }
     banner = Math.max(0, banner - dt); shake = Math.max(0, shake - dt * 30); flash = Math.max(0, flash - dt);
     for (let i = fxQ.length - 1; i >= 0; i--) if (fxQ[i].at <= time) { fxQ[i].fn(); fxQ.splice(i, 1); }
     if (!isBossStage) { if (kills < goal) { spawnT -= dt; if (spawnT <= 0) { spawn(); spawnT = Math.max(0.28, 1.05 - S * 0.05) * rr(0.7, 1.2); } } }
@@ -374,6 +391,21 @@ function run(canvas: HTMLCanvasElement, sfx: Sfx, cfg: Cfg): Handle {
     g.textAlign = 'left'; g.fillStyle = '#e2e8f0'; g.font = '13px system-ui'; g.fillText(`♥ ${p.lives}   💣 ${p.bombs}   ⚡ ${p.wpn}${p.rapid > 0 ? ' R' : ''}`, 14, HH - 46);
     if (touchSeen) { const b = bombBtn(); g.fillStyle = p.bombs ? 'rgba(251,146,60,.35)' : 'rgba(100,116,139,.25)'; g.strokeStyle = p.bombs ? '#fb923c' : '#64748b'; g.lineWidth = 2; g.beginPath(); g.arc(b.x, b.y, b.r, 0, 6.283); g.fill(); g.stroke(); g.fillStyle = '#fff'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.font = '22px system-ui'; g.fillText('💣', b.x, b.y + 1); }
     if (banner > 0) { const a = Math.min(1, banner); g.textAlign = 'center'; g.textBaseline = 'alphabetic'; g.font = '900 40px system-ui'; g.fillStyle = `rgba(255,255,255,${a})`; g.shadowColor = '#22d3ee'; g.shadowBlur = 24; g.fillText(endT >= 0 && !dead ? 'STAGE CLEAR' : isBossStage ? `BOSS · STAGE ${S}` : `STAGE ${S}`, W / 2, HH * 0.38); g.shadowBlur = 0; }
+    if (giftState === 'offer') {
+      const a = 0.75 + Math.sin(time * 8) * 0.25, cx = W / 2, cy = 108; g.textAlign = 'center'; g.textBaseline = 'middle';
+      g.fillStyle = 'rgba(30,18,4,.78)'; g.strokeStyle = `rgba(251,191,36,${a})`; g.lineWidth = 2.5; g.shadowColor = '#fbbf24'; g.shadowBlur = 22; g.beginPath(); g.roundRect(cx - 150, cy - 38, 300, 76, 18); g.fill(); g.stroke(); g.shadowBlur = 0;
+      g.fillStyle = '#fde68a'; g.font = '800 15px system-ui'; g.fillText('🎁 A GIFT FROM WAHAB', cx, cy - 20);
+      g.fillStyle = '#fff'; g.font = '700 14px system-ui'; g.fillText(touchSeen ? 'Double-tap the screen!' : 'Double-click  (or press Enter)!', cx, cy - 1);
+      g.fillStyle = '#fcd34d'; g.font = "700 15px 'Noto Nastaliq Urdu','Noto Naskh Arabic',system-ui"; g.fillText(touchSeen ? 'وہاب کا تحفہ — ڈبل ٹیپ کریں' : 'وہاب کا تحفہ — ڈبل کلک کریں', cx, cy + 22);
+      g.fillStyle = 'rgba(251,191,36,.9)'; g.fillRect(cx - 130, cy + 34, 260 * Math.max(0, giftT / 10), 2.5);
+    }
+    if (giftMsg > 0) {
+      const k = Math.min(1, giftMsg / 0.8) * Math.min(1, (4 - giftMsg) / 0.25 + 0.2), cx = W / 2, cy = HH * 0.42; g.textAlign = 'center'; g.textBaseline = 'middle';
+      g.globalAlpha = k; g.shadowColor = '#f59e0b'; g.shadowBlur = 28; g.fillStyle = '#fff7d6'; g.font = '900 25px system-ui';
+      const msg = "Don't worry, Wahab is here with you!"; const parts = W < 460 ? ["Don't worry,", 'Wahab is here with you!'] : [msg];
+      parts.forEach((t, i) => g.fillText(t, cx, cy - 18 + i * 30 - (parts.length - 1) * 10));
+      g.fillStyle = '#fcd34d'; g.font = "700 26px 'Noto Nastaliq Urdu','Noto Naskh Arabic',system-ui"; g.fillText('فکر نہ کریں، وہاب آپ کے ساتھ ہے!', cx, cy + 42 + (parts.length - 1) * 12); g.shadowBlur = 0; g.globalAlpha = 1;
+    }
     g.restore();
   };
 
@@ -390,6 +422,6 @@ function run(canvas: HTMLCanvasElement, sfx: Sfx, cfg: Cfg): Handle {
     canvas.removeEventListener('pointerdown', onDown); canvas.removeEventListener('pointermove', onMove); canvas.removeEventListener('pointerup', onUp); canvas.removeEventListener('pointercancel', onUp);
     window.removeEventListener('keydown', onKey); window.removeEventListener('keyup', onKey); window.removeEventListener('blur', onBlur); document.removeEventListener('visibilitychange', onVis); sfx.stopMusic();
   }
-  return { stop, pause: setPaused, bomb };
+  return { stop, pause: setPaused, bomb, gift: useGift };
 }
 export default SpaceShooter;

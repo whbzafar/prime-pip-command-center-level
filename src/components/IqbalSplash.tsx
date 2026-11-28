@@ -44,6 +44,14 @@ export default function IqbalSplash({ onDone, ready }: { onDone?: () => void; re
     if (sound === "blocked" && s) { void s.start().then((ok) => { if (ok) { setSound("playing"); restart(); } else setSound("off"); }); return; }
     if (performance.now() - t0.current > 900) leave();
   }, [sound, restart, leave]);
+  // the first touch, click or key press anywhere starts the music (the only moment a browser allows it)
+  useEffect(() => {
+    if (sound !== "blocked") return;
+    const go = () => { void score.current?.start().then((ok) => { if (ok) { setSound("playing"); restart(); } }); };
+    const ev = ["pointerdown", "touchstart", "keydown", "wheel"] as const;
+    ev.forEach((n) => window.addEventListener(n, go, { once: true, passive: true }));
+    return () => ev.forEach((n) => window.removeEventListener(n, go));
+  }, [sound, restart]);
   useEffect(() => { const k = (e: KeyboardEvent) => { if (["Enter", " ", "Escape"].includes(e.key)) poke(); }; window.addEventListener("keydown", k); return () => window.removeEventListener("keydown", k); }, [poke]);
 
   useEffect(() => {
