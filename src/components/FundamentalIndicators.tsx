@@ -1,20 +1,22 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { CotReportModule } from './cot/CotReportModule';
 import { SentimentBoard } from './fundamentalAnalysis/SentimentBoard';
 import { LiquidGlassThemeToggle } from './LiquidGlassThemeToggle';
-import { ShieldAlert, Activity, Layers, Gauge, Orbit, FlaskConical } from 'lucide-react';
+import { ShieldAlert, Activity, Layers, Gauge, Orbit, FlaskConical, Radar } from 'lucide-react';
 import { ScenarioLab } from './ScenarioLab';
 import { FinancialUniverse } from './FinancialUniverse';
 import { FundamentalAnalysisView } from './fundamentalAnalysis/FundamentalAnalysisView';
 
-export type FundamentalDashboardTab = 'ANALYSIS' | 'SEVERITY_REPORT' | 'SENTIMENT' | 'UNIVERSE' | 'SCENARIO';
-type FiTab = 'ANALYSIS' | 'SEVERITY_REPORT' | 'SENTIMENT' | 'UNIVERSE' | 'SCENARIO';
+export type FundamentalDashboardTab = 'ANALYSIS' | 'SEVERITY_REPORT' | 'SENTIMENT' | 'GEX' | 'UNIVERSE' | 'SCENARIO';
+type FiTab = 'ANALYSIS' | 'SEVERITY_REPORT' | 'SENTIMENT' | 'GEX' | 'UNIVERSE' | 'SCENARIO';
+const GexRadar = lazy(() => import('./gex/GexRadar'));
 export const FI_TAB_KEY = 'ppfx:fi-tab';
 
 const SECTIONS: Array<{ id: FiTab; title: string; caption: string; icon: React.ComponentType<{ className?: string }>; activeBox: string; activeIcon: string; bar: string }> = [
   { id: 'ANALYSIS', title: 'Fundamentals', caption: 'Bullish / bearish scores for every market', icon: Gauge, activeBox: 'bg-gradient-to-br from-emerald-500/15 to-transparent border-emerald-400/60 shadow-emerald-500/10', activeIcon: 'bg-emerald-500 text-slate-950', bar: 'bg-emerald-400' },
   { id: 'SEVERITY_REPORT', title: 'CFTC COT Report', caption: 'COT positioning only — not the full picture', icon: ShieldAlert, activeBox: 'bg-gradient-to-br from-cyan-500/15 to-transparent border-cyan-400/60 shadow-cyan-500/10', activeIcon: 'bg-cyan-500 text-slate-950', bar: 'bg-cyan-400' },
   { id: 'SENTIMENT', title: 'Sentiment', caption: 'Where the retail crowd is positioned', icon: Activity, activeBox: 'bg-gradient-to-br from-blue-500/15 to-transparent border-blue-400/60 shadow-blue-500/10', activeIcon: 'bg-blue-500 text-slate-950', bar: 'bg-blue-400' },
+  { id: 'GEX', title: 'GEX Radar', caption: 'Options dealer gamma: flip, walls, regime', icon: Radar, activeBox: 'bg-gradient-to-br from-violet-500/15 to-transparent border-violet-400/60 shadow-violet-500/10', activeIcon: 'bg-violet-500 text-slate-950', bar: 'bg-violet-400' },
   { id: 'UNIVERSE', title: 'Financial Universe', caption: 'Every asset on one live map', icon: Orbit, activeBox: 'bg-gradient-to-br from-amber-400/15 to-transparent border-amber-300/60 shadow-amber-400/10', activeIcon: 'bg-amber-400 text-slate-950', bar: 'bg-amber-300' },
   { id: 'SCENARIO', title: 'Scenario Lab', caption: 'What if the Fed cuts? See what flips', icon: FlaskConical, activeBox: 'bg-gradient-to-br from-fuchsia-500/15 to-transparent border-fuchsia-400/60 shadow-fuchsia-500/10', activeIcon: 'bg-fuchsia-500 text-slate-950', bar: 'bg-fuchsia-400' },
 ];
@@ -39,6 +41,8 @@ export const FundamentalIndicators: React.FC<FundamentalIndicatorsProps> = () =>
         setActiveTab('SEVERITY_REPORT');
       } else if (targetTab === 'MARKET_SENTIMENT' || targetTab === 'SENTIMENT') {
         setActiveTab('SENTIMENT');
+      } else if (targetTab === 'GEX') {
+        setActiveTab('GEX');
       } else if (targetTab === 'UNIVERSE') {
         setActiveTab('UNIVERSE');
       } else if (targetTab === 'SCENARIO') {
@@ -83,7 +87,7 @@ export const FundamentalIndicators: React.FC<FundamentalIndicatorsProps> = () =>
         </div>
 
         {/* Four sub-categories */}
-        <div role="tablist" aria-label="Fundamentals sections" className="grid grid-cols-2 lg:grid-cols-5 gap-2.5 pt-1">
+        <div role="tablist" aria-label="Fundamentals sections" className="grid grid-cols-2 lg:grid-cols-6 gap-2.5 pt-1">
           {SECTIONS.map((t) => {
             const on = activeTab === t.id; const Icon = t.icon;
             return (
@@ -120,6 +124,12 @@ export const FundamentalIndicators: React.FC<FundamentalIndicatorsProps> = () =>
         {activeTab === 'SENTIMENT' && (
           <div className="animate-in fade-in duration-200">
             <SentimentBoard />
+          </div>
+        )}
+
+        {activeTab === 'GEX' && (
+          <div className="animate-in fade-in duration-200">
+            <Suspense fallback={<div className="h-64 rounded-3xl border border-slate-800 bg-slate-900/40 animate-pulse" />}><GexRadar /></Suspense>
           </div>
         )}
 

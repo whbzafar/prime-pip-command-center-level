@@ -222,6 +222,7 @@ import {
   saveScreenshotTradeAtomically,
 } from "./server/tradingviewScreenshotService.js";
 import { cotRouter, verifyCftcDatasetAtBoot } from "./server/cotService.js";
+import { registerGexRoutes } from "./server/gexService.js";
 import newsCalendarRouter from "./server/routes/newsCalendarRoutes.js";
 import { sentimentRouter } from "./server/routes/sentimentRoutes.js";
 import { macroRouter } from "./server/routes/macroRoutes.js";
@@ -352,7 +353,7 @@ app.use(cookieParser());
 // from cache (instant) and refresh it in the background. Handlers that set their own header win.
 const EDGE_CACHE: Array<[RegExp, string]> = [
   [/^\/api\/charts\/price/, 'public, s-maxage=5, stale-while-revalidate=30'],
-  [/^\/api\/(calendar|cot|fundamental|news|sentiment|pine-scripts)(\/|$)/, 'public, s-maxage=60, stale-while-revalidate=1800'],
+  [/^\/api\/(calendar|cot|gex|fundamental|news|sentiment|pine-scripts)(\/|$)/, 'public, s-maxage=60, stale-while-revalidate=1800'],
 ];
 app.use((req, res, next) => {
   if (req.method === 'GET' && !req.headers.authorization) {
@@ -7448,6 +7449,7 @@ app.get('/api/fundamental-intelligence/test-suite', async (_req, res) => {
 
 // CFTC Commitments of Traders (COT) Proxy & Analytics Routes
 app.use('/api/cot', cotRouter);
+registerGexRoutes(app);
 
 // Real-Time Live News Headlines & TradingView Calendar Feeds
 app.use('/api', newsCalendarRouter);
