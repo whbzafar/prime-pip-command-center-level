@@ -23,7 +23,7 @@ describe('computeGex', () => {
   const S = 700;
   it('call-heavy book above, put-heavy below: walls and positive regime', () => {
     const g = computeGex(chain(S, 0.2, (k, t) => (t === 'C' ? (k === 725 ? 60000 : 3000) : (k === 675 ? 60000 : 3000))), S, now);
-    expect(g.callWall).toBe(725); expect(g.putWall).toBe(675); expect(g.used).toBeGreaterThan(100);
+    expect(g.callWall).toBe(725); expect(g.putWall).toBe(675); expect(g.callWall!).toBeGreaterThanOrEqual(S); expect(g.putWall!).toBeLessThanOrEqual(S); expect(g.used).toBeGreaterThan(100);
     expect(g.rows.find((r) => r.strike === 725)!.call).toBeGreaterThan(0); expect(g.rows.find((r) => r.strike === 675)!.put).toBeLessThan(0);
     expect(g.pcrOi).toBeGreaterThan(0.9); expect(g.expectedMove!.pct).toBeGreaterThan(0.01);
   });

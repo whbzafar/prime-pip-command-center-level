@@ -93,8 +93,10 @@ export function computeGex(all: Contract[], spot: number, now: number, opts: { m
     if ((a.net <= 0 && b.net > 0) || (a.net >= 0 && b.net < 0)) { const x = a.spot + (b.spot - a.spot) * (0 - a.net) / (b.net - a.net); const d = Math.abs(x - spot); if (d < best) { best = d; flip = x; } }
   }
   const near = rows.filter((r) => Math.abs(r.strike / spot - 1) <= 0.1);
-  const callWall = near.length ? near.reduce((m, r) => (r.call > m.call ? r : m)).strike : null;
-  const putWall = near.length ? near.reduce((m, r) => (r.put < m.put ? r : m)).strike : null;
+  // walls: the heaviest call strike at/above price (where rallies meet supply) and the heaviest put strike at/below price (where dips meet demand)
+  const up = near.filter((r) => r.strike >= spot * 0.9995), dn = near.filter((r) => r.strike <= spot * 1.0005);
+  const callWall = up.length ? up.reduce((m, r) => (r.call > m.call ? r : m)).strike : null;
+  const putWall = dn.length ? dn.reduce((m, r) => (r.put < m.put ? r : m)).strike : null;
   const magnet = near.length ? near.reduce((m, r) => (r.abs > m.abs ? r : m)).strike : null;
   // max pain: strike where holders of options lose the least at expiry (open-interest weighted, all expiries in range)
   let maxPain: number | null = null; let pain = Infinity;

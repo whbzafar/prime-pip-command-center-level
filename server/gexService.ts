@@ -75,9 +75,7 @@ async function build(def: SymbolDef): Promise<GexPayload> {
   const contracts = parseChain(rows); if (contracts.length < 20) throw new Error("The options source returned too few contracts");
   const result = computeGex(contracts, q.price, now);
   if (result.used < 10) throw new Error("Not enough priced contracts to compute gamma");
-  let convert: GexPayload["convert"] = null;
-  if (def.indexSym) { const iq = await quote(def.indexSym, "index"); if (iq) convert = { to: def.indexSym, factor: iq.price / q.price, price: iq.price, via: `${def.indexSym} index level from Nasdaq` }; }
-  else if (def.ref) convert = { to: def.ref, factor: null, price: null, via: "live price from the app feed" };
+  const tgt = def.indexSym || def.ref; const convert: GexPayload["convert"] = tgt ? { to: tgt, factor: null, price: null, via: "live price from the app feed" } : null;
   return { ok: true, symbol: def.sym, name: def.name, note: def.note, spot: q.price, spotAt: q.at, marketOpen: q.open, source: "Nasdaq.com option chain (all US option exchanges, ~15 min delayed)", model: `Black-Scholes gamma, volatility solved from quoted prices, r=${(RATE * 100).toFixed(1)}%, no dividends, next 45 days, strikes within ±18%`, fetchedAt: now, convert, result, read: readout(result) };
 }
 
