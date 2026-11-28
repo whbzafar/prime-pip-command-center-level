@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type MouseEvent } from "react";
-import { createScore, type Score } from "../lib/iqbalScore";
+import { createScore, BEAT, END_AT, type Score } from "../lib/iqbalScore";
 
 /**
  * Opening film (about 11 s): Allama Iqbal's "Sitaron se aage jahan aur bhi hain".
@@ -10,7 +10,7 @@ import { createScore, type Score } from "../lib/iqbalScore";
  * Pure canvas + CSS + Web Audio, so there are no files to download.
  */
 const WORDS = ["ستاروں", "سے", "آگے", "جہاں", "اور", "بھی", "ہیں"]; // read right to left
-const BURST = 6900, ENDED = 10650;
+const BURST = 6900, ENDED = Math.round(END_AT * 1000) + 420, BEATMS = BEAT * 1000;
 
 export default function IqbalSplash({ onDone, ready }: { onDone?: () => void; ready?: boolean }) {
   const ref = useRef<HTMLCanvasElement>(null);
@@ -145,7 +145,8 @@ export default function IqbalSplash({ onDone, ready }: { onDone?: () => void; re
       const rise = sm(BURST, 10300, t), reveal = sm(BURST, 9000, t);
       px += (tx - px) * 0.05; py += (ty - py) * 0.05;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      const shake = w > 0.3 ? (w - 0.3) * 2.6 : 0; ctx.translate((Math.random() - 0.5) * shake - px * 8, (Math.random() - 0.5) * shake - py * 8);
+      const bp = t > BURST && t < ENDED - 380 ? (t - BURST) / BEATMS : -1, kick = bp >= 0 ? Math.exp(-(bp % 1) * 5.5) : 0, preKick = t > 2600 && t < BURST ? Math.exp(-(((t - 2600) / (480 - 260 * sm(2600, BURST, t))) % 1) * 5) * (0.25 + w) : 0;
+      const shake = (w > 0.3 ? (w - 0.3) * 2.6 : 0) + kick * 3.2 + preKick * 1.6; ctx.translate((Math.random() - 0.5) * shake - px * 8, (Math.random() - 0.5) * shake - py * 8);
       const bg = ctx.createLinearGradient(0, 0, 0, H); bg.addColorStop(0, "#02030a"); bg.addColorStop(0.55, "#070a1c"); bg.addColorStop(1, "#0b0620"); ctx.fillStyle = bg; ctx.fillRect(-20, -20, W + 40, H + 40);
       const dx = Math.sin(t * 0.00012) * 18, dy = Math.cos(t * 0.00009) * 12; ctx.globalCompositeOperation = "lighter";
       nebula(W * 0.2 + dx, H * 0.28 + dy, Math.max(W, H) * 0.5, 262, 0.2); nebula(W * 0.85 - dx, H * 0.7 - dy, Math.max(W, H) * 0.55, 322, 0.14); nebula(W * 0.55 + dy, H * 0.12, Math.max(W, H) * 0.4, 196, 0.12);
@@ -180,8 +181,8 @@ export default function IqbalSplash({ onDone, ready }: { onDone?: () => void; re
       ctx.globalCompositeOperation = "source-over";
 
       // the climb turns violent: novas burst, rocks shatter into shards, and a black hole opens where the stars converge
-      if (!still && t > nextNova && t < BURST - 150) {
-        nextNova = t + rnd(520, 900) * (1 - w * 0.55); const nx = rnd(W * 0.12, W * 0.88), ny = rnd(H * 0.12, H * 0.78), nh = [200, 30, 320, 55][Math.floor(Math.random() * 4)];
+      if (!still && t > nextNova && t < ENDED - 1100 && !(t >= BURST - 150 && t < BURST + 250)) {
+        nextNova = t + rnd(520, 900) * (1 - w * 0.55) * (t > BURST ? 0.8 : 1); const nx = rnd(W * 0.12, W * 0.88), ny = rnd(H * 0.12, H * 0.78), nh = [200, 30, 320, 55][Math.floor(Math.random() * 4)];
         shards.push({ x: nx, y: ny, vx: 0, vy: 0, a: 0, va: 0, s: M * rnd(0.05, 0.1), h: nh, life: 0.7, max: 0.7, spark: false });
         for (let i = 0; i < 26; i++) { const an = rnd(0, 6.283), v = rnd(80, 420) * (0.8 + w); shards.push({ x: nx, y: ny, vx: Math.cos(an) * v, vy: Math.sin(an) * v, a: rnd(0, 6.283), va: rnd(-9, 9), s: i < 16 ? rnd(2, 5) : rnd(5, 11), h: nh + rnd(-14, 14), life: rnd(0.6, 1.3), max: 1.3, spark: i < 16 }); }
       }
@@ -204,7 +205,7 @@ export default function IqbalSplash({ onDone, ready }: { onDone?: () => void; re
 
       // the new world comes over the horizon
       const portrait = W < 700, R = portrait ? W * 0.95 : M * 0.54, wx = W * (portrait ? 0.7 : 0.74), wy = H * (portrait ? 1.2 : 1.14) + (1 - rise) * R * 1.3;
-      if (rise > 0.001) world(wx, wy, R, t, sm(BURST, BURST + 1400, t) * (1 - 0.5 * sm(9600, 10200, t)) * (0.92 + 0.08 * Math.sin(t * 0.004)));
+      if (rise > 0.001) world(wx, wy, R, t, sm(BURST, BURST + 1400, t) * (1 - 0.5 * sm(9600, 10200, t)) * (0.92 + 0.08 * Math.sin(t * 0.004) + kick * 0.3));
       if (t > BURST) { // shockwave from the burst, then slow discovery pulses
         ctx.globalCompositeOperation = "lighter"; const sw = sm(BURST, BURST + 1500, t); if (sw < 1) { ctx.strokeStyle = `rgba(210,235,255,${0.7 * (1 - sw)})`; ctx.lineWidth = 3 + (1 - sw) * 6; ctx.beginPath(); ctx.arc(cx, cy, sw * Math.max(W, H) * 0.8, 0, 6.283); ctx.stroke(); }
         if (t > 8300) for (let i = 0; i < 3; i++) { const q = t - 8300 - i * 900; if (q < 0) continue; const ph = (q % 2700) / 2700; ctx.strokeStyle = `rgba(140,235,255,${0.45 * (1 - ph)})`; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(wx - R * 0.45, wy - R * 0.9, ph * M * 0.7, 0, 6.283); ctx.stroke(); }
@@ -212,9 +213,11 @@ export default function IqbalSplash({ onDone, ready }: { onDone?: () => void; re
       }
       astronaut(W * (portrait ? 0.2 : 0.17), H * (portrait ? 0.8 : 0.64), M * 0.034, t, w * 2.4);
       const vg = ctx.createRadialGradient(W / 2, H / 2, M * 0.35, W / 2, H / 2, Math.max(W, H) * 0.78); vg.addColorStop(0, "rgba(2,3,10,0)"); vg.addColorStop(1, `rgba(2,3,10,${0.7 - w * 0.2})`); ctx.fillStyle = vg; ctx.fillRect(-20, -20, W + 40, H + 40);
+      if (kick > 0.02 && !still) { ctx.fillStyle = `rgba(160,215,255,${0.1 * kick})`; ctx.fillRect(-20, -20, W + 40, H + 40); }
       // the burst of light, then it settles
       const fl = t < BURST - 120 ? 0 : t < BURST + 180 ? sm(BURST - 120, BURST + 60, t) : 1 - sm(BURST + 180, BURST + 1300, t);
-      if (fl > 0.01 && !still) { ctx.fillStyle = `rgba(225,238,255,${0.85 * fl})`; ctx.fillRect(-20, -20, W + 40, H + 40); }
+      const endHit = t > END_AT * 1000 - 40 ? 1 - sm(END_AT * 1000 - 40, END_AT * 1000 + 380, t) : 0;
+      if ((fl > 0.01 || endHit > 0.01) && !still) { ctx.fillStyle = `rgba(225,238,255,${0.85 * Math.max(fl, endHit)})`; ctx.fillRect(-20, -20, W + 40, H + 40); }
       if (!still) raf = requestAnimationFrame(frame);
     };
 
@@ -277,13 +280,13 @@ const CSS = `
 .iq-dot{width:6px;height:6px;border-radius:50%;background:#f5d98a;box-shadow:0 0 12px #f5d98a;animation:iqPulse 1.2s ease-in-out infinite}
 .iq-mute{position:absolute;top:max(16px,env(safe-area-inset-top));right:16px;width:38px;height:38px;border-radius:50%;border:1px solid rgba(200,214,255,.28);background:rgba(8,12,30,.5);color:#dbe6ff;display:flex;align-items:center;justify-content:center;cursor:pointer;backdrop-filter:blur(6px)}
 .iq-mute:hover{border-color:rgba(245,217,138,.7);color:#f5d98a}
-.iq-flash{position:absolute;inset:0;background:radial-gradient(circle at 50% 50%,#fff 0,#dff0ff 40%,rgba(255,255,255,0) 100%);opacity:0;pointer-events:none;animation:iqFlash 11s linear both}
+.iq-flash{position:absolute;inset:0;background:radial-gradient(circle at 50% 50%,#fff 0,#dff0ff 40%,rgba(255,255,255,0) 100%);opacity:0;pointer-events:none;animation:iqFlash 13.3s linear both}
 @keyframes iqIn{from{opacity:0;transform:scale(1.04)}to{opacity:1;transform:scale(1)}}
 @keyframes iqUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
 @keyframes iqWord{0%{opacity:0;transform:translateY(18px) scale(.96);filter:blur(10px)}100%{opacity:1;transform:none;filter:blur(0)}}
 @keyframes iqPulse{0%,100%{opacity:.35;transform:scale(.8)}50%{opacity:1;transform:scale(1.15)}}
 @keyframes iqRing{0%,100%{opacity:.35;transform:scale(.96)}50%{opacity:1;transform:scale(1.04)}}
-@keyframes iqFlash{0%,93%{opacity:0}94%{opacity:.85}100%{opacity:0}}
+@keyframes iqFlash{0%,93.4%{opacity:0}93.8%{opacity:.7}97%{opacity:0}100%{opacity:0}}
 @media (max-width:700px){.iq-roman{font-size:13px;letter-spacing:.08em}.iq-content{padding-bottom:20vh}.iq-urdu{font-size:clamp(34px,10.5vw,52px);line-height:2.1}.iq-line{display:flex;justify-content:center;gap:0 .3em;width:100%}}
 @media (prefers-reduced-motion:reduce){.iq-canvas,.iq-kicker,.iq-word,.iq-rule,.iq-roman,.iq-en,.iq-by{animation-duration:.01s!important;animation-delay:0s!important}.iq-flash{display:none}}
 `;
