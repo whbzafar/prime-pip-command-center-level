@@ -13,7 +13,7 @@ export const BEAT = 0.697; // seconds per beat of the track (about 86 bpm), coun
 let themeP: Promise<AudioBuffer | null> | null = null;
 const loadTheme = () => (themeP ||= (async () => {
   try {
-    const r = await fetch("/iqbal-theme.mp3"); if (!r.ok) return null;
+    const r = await fetch("/iqbal-theme-v2.mp3"); if (!r.ok) return null;
     const OAC: typeof OfflineAudioContext | undefined = window.OfflineAudioContext || (window as any).webkitOfflineAudioContext; if (!OAC) return null;
     return await new OAC(2, 44100, 44100).decodeAudioData(await r.arrayBuffer());
   } catch { return null; }
