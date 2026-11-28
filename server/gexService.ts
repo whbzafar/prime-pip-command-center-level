@@ -6,7 +6,7 @@ import { computeGex, mergeGex, readout, RATE, type Contract, type GexResult } fr
    - Yahoo Finance option chain: the real index options (SPX, NDX, RUT) that professionals watch, also delayed.
    Nothing is simulated. When a source cannot be reached the API says so (or shows the last real reading marked stale). */
 
-type Provider = "nasdaq" | "yahoo";
+type Provider = "nasdaq" | "yahoo" | "cboe";
 export interface SymbolDef {
   sym: string; name: string; group: "Indices" | "ETFs" | "Gold & Silver" | "Stocks"; note: string;
   /** primary source and the symbol to ask it for */ src: Provider; q: string; cls?: "etf" | "stocks";
@@ -14,11 +14,12 @@ export interface SymbolDef {
   /** live price symbol in the app feed that the levels convert to (ETF -> index / spot metal); absent when levels are already in market units */ feed?: string;
   /** several chains merged into one picture (base is the first) */ parts?: string[];
   /** true when the chain is in the same units as the feed (real index options) */ native?: boolean;
+  /** Cboe delayed-quotes symbol for the same index, tried when Yahoo does not answer */ cboe?: string;
 }
 export const SYMBOLS: SymbolDef[] = [
-  { sym: "SPX", name: "S&P 500 index", group: "Indices", src: "yahoo", q: "^SPX", fallback: "SPY", feed: "SPX", native: true, note: "The real SPX index options, the benchmark market. Levels are in index points." },
-  { sym: "NDX", name: "NASDAQ-100 index", group: "Indices", src: "yahoo", q: "^NDX", fallback: "QQQ", feed: "NDX", native: true, note: "The real NDX index options. Levels are in index points (NAS100 / US100 on most brokers)." },
-  { sym: "RUT", name: "Russell 2000 index", group: "Indices", src: "yahoo", q: "^RUT", fallback: "IWM", feed: "RUT", native: true, note: "Small caps, real index options." },
+  { sym: "SPX", name: "S&P 500 index", group: "Indices", src: "yahoo", q: "^SPX", cboe: "_SPX", fallback: "SPY", feed: "SPX", native: true, note: "The real SPX index options, the benchmark market. Levels are in index points." },
+  { sym: "NDX", name: "NASDAQ-100 index", group: "Indices", src: "yahoo", q: "^NDX", cboe: "_NDX", fallback: "QQQ", feed: "NDX", native: true, note: "The real NDX index options. Levels are in index points (NAS100 / US100 on most brokers)." },
+  { sym: "RUT", name: "Russell 2000 index", group: "Indices", src: "yahoo", q: "^RUT", cboe: "_RUT", fallback: "IWM", feed: "RUT", native: true, note: "Small caps, real index options." },
   { sym: "GOLD", name: "Gold (all gold ETFs)", group: "Gold & Silver", src: "nasdaq", q: "GLD", cls: "etf", parts: ["GLD", "IAU"], feed: "XAUUSD", note: "GLD and IAU options combined, converted to XAUUSD with the live gold price. The broadest free view of gold options positioning." },
   { sym: "GLD", name: "Gold · GLD", group: "Gold & Silver", src: "nasdaq", q: "GLD", cls: "etf", feed: "XAUUSD", note: "The largest gold ETF options market, converted to XAUUSD." },
   { sym: "IAU", name: "Gold · IAU", group: "Gold & Silver", src: "nasdaq", q: "IAU", cls: "etf", feed: "XAUUSD", note: "Second gold ETF, converted to XAUUSD." },
@@ -79,6 +80,16 @@ export function parseYahoo(list: any[], type: "C" | "P"): Contract[] {
   return out;
 }
 
+/** Cboe's delayed option list: one object per contract, the symbol carries root, expiry (YYMMDD), call/put and strike x 1000. */
+export function parseCboe(list: any[]): Contract[] {
+  const out: Contract[] = [];
+  for (const o of list || []) {
+    const m = /^[A-Z]+W?\d?(\d{2})(\d{2})(\d{2})([CP])(\d{8})$/.exec(String(o?.option || "")); if (!m) continue;
+    const oi = num(o.open_interest), strike = Number(m[5]) / 1000; if (!oi || !strike) continue;
+    out.push({ exp: closeOf(2000 + Number(m[1]), Number(m[2]) - 1, Number(m[3])), strike, type: m[4] as "C" | "P", oi, bid: num(o.bid), ask: num(o.ask), last: num(o.last_trade_price), volume: num(o.volume) });
+  }
+  return out;
+}
 async function getJson(url: string, headers: Record<string, string>, ms = 25_000): Promise<any> {
   const r = await fetch(url, { headers, signal: AbortSignal.timeout(ms) });
   if (!r.ok) throw new Error(`${new URL(url).hostname} answered ${r.status}`);
@@ -96,11 +107,10 @@ async function nasdaqQuote(sym: string, cls: string): Promise<{ price: number; a
 async function nasdaqChain(sym: string, cls: "etf" | "stocks", now: number): Promise<{ spot: number; at: string; open: boolean; contracts: Contract[] }> {
   const q = await nasdaqQuote(sym, cls); if (!q) throw new Error("Could not read the latest price from the options source");
   const from = isoDay(now - DAY), to = isoDay(now + WINDOW_DAYS * DAY); const rows: any[] = [];
-  for (let off = 0; off < 6000; off += 1500) {
-    const j = await getJson(`https://api.nasdaq.com/api/quote/${sym}/option-chain?assetclass=${cls}&limit=1500&offset=${off}&fromdate=${from}&todate=${to}&callput=callput&money=all&type=all`, NASDAQ_HEAD);
-    const page = j?.data?.table?.rows; if (!Array.isArray(page) || !page.length) break; rows.push(...page);
-    if (off + 1500 >= (Number(j?.data?.totalRecord) || 0)) break;
-  }
+  const url = (off: number) => `https://api.nasdaq.com/api/quote/${sym}/option-chain?assetclass=${cls}&limit=1500&offset=${off}&fromdate=${from}&todate=${to}&callput=callput&money=all&type=all`;
+  const first = await getJson(url(0), NASDAQ_HEAD); rows.push(...(first?.data?.table?.rows || []));
+  const total = Number(first?.data?.totalRecord) || 0; const offs: number[] = []; for (let o = 1500; o < Math.min(total, 6000); o += 1500) offs.push(o);
+  const rest = await Promise.all(offs.map((o) => getJson(url(o), NASDAQ_HEAD).catch(() => null))); for (const j of rest) rows.push(...(j?.data?.table?.rows || []));
   return { spot: q.price, at: q.at, open: q.open, contracts: parseChain(rows) };
 }
 
@@ -134,12 +144,19 @@ async function yahooChain(sym: string, now: number): Promise<{ spot: number; at:
   return { spot, at: t ? new Date(t * 1000).toISOString() : "", open: state === "REGULAR", contracts };
 }
 
+async function cboeChain(sym: string, now: number): Promise<{ spot: number; at: string; open: boolean; contracts: Contract[] }> {
+  const j = await getJson(`https://cdn.cboe.com/api/global/delayed_quotes/options/${sym}.json`, { "User-Agent": UA, Accept: "application/json", Origin: "https://www.cboe.com", Referer: "https://www.cboe.com/" });
+  const spot = num(j?.data?.current_price); if (!spot) throw new Error("Cboe has no price for this index");
+  const horizon = now + WINDOW_DAYS * DAY; const contracts = parseCboe(j?.data?.options).filter((c) => c.exp >= now - DAY && c.exp <= horizon);
+  return { spot, at: String(j?.data?.last_trade_time || j?.timestamp || ""), open: usMarketOpen(now), contracts };
+}
+
 export interface GexPayload {
-  ok: true; symbol: string; name: string; note: string; group: string; spot: number; spotAt: string; marketOpen: boolean; source: string; model: string; fetchedAt: number; stale?: boolean; usedFallback?: string;
+  ok: true; symbol: string; name: string; note: string; group: string; spot: number; spotAt: string; marketOpen: boolean; source: string; model: string; fetchedAt: number; stale?: boolean; usedFallback?: string; sourceNote?: string;
   /** feed symbol the levels convert to (null when the chain is already in market units) */ convert: { to: string } | null; parts?: { sym: string; spot: number }[]; result: GexResult; read: ReturnType<typeof readout>;
 }
 
-async function chainFor(src: Provider, q: string, cls: "etf" | "stocks", now: number) { return src === "yahoo" ? yahooChain(q, now) : nasdaqChain(q, cls, now); }
+async function chainFor(src: Provider, q: string, cls: "etf" | "stocks", now: number) { return src === "yahoo" ? yahooChain(q, now) : src === "cboe" ? cboeChain(q, now) : nasdaqChain(q, cls, now); }
 const clsOf = (s: string): "etf" | "stocks" => (ETF_SET.has(s) ? "etf" : "stocks");
 
 async function one(src: Provider, q: string, cls: "etf" | "stocks", now: number): Promise<{ res: GexResult; spot: number; at: string; open: boolean }> {
@@ -150,7 +167,7 @@ async function one(src: Provider, q: string, cls: "etf" | "stocks", now: number)
 
 async function build(def: SymbolDef): Promise<GexPayload> {
   const now = Date.now(); let usedFallback: string | undefined;
-  const label = (s: Provider) => (s === "yahoo" ? "Yahoo Finance option chain" : "Nasdaq.com option chain (all US option exchanges)");
+  const label = (s: Provider) => (s === "yahoo" ? "Yahoo Finance option chain" : s === "cboe" ? "Cboe delayed option chain" : "Nasdaq.com option chain (all US option exchanges)");
   const model = `Black-Scholes gamma, volatility solved from quoted prices, r=${(RATE * 100).toFixed(1)}%, no dividends, next ${WINDOW_DAYS} days, strikes within ±18%`;
   if (def.parts) {
     const got = await Promise.allSettled(def.parts.map((p) => one("nasdaq", p, "etf", now)));
@@ -159,11 +176,14 @@ async function build(def: SymbolDef): Promise<GexPayload> {
     const base = ok[0]; const merged = ok.length > 1 ? mergeGex(ok.map((o) => o.res), base.spot) : base.res;
     return { ok: true, symbol: def.sym, name: def.name, note: def.note, group: def.group, spot: base.spot, spotAt: base.at, marketOpen: base.open, source: `${label("nasdaq")}: ${ok.map((o) => o.sym).join(" + ")}`, model, fetchedAt: now, convert: def.feed ? { to: def.feed } : null, parts: ok.map((o) => ({ sym: o.sym, spot: o.spot })), result: merged, read: readout(merged) };
   }
-  let r; try { r = await one(def.src, def.q, def.cls || clsOf(def.q), now); }
-  catch (e) { if (!def.fallback || def.fallback === def.q) throw e; r = await one("nasdaq", def.fallback, clsOf(def.fallback), now); usedFallback = def.fallback; }
-  const src: Provider = usedFallback ? "nasdaq" : def.src;
+  let r: Awaited<ReturnType<typeof one>> | undefined; let src: Provider = def.src; const notes: string[] = [];
+  const attempts: { src: Provider; q: string; cls: "etf" | "stocks"; fb?: boolean }[] = [{ src: def.src, q: def.q, cls: def.cls || clsOf(def.q) }];
+  if (def.cboe) attempts.push({ src: "cboe", q: def.cboe, cls: "etf" });
+  if (def.fallback && def.fallback !== def.q) attempts.push({ src: "nasdaq", q: def.fallback, cls: clsOf(def.fallback), fb: true });
+  for (const a of attempts) { try { r = await one(a.src, a.q, a.cls, now); src = a.src; if (a.fb) usedFallback = a.q; break; } catch (e: any) { notes.push(`${a.src}: ${String(e?.message || e).slice(0, 90)}`); } }
+  if (!r) throw new Error(notes.join(" | ") || "Options source unavailable");
   const native = !!def.native && !usedFallback;
-  return { ok: true, symbol: def.sym, name: usedFallback ? `${def.name} (via ${usedFallback})` : def.name, note: usedFallback ? `${def.note} The index options source did not answer, so this uses ${usedFallback}, which tracks it.` : def.note, group: def.group, spot: r.spot, spotAt: r.at, marketOpen: r.open, source: label(src), model, fetchedAt: now, usedFallback, convert: def.feed && !native ? { to: def.feed } : null, result: r.res, read: readout(r.res) };
+  return { ok: true, symbol: def.sym, name: usedFallback ? `${def.name} (via ${usedFallback})` : def.name, note: usedFallback ? `${def.note} The index options source did not answer, so this uses ${usedFallback}, which tracks it.` : def.note, group: def.group, spot: r.spot, spotAt: r.at, marketOpen: r.open, source: label(src), model, fetchedAt: now, usedFallback, sourceNote: usedFallback ? notes.join(" | ") : undefined, convert: def.feed && !native ? { to: def.feed } : null, result: r.res, read: readout(r.res) };
 }
 
 /** Fresh for 2 minutes while the US market trades, 20 minutes otherwise (the numbers cannot change when it is closed). */

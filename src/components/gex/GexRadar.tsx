@@ -10,7 +10,7 @@ interface Res {
   rows: Row[]; profile: { spot: number; net: number }[]; callWall: number | null; putWall: number | null; flip: number | null; magnet: number | null; maxPain: number | null;
   pcrOi: number; callOi: number; putOi: number; expectedMove: { pct: number; abs: number; dte: number } | null; nearTermShare: number; regime: 'positive' | 'negative' | 'neutral'; ivAtm: number | null;
 }
-interface Payload { ok: true; symbol: string; name: string; note: string; group: string; spot: number; spotAt: string; marketOpen: boolean; source: string; model: string; fetchedAt: number; stale?: boolean; usedFallback?: string; convert: { to: string } | null; parts?: { sym: string; spot: number }[]; result: Res; read: { headline: string; bias: string; lines: string[] } }
+interface Payload { ok: true; symbol: string; name: string; note: string; group: string; spot: number; spotAt: string; marketOpen: boolean; source: string; model: string; fetchedAt: number; stale?: boolean; usedFallback?: string; sourceNote?: string; convert: { to: string } | null; parts?: { sym: string; spot: number }[]; result: Res; read: { headline: string; bias: string; lines: string[] } }
 interface SymInfo { sym: string; name: string; group?: string; feed?: string; native?: boolean; note: string }
 
 const FALLBACK: SymInfo[] = [{ sym: 'SPX', name: 'S&P 500 index', group: 'Indices', feed: 'SPX', native: true, note: '' }, { sym: 'NDX', name: 'NASDAQ-100 index', group: 'Indices', feed: 'NDX', native: true, note: '' }, { sym: 'GOLD', name: 'Gold (all gold ETFs)', group: 'Gold & Silver', feed: 'XAUUSD', note: '' }];
@@ -232,7 +232,7 @@ const GexRadar: React.FC = () => {
 };
 
 /** Says nothing; exists so a fallback-sourced reading is announced right under the header. */
-function factors(d: Payload) { return d.usedFallback ? <div className="rounded-2xl border border-sky-500/30 bg-sky-500/10 px-4 py-2 text-xs text-sky-200">The index options source did not answer just now, so this view uses {d.usedFallback}, which tracks the same market. It switches back automatically.</div> : null; }
+function factors(d: Payload) { return d.usedFallback ? <div className="rounded-2xl border border-sky-500/30 bg-sky-500/10 px-4 py-2 text-xs text-sky-200">The index options source did not answer just now, so this view uses {d.usedFallback}, which tracks the same market. It switches back automatically.{d.sourceNote ? <span className="block text-sky-300/60 mt-0.5">Why: {d.sourceNote}</span> : null}</div> : null; }
 
 /** The server writes levels in the chain's own units; convert the numbers inside a sentence to market units when needed. */
 function convertLine(line: string, d: Payload, shown: (v: number | null) => number | null): string {

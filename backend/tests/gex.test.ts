@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { bsPrice, bsGamma, impliedVol, computeGex, mergeGex, readout, type Contract } from '../../server/gexEngine';
-import { parseChain, parseYahoo, closeOf, usMarketOpen, SYMBOLS } from '../../server/gexService';
+import { parseChain, parseYahoo, parseCboe, closeOf, usMarketOpen, SYMBOLS } from '../../server/gexService';
 
 const now = Date.UTC(2026, 10, 27, 15, 0, 0); const day = 86400_000;
 function chain(S: number, iv: number, oiFn: (k: number, t: 'C' | 'P') => number, days = [2, 9, 30]): Contract[] {
@@ -79,4 +79,11 @@ describe('Yahoo parser, market clock, composites', () => {
     expect(m.profile.length).toBe(a.profile.length); expect(m.used).toBe(a.used + b.used);
   });
   it('every symbol with a feed or fallback is well formed', () => { for (const s of SYMBOLS) { expect(s.sym).toMatch(/^[A-Z]{1,5}$/); expect(['yahoo', 'nasdaq']).toContain(s.src); if (s.native) expect(s.src).toBe('yahoo'); } });
+});
+
+describe('Cboe parser', () => {
+  it('reads root, expiry, call/put and strike from the option symbol', () => {
+    const c = parseCboe([{ option: 'SPXW261218C07300000', bid: 1, ask: 1.2, open_interest: 500, last_trade_price: 1.1, volume: 3 }, { option: 'SPX261218P06800000', bid: 4, ask: 4.5, open_interest: 90 }, { option: 'SPX261218P06800000', open_interest: 0 }, { option: 'garbage', open_interest: 9 }]);
+    expect(c.length).toBe(2); expect(c[0]).toMatchObject({ strike: 7300, type: 'C', oi: 500 }); expect(c[0].exp).toBe(closeOf(2026, 11, 18)); expect(c[1]).toMatchObject({ strike: 6800, type: 'P' });
+  });
 });
